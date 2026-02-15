@@ -101,3 +101,171 @@
 #====================================================================================================
 # Testing Data - Main Agent and testing sub agent both should log testing data below this section
 #====================================================================================================
+
+user_problem_statement: "App de lista de compra Mercadona con presupuesto, recetas, favoritos y selección de código postal"
+
+backend:
+  - task: "Mercadona Categories API Proxy"
+    implemented: true
+    working: true
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: true
+        agent: "main"
+        comment: "API proxy funciona correctamente. Obtiene 26 categorías de Mercadona"
+
+  - task: "Mercadona Category Products API"
+    implemented: true
+    working: true
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: true
+        agent: "main"
+        comment: "Obtiene productos de subcategorías correctamente. Ej: Fruta tiene 42 productos"
+
+  - task: "Shopping List CRUD"
+    implemented: true
+    working: true
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: true
+        agent: "main"
+        comment: "GET, POST, PUT, DELETE funcionan. Puede añadir, actualizar cantidad y limpiar lista"
+
+  - task: "Favorites CRUD"
+    implemented: true
+    working: true
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: true
+        agent: "main"
+        comment: "GET, POST, DELETE funcionan. Puede añadir y eliminar favoritos"
+
+  - task: "User Settings API"
+    implemented: true
+    working: true
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "medium"
+    needs_retesting: true
+    status_history:
+      - working: true
+        agent: "main"
+        comment: "Gestiona código postal y presupuesto por dispositivo"
+
+  - task: "Recipes CRUD"
+    implemented: true
+    working: NA
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "medium"
+    needs_retesting: true
+    status_history:
+      - working: NA
+        agent: "main"
+        comment: "Implementado pero no probado aún. Frontend muestra 'Próximamente'"
+
+frontend:
+  - task: "Categories Navigation"
+    implemented: true
+    working: true
+    file: "/app/frontend/app/index.tsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "main"
+        comment: "Muestra categorías y permite navegar subcategorías"
+
+  - task: "Products Display"
+    implemented: true
+    working: true
+    file: "/app/frontend/app/index.tsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "main"
+        comment: "Muestra productos con imagen, precio y botón añadir"
+
+  - task: "Shopping List UI"
+    implemented: true
+    working: true
+    file: "/app/frontend/app/index.tsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "main"
+        comment: "Lista de compra con control de cantidad, total y presupuesto"
+
+  - task: "Favorites UI"
+    implemented: true
+    working: true
+    file: "/app/frontend/app/index.tsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "main"
+        comment: "Vista de favoritos con corazón para toggle"
+
+  - task: "Postal Code Selector"
+    implemented: true
+    working: true
+    file: "/app/frontend/app/index.tsx"
+    stuck_count: 0
+    priority: "medium"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "main"
+        comment: "Modal para cambiar código postal"
+
+  - task: "Budget Control"
+    implemented: true
+    working: true
+    file: "/app/frontend/app/index.tsx"
+    stuck_count: 0
+    priority: "medium"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "main"
+        comment: "Barra de progreso y modal para establecer presupuesto"
+
+metadata:
+  created_by: "main_agent"
+  version: "1.0"
+  test_sequence: 1
+  run_ui: false
+
+test_plan:
+  current_focus:
+    - "Mercadona Categories API Proxy"
+    - "Mercadona Category Products API"
+    - "Shopping List CRUD"
+    - "Favorites CRUD"
+  stuck_tasks: []
+  test_all: false
+  test_priority: "high_first"
+
+agent_communication:
+  - agent: "main"
+    message: "MVP implementado con conexión a API de Mercadona. Backend proxy funciona, permite navegar categorías, ver productos, añadir a lista de compra y favoritos. Control de presupuesto implementado. Recetas en desarrollo (próximamente)."
