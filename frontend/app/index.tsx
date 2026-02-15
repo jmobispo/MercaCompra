@@ -129,9 +129,23 @@ export default function Index() {
       if (response.ok) {
         const data = await response.json();
         if (data.categories && data.categories.length > 0) {
-          // Has subcategories
-          setProducts([]);
-          setSelectedCategory(data);
+          // Has subcategories - check if they have products inside
+          const allProducts: Product[] = [];
+          data.categories.forEach((subcat: any) => {
+            if (subcat.products && subcat.products.length > 0) {
+              allProducts.push(...subcat.products);
+            }
+          });
+          
+          if (allProducts.length > 0) {
+            // Subcategories have products directly
+            setProducts(allProducts);
+            setSelectedCategory(data);
+          } else {
+            // Need to navigate deeper
+            setProducts([]);
+            setSelectedCategory(data);
+          }
         } else if (data.products) {
           // Has products directly
           setProducts(data.products || []);
