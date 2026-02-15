@@ -328,11 +328,30 @@ export default function Index() {
   };
 
   const navigateToCategory = (category: Category) => {
-    setCategoryPath([...categoryPath, category]);
-    if (category.categories && category.categories.length > 0) {
+    const newPath = [...categoryPath, category];
+    setCategoryPath(newPath);
+    
+    // Check if the category already has products embedded
+    if ((category as any).products && (category as any).products.length > 0) {
+      setProducts((category as any).products);
       setSelectedCategory(category);
-      setProducts([]);
+    } else if (category.categories && category.categories.length > 0) {
+      // Has subcategories - check if they have products
+      const allProducts: Product[] = [];
+      category.categories.forEach((subcat: any) => {
+        if (subcat.products && subcat.products.length > 0) {
+          allProducts.push(...subcat.products);
+        }
+      });
+      
+      if (allProducts.length > 0) {
+        setProducts(allProducts);
+      } else {
+        setProducts([]);
+      }
+      setSelectedCategory(category);
     } else {
+      // Need to load products from API
       loadCategoryProducts(category.id);
     }
   };
