@@ -320,11 +320,12 @@ export default function Index() {
   };
 
   const getProductPrice = (product: Product): number => {
-    return (
+    const price = 
       product.price_instructions?.unit_price ||
       product.price_instructions?.bulk_price ||
-      0
-    );
+      0;
+    // Convert string prices to numbers (Mercadona API returns strings)
+    return typeof price === 'string' ? parseFloat(price) || 0 : (price || 0);
   };
 
   const getProductImage = (product: Product): string | null => {
