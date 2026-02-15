@@ -271,15 +271,11 @@ frontend:
 metadata:
   created_by: "main_agent"
   version: "1.0"
-  test_sequence: 1
+  test_sequence: 2
   run_ui: false
 
 test_plan:
-  current_focus:
-    - "Mercadona Categories API Proxy"
-    - "Mercadona Category Products API"
-    - "Shopping List CRUD"
-    - "Favorites CRUD"
+  current_focus: []
   stuck_tasks: []
   test_all: false
   test_priority: "high_first"
@@ -287,3 +283,5 @@ test_plan:
 agent_communication:
   - agent: "main"
     message: "MVP implementado con conexión a API de Mercadona. Backend proxy funciona, permite navegar categorías, ver productos, añadir a lista de compra y favoritos. Control de presupuesto implementado. Recetas en desarrollo (próximamente)."
+  - agent: "testing"
+    message: "✅ BACKEND TESTING COMPLETE: All 6 backend tasks tested successfully (7/7 test cases passed). Health check working, Mercadona API proxy functioning correctly (26 categories, 42 products in Fruta), Shopping list CRUD operations complete, Favorites CRUD working, User settings with warehouse auto-assignment functional, Recipes CRUD basics implemented. Minor issue: Some category IDs (18, 15) return 404 from external Mercadona API - this is NOT a backend issue but Mercadona's API limitation. Backend properly handles these errors with 502 responses. All core functionality verified with comprehensive automated tests."
