@@ -126,11 +126,14 @@ backend:
     file: "/app/backend/server.py"
     stuck_count: 0
     priority: "high"
-    needs_retesting: true
+    needs_retesting: false
     status_history:
       - working: true
         agent: "main"
         comment: "Obtiene productos de subcategorías correctamente. Ej: Fruta tiene 42 productos"
+      - working: true
+        agent: "testing"
+        comment: "✅ TESTED SUCCESSFULLY: Category products API working - Fruta category returns 42 products as expected. GET /api/mercadona/categories/{id} working correctly"
 
   - task: "Shopping List CRUD"
     implemented: true
@@ -138,11 +141,14 @@ backend:
     file: "/app/backend/server.py"
     stuck_count: 0
     priority: "high"
-    needs_retesting: true
+    needs_retesting: false
     status_history:
       - working: true
         agent: "main"
         comment: "GET, POST, PUT, DELETE funcionan. Puede añadir, actualizar cantidad y limpiar lista"
+      - working: true
+        agent: "testing"
+        comment: "✅ TESTED SUCCESSFULLY: All shopping list operations working - GET (create/retrieve), POST (add products), PUT (update quantity/budget), DELETE (clear list). Tested with real product data including quantity updates and budget management"
 
   - task: "Favorites CRUD"
     implemented: true
@@ -150,11 +156,14 @@ backend:
     file: "/app/backend/server.py"
     stuck_count: 0
     priority: "high"
-    needs_retesting: true
+    needs_retesting: false
     status_history:
       - working: true
         agent: "main"
         comment: "GET, POST, DELETE funcionan. Puede añadir y eliminar favoritos"
+      - working: true
+        agent: "testing"
+        comment: "✅ TESTED SUCCESSFULLY: All favorites operations working - GET (retrieve favorites), POST (add favorite with product data), DELETE (remove specific favorite). Verified with real product data and proper cleanup"
 
   - task: "User Settings API"
     implemented: true
@@ -162,23 +171,29 @@ backend:
     file: "/app/backend/server.py"
     stuck_count: 0
     priority: "medium"
-    needs_retesting: true
+    needs_retesting: false
     status_history:
       - working: true
         agent: "main"
         comment: "Gestiona código postal y presupuesto por dispositivo"
+      - working: true
+        agent: "testing"
+        comment: "✅ TESTED SUCCESSFULLY: User settings working - GET (auto-create if not exists), PUT (update postal code and budget with automatic warehouse assignment). Verified warehouse auto-assignment from postal code (08001 -> bcn1)"
 
   - task: "Recipes CRUD"
     implemented: true
-    working: NA
+    working: true
     file: "/app/backend/server.py"
     stuck_count: 0
     priority: "medium"
-    needs_retesting: true
+    needs_retesting: false
     status_history:
       - working: NA
         agent: "main"
         comment: "Implementado pero no probado aún. Frontend muestra 'Próximamente'"
+      - working: true
+        agent: "testing"
+        comment: "✅ TESTED SUCCESSFULLY: Basic recipes CRUD working - GET (list recipes), POST (create recipe), GET specific recipe by ID, DELETE recipe. All operations tested with proper device_id validation and data persistence"
 
 frontend:
   - task: "Categories Navigation"
