@@ -87,7 +87,18 @@ export default function Index() {
       } else if (Platform.OS === 'android') {
         id = Application.getAndroidId() || 'android-default';
       } else {
-        id = 'web-' + Math.random().toString(36).substring(7);
+        // Web - use localStorage to persist device ID
+        if (typeof window !== 'undefined' && window.localStorage) {
+          const storedId = window.localStorage.getItem('mercadona_device_id');
+          if (storedId) {
+            id = storedId;
+          } else {
+            id = 'web-' + Math.random().toString(36).substring(7);
+            window.localStorage.setItem('mercadona_device_id', id);
+          }
+        } else {
+          id = 'web-' + Math.random().toString(36).substring(7);
+        }
       }
       setDeviceId(id);
     };
