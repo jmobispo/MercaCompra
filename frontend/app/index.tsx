@@ -453,7 +453,16 @@ export default function Index() {
             </Text>
           </TouchableOpacity>
 
-          {selectedCategory?.categories &&
+          {products.length > 0 ? (
+            <ScrollView
+              style={styles.productsList}
+              contentContainerStyle={styles.productsGrid}
+            >
+              {products.map((product) => (
+                <ProductCard key={product.id} product={product} />
+              ))}
+            </ScrollView>
+          ) : selectedCategory?.categories &&
           selectedCategory.categories.length > 0 ? (
             <ScrollView style={styles.subcategoriesList}>
               {selectedCategory.categories.map((subcat) => (
@@ -474,14 +483,10 @@ export default function Index() {
               style={styles.loader}
             />
           ) : (
-            <ScrollView
-              style={styles.productsList}
-              contentContainerStyle={styles.productsGrid}
-            >
-              {products.map((product) => (
-                <ProductCard key={product.id} product={product} />
-              ))}
-            </ScrollView>
+            <View style={styles.emptyState}>
+              <Ionicons name="cube-outline" size={64} color="#ccc" />
+              <Text style={styles.emptyStateText}>No hay productos</Text>
+            </View>
           )}
         </View>
       ) : (
