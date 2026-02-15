@@ -111,11 +111,14 @@ backend:
     file: "/app/backend/server.py"
     stuck_count: 0
     priority: "high"
-    needs_retesting: true
+    needs_retesting: false
     status_history:
       - working: true
         agent: "main"
         comment: "API proxy funciona correctamente. Obtiene 26 categorías de Mercadona"
+      - working: true
+        agent: "testing"
+        comment: "✅ TESTED SUCCESSFULLY: Categories API returns 26 categories as expected. GET /api/mercadona/categories working correctly with postal code parameter"
 
   - task: "Mercadona Category Products API"
     implemented: true
