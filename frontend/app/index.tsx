@@ -139,27 +139,33 @@ export default function Index() {
       );
       if (response.ok) {
         const data = await response.json();
+        
+        // Extract all products from subcategories if they exist
+        const allProducts: Product[] = [];
         if (data.categories && data.categories.length > 0) {
-          // Has subcategories - check if they have products inside
-          const allProducts: Product[] = [];
           data.categories.forEach((subcat: any) => {
             if (subcat.products && subcat.products.length > 0) {
               allProducts.push(...subcat.products);
             }
           });
-          
-          if (allProducts.length > 0) {
-            // Subcategories have products directly
-            setProducts(allProducts);
-            setSelectedCategory(data);
-          } else {
-            // Need to navigate deeper
-            setProducts([]);
-            setSelectedCategory(data);
-          }
-        } else if (data.products) {
-          // Has products directly
-          setProducts(data.products || []);
+        }
+        
+        // If we found products in subcategories, show them
+        if (allProducts.length > 0) {
+          setProducts(allProducts);
+          setSelectedCategory(data);
+        } else if (data.products && data.products.length > 0) {
+          // Products directly in this category
+          setProducts(data.products);
+          setSelectedCategory(data);
+        } else if (data.categories && data.categories.length > 0) {
+          // Only subcategories without products - need to navigate deeper
+          setProducts([]);
+          setSelectedCategory(data);
+        } else {
+          // No products or subcategories
+          setProducts([]);
+          setSelectedCategory(data);
         }
       }
     } catch (error) {
