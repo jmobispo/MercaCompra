@@ -58,6 +58,412 @@ interface FavoriteProduct {
   product_data: Product;
 }
 
+interface RecipeIngredient {
+  product_id: string;
+  name: string;
+  quantity: string;
+  product_data: Product;
+}
+
+interface Recipe {
+  id: string;
+  name: string;
+  description: string;
+  servings: number;
+  time: string;
+  difficulty: string;
+  image: string;
+  ingredients: RecipeIngredient[];
+  instructions: string[];
+}
+
+// Recetas precargadas con productos de Mercadona
+const PRELOADED_RECIPES: Recipe[] = [
+  {
+    id: 'macarrones-tomate',
+    name: 'Macarrones con Tomate',
+    description: 'Clásico plato de pasta con salsa de tomate casera',
+    servings: 4,
+    time: '25 min',
+    difficulty: 'Fácil',
+    image: 'https://prod-mercadona.imgix.net/images/d9c4b5c8d6e5f3a2b1c0d9e8f7a6b5c4.jpg?fit=crop&h=300&w=300',
+    ingredients: [
+      {
+        product_id: '6264',
+        name: 'Macarrones',
+        quantity: '500g',
+        product_data: {
+          id: '6264',
+          display_name: 'Pasta macarrón Hacendado',
+          price_instructions: { unit_price: 0.80 },
+          thumbnail: 'https://prod-mercadona.imgix.net/images/67d0e2f86e0f0a8e6c7ad8e5cf254a9d.jpg?fit=crop&h=300&w=300'
+        }
+      },
+      {
+        product_id: '17151',
+        name: 'Tomate frito',
+        quantity: '400g',
+        product_data: {
+          id: '17151',
+          display_name: 'Tomate frito Hacendado',
+          price_instructions: { unit_price: 0.95 },
+          thumbnail: 'https://prod-mercadona.imgix.net/images/55a6b7c8d9e0f1a2b3c4d5e6f7a8b9c0.jpg?fit=crop&h=300&w=300'
+        }
+      },
+      {
+        product_id: '69089',
+        name: 'Cebolla',
+        quantity: '1 unidad',
+        product_data: {
+          id: '69089',
+          display_name: 'Cebollas',
+          price_instructions: { unit_price: 2.40 },
+          thumbnail: 'https://prod-mercadona.imgix.net/images/d950590e426dca5e9531e1ff2809edb4.jpg?fit=crop&h=300&w=300'
+        }
+      },
+      {
+        product_id: '4241',
+        name: 'Aceite de oliva',
+        quantity: '2 cucharadas',
+        product_data: {
+          id: '4241',
+          display_name: 'Aceite de oliva 0,4º Hacendado',
+          price_instructions: { unit_price: 19.75 },
+          thumbnail: 'https://prod-mercadona.imgix.net/images/3b8cde7b3cb069ee0316029012cf8562.jpg?fit=crop&h=300&w=300'
+        }
+      }
+    ],
+    instructions: [
+      'Hervir agua con sal y cocer los macarrones según el paquete',
+      'Picar la cebolla finamente y sofreír en aceite de oliva',
+      'Añadir el tomate frito y cocinar 5 minutos',
+      'Escurrir la pasta y mezclar con la salsa',
+      'Servir caliente con queso rallado opcional'
+    ]
+  },
+  {
+    id: 'albondigas-tomate',
+    name: 'Albóndigas en Salsa',
+    description: 'Jugosas albóndigas de carne en salsa de tomate',
+    servings: 4,
+    time: '45 min',
+    difficulty: 'Media',
+    image: 'https://prod-mercadona.imgix.net/images/3ff4619c75302a2ae20831ae3ffe6c1c.jpg?fit=crop&h=300&w=300',
+    ingredients: [
+      {
+        product_id: '2869',
+        name: 'Carne picada mixta',
+        quantity: '500g',
+        product_data: {
+          id: '2869',
+          display_name: 'Preparado de carne picada vacuno y cerdo',
+          price_instructions: { unit_price: 4.30 },
+          thumbnail: 'https://prod-mercadona.imgix.net/images/3ff4619c75302a2ae20831ae3ffe6c1c.jpg?fit=crop&h=300&w=300'
+        }
+      },
+      {
+        product_id: '17151',
+        name: 'Tomate frito',
+        quantity: '400g',
+        product_data: {
+          id: '17151',
+          display_name: 'Tomate frito Hacendado',
+          price_instructions: { unit_price: 0.95 },
+          thumbnail: 'https://prod-mercadona.imgix.net/images/55a6b7c8d9e0f1a2b3c4d5e6f7a8b9c0.jpg?fit=crop&h=300&w=300'
+        }
+      },
+      {
+        product_id: '69089',
+        name: 'Cebolla',
+        quantity: '1 unidad',
+        product_data: {
+          id: '69089',
+          display_name: 'Cebollas',
+          price_instructions: { unit_price: 2.40 },
+          thumbnail: 'https://prod-mercadona.imgix.net/images/d950590e426dca5e9531e1ff2809edb4.jpg?fit=crop&h=300&w=300'
+        }
+      },
+      {
+        product_id: '69297',
+        name: 'Ajos',
+        quantity: '2 dientes',
+        product_data: {
+          id: '69297',
+          display_name: 'Ajos morados',
+          price_instructions: { unit_price: 1.85 },
+          thumbnail: 'https://prod-mercadona.imgix.net/images/3e754d795d63e6a75070fb672c24d773.jpg?fit=crop&h=300&w=300'
+        }
+      },
+      {
+        product_id: '4241',
+        name: 'Aceite de oliva',
+        quantity: '3 cucharadas',
+        product_data: {
+          id: '4241',
+          display_name: 'Aceite de oliva 0,4º Hacendado',
+          price_instructions: { unit_price: 19.75 },
+          thumbnail: 'https://prod-mercadona.imgix.net/images/3b8cde7b3cb069ee0316029012cf8562.jpg?fit=crop&h=300&w=300'
+        }
+      }
+    ],
+    instructions: [
+      'Mezclar la carne picada con ajo picado, sal y pimienta',
+      'Formar bolitas y freír en aceite hasta dorar',
+      'Sofreír cebolla picada en la misma sartén',
+      'Añadir tomate y cocinar 10 min',
+      'Incorporar las albóndigas y cocinar 15 min más'
+    ]
+  },
+  {
+    id: 'gnocchi-nata-panceta',
+    name: 'Ñoquis con Nata y Panceta',
+    description: 'Cremosos ñoquis con salsa de nata y bacon crujiente',
+    servings: 4,
+    time: '20 min',
+    difficulty: 'Fácil',
+    image: 'https://prod-mercadona.imgix.net/images/cba9ea825acfc6789572d4088ac61392.jpg?fit=crop&h=300&w=300',
+    ingredients: [
+      {
+        product_id: '6175',
+        name: 'Ñoquis',
+        quantity: '500g',
+        product_data: {
+          id: '6175',
+          display_name: 'Pasta fresca gnocchi Hacendado',
+          price_instructions: { unit_price: 1.00 },
+          thumbnail: 'https://prod-mercadona.imgix.net/images/cba9ea825acfc6789572d4088ac61392.jpg?fit=crop&h=300&w=300'
+        }
+      },
+      {
+        product_id: '10161',
+        name: 'Nata para cocinar',
+        quantity: '200ml',
+        product_data: {
+          id: '10161',
+          display_name: 'Nata ligera para cocinar Hacendado',
+          price_instructions: { unit_price: 1.55 },
+          thumbnail: 'https://prod-mercadona.imgix.net/images/a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6.jpg?fit=crop&h=300&w=300'
+        }
+      },
+      {
+        product_id: '16252',
+        name: 'Bacon',
+        quantity: '150g',
+        product_data: {
+          id: '16252',
+          display_name: 'Bacón Hacendado cintas',
+          price_instructions: { unit_price: 2.30 },
+          thumbnail: 'https://prod-mercadona.imgix.net/images/b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7.jpg?fit=crop&h=300&w=300'
+        }
+      },
+      {
+        product_id: '69089',
+        name: 'Cebolla',
+        quantity: '1/2 unidad',
+        product_data: {
+          id: '69089',
+          display_name: 'Cebollas',
+          price_instructions: { unit_price: 2.40 },
+          thumbnail: 'https://prod-mercadona.imgix.net/images/d950590e426dca5e9531e1ff2809edb4.jpg?fit=crop&h=300&w=300'
+        }
+      }
+    ],
+    instructions: [
+      'Cocer los ñoquis según las instrucciones del paquete',
+      'Cortar el bacon en trozos y freír hasta que esté crujiente',
+      'Añadir la cebolla picada y sofreír',
+      'Incorporar la nata y dejar espesar',
+      'Mezclar con los ñoquis escurridos y servir'
+    ]
+  },
+  {
+    id: 'judias-patatas',
+    name: 'Judías Verdes con Patatas',
+    description: 'Plato tradicional de judías verdes rehogadas con patatas',
+    servings: 4,
+    time: '35 min',
+    difficulty: 'Fácil',
+    image: 'https://prod-mercadona.imgix.net/images/c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8.jpg?fit=crop&h=300&w=300',
+    ingredients: [
+      {
+        product_id: '61283',
+        name: 'Judías verdes',
+        quantity: '400g',
+        product_data: {
+          id: '61283',
+          display_name: 'Judía verde plana Hacendado ultracongelada',
+          price_instructions: { unit_price: 1.45 },
+          thumbnail: 'https://prod-mercadona.imgix.net/images/d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9.jpg?fit=crop&h=300&w=300'
+        }
+      },
+      {
+        product_id: '69066',
+        name: 'Patatas',
+        quantity: '4 medianas',
+        product_data: {
+          id: '69066',
+          display_name: 'Patata',
+          price_instructions: { unit_price: 0.42 },
+          thumbnail: 'https://prod-mercadona.imgix.net/images/e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0.jpg?fit=crop&h=300&w=300'
+        }
+      },
+      {
+        product_id: '69297',
+        name: 'Ajos',
+        quantity: '3 dientes',
+        product_data: {
+          id: '69297',
+          display_name: 'Ajos morados',
+          price_instructions: { unit_price: 1.85 },
+          thumbnail: 'https://prod-mercadona.imgix.net/images/3e754d795d63e6a75070fb672c24d773.jpg?fit=crop&h=300&w=300'
+        }
+      },
+      {
+        product_id: '4241',
+        name: 'Aceite de oliva',
+        quantity: '4 cucharadas',
+        product_data: {
+          id: '4241',
+          display_name: 'Aceite de oliva 0,4º Hacendado',
+          price_instructions: { unit_price: 19.75 },
+          thumbnail: 'https://prod-mercadona.imgix.net/images/3b8cde7b3cb069ee0316029012cf8562.jpg?fit=crop&h=300&w=300'
+        }
+      }
+    ],
+    instructions: [
+      'Pelar y cortar las patatas en dados',
+      'Cocer las patatas y judías en agua con sal',
+      'Escurrir cuando estén tiernas',
+      'Calentar aceite y dorar los ajos laminados',
+      'Saltear las verduras en el aceite con ajo'
+    ]
+  },
+  {
+    id: 'tortilla-espanola',
+    name: 'Tortilla Española',
+    description: 'La clásica tortilla de patatas española',
+    servings: 4,
+    time: '40 min',
+    difficulty: 'Media',
+    image: 'https://prod-mercadona.imgix.net/images/f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1.jpg?fit=crop&h=300&w=300',
+    ingredients: [
+      {
+        product_id: '69066',
+        name: 'Patatas',
+        quantity: '6 medianas',
+        product_data: {
+          id: '69066',
+          display_name: 'Patata',
+          price_instructions: { unit_price: 0.42 },
+          thumbnail: 'https://prod-mercadona.imgix.net/images/e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0.jpg?fit=crop&h=300&w=300'
+        }
+      },
+      {
+        product_id: '1025',
+        name: 'Huevos',
+        quantity: '6 unidades',
+        product_data: {
+          id: '1025',
+          display_name: 'Huevos frescos L',
+          price_instructions: { unit_price: 2.15 },
+          thumbnail: 'https://prod-mercadona.imgix.net/images/a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2.jpg?fit=crop&h=300&w=300'
+        }
+      },
+      {
+        product_id: '69089',
+        name: 'Cebolla (opcional)',
+        quantity: '1 unidad',
+        product_data: {
+          id: '69089',
+          display_name: 'Cebollas',
+          price_instructions: { unit_price: 2.40 },
+          thumbnail: 'https://prod-mercadona.imgix.net/images/d950590e426dca5e9531e1ff2809edb4.jpg?fit=crop&h=300&w=300'
+        }
+      },
+      {
+        product_id: '4241',
+        name: 'Aceite de oliva',
+        quantity: '200ml para freír',
+        product_data: {
+          id: '4241',
+          display_name: 'Aceite de oliva 0,4º Hacendado',
+          price_instructions: { unit_price: 19.75 },
+          thumbnail: 'https://prod-mercadona.imgix.net/images/3b8cde7b3cb069ee0316029012cf8562.jpg?fit=crop&h=300&w=300'
+        }
+      }
+    ],
+    instructions: [
+      'Pelar y cortar las patatas en rodajas finas',
+      'Freír las patatas a fuego medio hasta que estén tiernas',
+      'Batir los huevos con sal',
+      'Mezclar las patatas escurridas con el huevo',
+      'Cuajar en sartén por ambos lados'
+    ]
+  },
+  {
+    id: 'espaguetis-carbonara',
+    name: 'Espaguetis a la Carbonara',
+    description: 'Pasta cremosa con bacon y huevo al estilo italiano',
+    servings: 4,
+    time: '25 min',
+    difficulty: 'Media',
+    image: 'https://prod-mercadona.imgix.net/images/g7h8i9j0k1l2m3n4o5p6q7r8s9t0u1v2.jpg?fit=crop&h=300&w=300',
+    ingredients: [
+      {
+        product_id: '6269',
+        name: 'Espaguetis',
+        quantity: '400g',
+        product_data: {
+          id: '6269',
+          display_name: 'Pasta espagueti Hacendado',
+          price_instructions: { unit_price: 0.80 },
+          thumbnail: 'https://prod-mercadona.imgix.net/images/h8i9j0k1l2m3n4o5p6q7r8s9t0u1v2w3.jpg?fit=crop&h=300&w=300'
+        }
+      },
+      {
+        product_id: '16252',
+        name: 'Bacon',
+        quantity: '200g',
+        product_data: {
+          id: '16252',
+          display_name: 'Bacón Hacendado cintas',
+          price_instructions: { unit_price: 2.30 },
+          thumbnail: 'https://prod-mercadona.imgix.net/images/b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7.jpg?fit=crop&h=300&w=300'
+        }
+      },
+      {
+        product_id: '1025',
+        name: 'Huevos',
+        quantity: '4 unidades',
+        product_data: {
+          id: '1025',
+          display_name: 'Huevos frescos L',
+          price_instructions: { unit_price: 2.15 },
+          thumbnail: 'https://prod-mercadona.imgix.net/images/a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2.jpg?fit=crop&h=300&w=300'
+        }
+      },
+      {
+        product_id: '10161',
+        name: 'Nata',
+        quantity: '100ml',
+        product_data: {
+          id: '10161',
+          display_name: 'Nata ligera para cocinar Hacendado',
+          price_instructions: { unit_price: 1.55 },
+          thumbnail: 'https://prod-mercadona.imgix.net/images/a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6.jpg?fit=crop&h=300&w=300'
+        }
+      }
+    ],
+    instructions: [
+      'Cocer los espaguetis al dente',
+      'Freír el bacon hasta que esté crujiente',
+      'Batir huevos con nata y queso',
+      'Mezclar la pasta caliente con el bacon',
+      'Añadir la mezcla de huevo fuera del fuego y remover'
+    ]
+  }
+];
+
 type TabType = 'home' | 'search' | 'list' | 'favorites' | 'recipes';
 
 export default function Index() {
@@ -671,17 +1077,205 @@ export default function Index() {
     </View>
   );
 
-  // Render Recipes Tab (placeholder for now)
+  // Render Recipes Tab
+  const [selectedRecipe, setSelectedRecipe] = useState<Recipe | null>(null);
+  const [addingRecipeIngredients, setAddingRecipeIngredients] = useState<boolean>(false);
+
+  const addRecipeToList = async (recipe: Recipe) => {
+    setAddingRecipeIngredients(true);
+    try {
+      for (const ingredient of recipe.ingredients) {
+        await fetch(`${API_URL}/api/shopping-list/add`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            device_id: deviceId,
+            product_id: ingredient.product_id,
+            product_data: ingredient.product_data,
+            quantity: 1,
+          }),
+        });
+      }
+      // Refresh shopping list
+      await loadShoppingList();
+      Alert.alert(
+        '¡Añadido!',
+        `Los ingredientes de "${recipe.name}" se han añadido a tu lista de compra`,
+        [{ text: 'Ver Lista', onPress: () => setActiveTab('list') }, { text: 'OK' }]
+      );
+    } catch (error) {
+      console.error('Error adding recipe ingredients:', error);
+      Alert.alert('Error', 'No se pudieron añadir los ingredientes');
+    } finally {
+      setAddingRecipeIngredients(false);
+    }
+  };
+
+  const getRecipeTotalPrice = (recipe: Recipe): number => {
+    return recipe.ingredients.reduce((total, ing) => {
+      const price = getProductPrice(ing.product_data);
+      return total + price;
+    }, 0);
+  };
+
   const renderRecipesTab = () => (
     <View style={styles.tabContent}>
-      <Text style={styles.sectionTitle}>Mis Recetas</Text>
-      <View style={styles.emptyState}>
-        <Ionicons name="book-outline" size={64} color="#ccc" />
-        <Text style={styles.emptyStateText}>Próximamente</Text>
-        <Text style={styles.emptyStateSubtext}>
-          Podrás crear recetas y añadir ingredientes a tu lista
-        </Text>
-      </View>
+      {selectedRecipe ? (
+        // Recipe Detail View
+        <ScrollView style={styles.recipeDetailContainer}>
+          <TouchableOpacity
+            style={styles.backButton}
+            onPress={() => setSelectedRecipe(null)}
+          >
+            <Ionicons name="arrow-back" size={24} color="#00a650" />
+            <Text style={styles.backButtonText}>Recetas</Text>
+          </TouchableOpacity>
+
+          <View style={styles.recipeDetailHeader}>
+            <Text style={styles.recipeDetailTitle}>{selectedRecipe.name}</Text>
+            <Text style={styles.recipeDetailDescription}>
+              {selectedRecipe.description}
+            </Text>
+
+            <View style={styles.recipeMetaRow}>
+              <View style={styles.recipeMeta}>
+                <Ionicons name="time-outline" size={16} color="#666" />
+                <Text style={styles.recipeMetaText}>{selectedRecipe.time}</Text>
+              </View>
+              <View style={styles.recipeMeta}>
+                <Ionicons name="people-outline" size={16} color="#666" />
+                <Text style={styles.recipeMetaText}>
+                  {selectedRecipe.servings} personas
+                </Text>
+              </View>
+              <View style={styles.recipeMeta}>
+                <Ionicons name="speedometer-outline" size={16} color="#666" />
+                <Text style={styles.recipeMetaText}>
+                  {selectedRecipe.difficulty}
+                </Text>
+              </View>
+            </View>
+          </View>
+
+          <View style={styles.recipeSection}>
+            <View style={styles.recipeSectionHeader}>
+              <Text style={styles.recipeSectionTitle}>Ingredientes</Text>
+              <Text style={styles.recipeTotalPrice}>
+                ≈ {getRecipeTotalPrice(selectedRecipe).toFixed(2)} €
+              </Text>
+            </View>
+
+            {selectedRecipe.ingredients.map((ingredient, index) => (
+              <View key={index} style={styles.ingredientItem}>
+                {ingredient.product_data.thumbnail ? (
+                  <Image
+                    source={{ uri: ingredient.product_data.thumbnail }}
+                    style={styles.ingredientImage}
+                  />
+                ) : (
+                  <View style={styles.ingredientImagePlaceholder}>
+                    <Ionicons name="cube-outline" size={20} color="#ccc" />
+                  </View>
+                )}
+                <View style={styles.ingredientInfo}>
+                  <Text style={styles.ingredientName}>{ingredient.name}</Text>
+                  <Text style={styles.ingredientQuantity}>
+                    {ingredient.quantity}
+                  </Text>
+                </View>
+                <Text style={styles.ingredientPrice}>
+                  {getProductPrice(ingredient.product_data).toFixed(2)} €
+                </Text>
+              </View>
+            ))}
+
+            <TouchableOpacity
+              style={[
+                styles.addAllButton,
+                addingRecipeIngredients && styles.addAllButtonDisabled,
+              ]}
+              onPress={() => addRecipeToList(selectedRecipe)}
+              disabled={addingRecipeIngredients}
+            >
+              {addingRecipeIngredients ? (
+                <ActivityIndicator size="small" color="#fff" />
+              ) : (
+                <>
+                  <Ionicons name="cart" size={20} color="#fff" />
+                  <Text style={styles.addAllButtonText}>
+                    Añadir todo a la lista
+                  </Text>
+                </>
+              )}
+            </TouchableOpacity>
+          </View>
+
+          <View style={styles.recipeSection}>
+            <Text style={styles.recipeSectionTitle}>Preparación</Text>
+            {selectedRecipe.instructions.map((step, index) => (
+              <View key={index} style={styles.instructionItem}>
+                <View style={styles.instructionNumber}>
+                  <Text style={styles.instructionNumberText}>{index + 1}</Text>
+                </View>
+                <Text style={styles.instructionText}>{step}</Text>
+              </View>
+            ))}
+          </View>
+        </ScrollView>
+      ) : (
+        // Recipes List View
+        <>
+          <Text style={styles.sectionTitle}>Recetas Rápidas</Text>
+          <Text style={styles.recipesSubtitle}>
+            Añade todos los ingredientes a tu lista con un toque
+          </Text>
+
+          <ScrollView style={styles.recipesList}>
+            {PRELOADED_RECIPES.map((recipe) => (
+              <TouchableOpacity
+                key={recipe.id}
+                style={styles.recipeCard}
+                onPress={() => setSelectedRecipe(recipe)}
+              >
+                <View style={styles.recipeCardContent}>
+                  <View style={styles.recipeCardInfo}>
+                    <Text style={styles.recipeCardTitle}>{recipe.name}</Text>
+                    <Text style={styles.recipeCardDescription} numberOfLines={2}>
+                      {recipe.description}
+                    </Text>
+                    <View style={styles.recipeCardMeta}>
+                      <View style={styles.recipeCardMetaItem}>
+                        <Ionicons name="time-outline" size={14} color="#666" />
+                        <Text style={styles.recipeCardMetaText}>
+                          {recipe.time}
+                        </Text>
+                      </View>
+                      <View style={styles.recipeCardMetaItem}>
+                        <Ionicons name="restaurant-outline" size={14} color="#666" />
+                        <Text style={styles.recipeCardMetaText}>
+                          {recipe.ingredients.length} ingred.
+                        </Text>
+                      </View>
+                      <Text style={styles.recipeCardPrice}>
+                        ≈ {getRecipeTotalPrice(recipe).toFixed(2)} €
+                      </Text>
+                    </View>
+                  </View>
+                  <TouchableOpacity
+                    style={styles.recipeAddButton}
+                    onPress={(e) => {
+                      e.stopPropagation();
+                      addRecipeToList(recipe);
+                    }}
+                  >
+                    <Ionicons name="add-circle" size={32} color="#00a650" />
+                  </TouchableOpacity>
+                </View>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        </>
+      )}
     </View>
   );
 
@@ -1278,5 +1872,202 @@ const styles = StyleSheet.create({
   modalButtonConfirmText: {
     color: '#fff',
     fontWeight: '600',
+  },
+  // Recipe Styles
+  recipesSubtitle: {
+    fontSize: 14,
+    color: '#666',
+    marginBottom: 16,
+  },
+  recipesList: {
+    flex: 1,
+  },
+  recipeCard: {
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    marginBottom: 12,
+    padding: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  recipeCardContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  recipeCardInfo: {
+    flex: 1,
+  },
+  recipeCardTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#333',
+    marginBottom: 4,
+  },
+  recipeCardDescription: {
+    fontSize: 13,
+    color: '#666',
+    marginBottom: 8,
+  },
+  recipeCardMeta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  recipeCardMetaItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  recipeCardMetaText: {
+    fontSize: 12,
+    color: '#666',
+    marginLeft: 4,
+  },
+  recipeCardPrice: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#00a650',
+  },
+  recipeAddButton: {
+    padding: 8,
+  },
+  recipeDetailContainer: {
+    flex: 1,
+  },
+  recipeDetailHeader: {
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 12,
+  },
+  recipeDetailTitle: {
+    fontSize: 22,
+    fontWeight: 'bold',
+    color: '#333',
+    marginBottom: 8,
+  },
+  recipeDetailDescription: {
+    fontSize: 14,
+    color: '#666',
+    marginBottom: 12,
+  },
+  recipeMetaRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+  },
+  recipeMeta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  recipeMetaText: {
+    fontSize: 13,
+    color: '#666',
+    marginLeft: 4,
+  },
+  recipeSection: {
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 12,
+  },
+  recipeSectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  recipeSectionTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#333',
+    marginBottom: 12,
+  },
+  recipeTotalPrice: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#00a650',
+  },
+  ingredientItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f0f0',
+  },
+  ingredientImage: {
+    width: 40,
+    height: 40,
+    borderRadius: 8,
+    marginRight: 12,
+  },
+  ingredientImagePlaceholder: {
+    width: 40,
+    height: 40,
+    borderRadius: 8,
+    backgroundColor: '#f5f5f5',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  ingredientInfo: {
+    flex: 1,
+  },
+  ingredientName: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#333',
+  },
+  ingredientQuantity: {
+    fontSize: 12,
+    color: '#666',
+  },
+  ingredientPrice: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#00a650',
+  },
+  addAllButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#00a650',
+    paddingVertical: 14,
+    borderRadius: 12,
+    marginTop: 16,
+  },
+  addAllButtonDisabled: {
+    backgroundColor: '#ccc',
+  },
+  addAllButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+    marginLeft: 8,
+  },
+  instructionItem: {
+    flexDirection: 'row',
+    marginBottom: 12,
+  },
+  instructionNumber: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: '#00a650',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  instructionNumberText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  instructionText: {
+    flex: 1,
+    fontSize: 14,
+    color: '#333',
+    lineHeight: 22,
   },
 });
