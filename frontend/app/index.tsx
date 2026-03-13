@@ -622,23 +622,42 @@ export default function Index() {
   };
 
   const clearShoppingList = async () => {
-    Alert.alert('Vaciar lista', '¿Estás seguro de que quieres vaciar la lista?', [
-      { text: 'Cancelar', style: 'cancel' },
-      {
-        text: 'Vaciar',
-        style: 'destructive',
-        onPress: async () => {
-          try {
-            await fetch(`${API_URL}/api/shopping-list/${deviceId}/clear`, {
-              method: 'DELETE',
-            });
+    // En web, Alert.alert no funciona bien, usamos confirm
+    if (Platform.OS === 'web') {
+      const confirmed = window.confirm('¿Estás seguro de que quieres vaciar la lista?');
+      if (confirmed) {
+        try {
+          const response = await fetch(`${API_URL}/api/shopping-list/${deviceId}/clear`, {
+            method: 'DELETE',
+          });
+          if (response.ok) {
             setShoppingList((prev) => (prev ? { ...prev, items: [] } : null));
-          } catch (error) {
-            console.error('Error clearing list:', error);
           }
+        } catch (error) {
+          console.error('Error clearing list:', error);
+        }
+      }
+    } else {
+      Alert.alert('Vaciar lista', '¿Estás seguro de que quieres vaciar la lista?', [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Vaciar',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              const response = await fetch(`${API_URL}/api/shopping-list/${deviceId}/clear`, {
+                method: 'DELETE',
+              });
+              if (response.ok) {
+                setShoppingList((prev) => (prev ? { ...prev, items: [] } : null));
+              }
+            } catch (error) {
+              console.error('Error clearing list:', error);
+            }
+          },
         },
-      },
-    ]);
+      ]);
+    }
   };
 
   const getProductPrice = (product: Product): number => {
