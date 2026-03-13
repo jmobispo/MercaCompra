@@ -77,391 +77,307 @@ interface Recipe {
   instructions: string[];
 }
 
-// Recetas precargadas con productos de Mercadona
+// Recetas precargadas con productos ECONÓMICOS de Mercadona
 const PRELOADED_RECIPES: Recipe[] = [
+  // === PASTA ===
   {
     id: 'macarrones-tomate',
     name: 'Macarrones con Tomate',
     description: 'Clásico plato de pasta con salsa de tomate casera',
-    servings: 4,
-    time: '25 min',
-    difficulty: 'Fácil',
-    image: 'https://prod-mercadona.imgix.net/images/d9c4b5c8d6e5f3a2b1c0d9e8f7a6b5c4.jpg?fit=crop&h=300&w=300',
+    servings: 4, time: '25 min', difficulty: 'Fácil',
+    image: 'https://prod-mercadona.imgix.net/images/67d0e2f86e0f0a8e6c7ad8e5cf254a9d.jpg',
     ingredients: [
-      {
-        product_id: '6264',
-        name: 'Macarrones',
-        quantity: '500g',
-        product_data: {
-          id: '6264',
-          display_name: 'Pasta macarrón Hacendado',
-          price_instructions: { unit_price: 0.80 },
-          thumbnail: 'https://prod-mercadona.imgix.net/images/67d0e2f86e0f0a8e6c7ad8e5cf254a9d.jpg?fit=crop&h=300&w=300'
-        }
-      },
-      {
-        product_id: '17151',
-        name: 'Tomate frito',
-        quantity: '400g',
-        product_data: {
-          id: '17151',
-          display_name: 'Tomate frito Hacendado',
-          price_instructions: { unit_price: 0.95 },
-          thumbnail: 'https://prod-mercadona.imgix.net/images/55a6b7c8d9e0f1a2b3c4d5e6f7a8b9c0.jpg?fit=crop&h=300&w=300'
-        }
-      },
-      {
-        product_id: '69089',
-        name: 'Cebolla',
-        quantity: '1 unidad',
-        product_data: {
-          id: '69089',
-          display_name: 'Cebollas',
-          price_instructions: { unit_price: 2.40 },
-          thumbnail: 'https://prod-mercadona.imgix.net/images/d950590e426dca5e9531e1ff2809edb4.jpg?fit=crop&h=300&w=300'
-        }
-      },
-      {
-        product_id: '4241',
-        name: 'Aceite de oliva',
-        quantity: '2 cucharadas',
-        product_data: {
-          id: '4241',
-          display_name: 'Aceite de oliva 0,4º Hacendado',
-          price_instructions: { unit_price: 19.75 },
-          thumbnail: 'https://prod-mercadona.imgix.net/images/3b8cde7b3cb069ee0316029012cf8562.jpg?fit=crop&h=300&w=300'
-        }
-      }
+      { product_id: '6260', name: 'Macarrones', quantity: '500g', product_data: { id: '6260', display_name: 'Macarrón fino Hacendado', price_instructions: { unit_price: 0.80 }, thumbnail: 'https://prod-mercadona.imgix.net/images/67d0e2f86e0f0a8e6c7ad8e5cf254a9d.jpg' }},
+      { product_id: '16044', name: 'Tomate triturado', quantity: '400g', product_data: { id: '16044', display_name: 'Tomate triturado Hacendado', price_instructions: { unit_price: 0.65 }, thumbnail: 'https://prod-mercadona.imgix.net/images/tomate.jpg' }},
+      { product_id: '13568', name: 'Cebolla', quantity: '100g', product_data: { id: '13568', display_name: 'Cebolla troceada ultracongelada', price_instructions: { unit_price: 0.95 }, thumbnail: 'https://prod-mercadona.imgix.net/images/cebolla.jpg' }},
     ],
-    instructions: [
-      'Hervir agua con sal y cocer los macarrones según el paquete',
-      'Picar la cebolla finamente y sofreír en aceite de oliva',
-      'Añadir el tomate frito y cocinar 5 minutos',
-      'Escurrir la pasta y mezclar con la salsa',
-      'Servir caliente con queso rallado opcional'
-    ]
-  },
-  {
-    id: 'albondigas-tomate',
-    name: 'Albóndigas en Salsa',
-    description: 'Jugosas albóndigas de carne en salsa de tomate',
-    servings: 4,
-    time: '45 min',
-    difficulty: 'Media',
-    image: 'https://prod-mercadona.imgix.net/images/3ff4619c75302a2ae20831ae3ffe6c1c.jpg?fit=crop&h=300&w=300',
-    ingredients: [
-      {
-        product_id: '2869',
-        name: 'Carne picada mixta',
-        quantity: '500g',
-        product_data: {
-          id: '2869',
-          display_name: 'Preparado de carne picada vacuno y cerdo',
-          price_instructions: { unit_price: 4.30 },
-          thumbnail: 'https://prod-mercadona.imgix.net/images/3ff4619c75302a2ae20831ae3ffe6c1c.jpg?fit=crop&h=300&w=300'
-        }
-      },
-      {
-        product_id: '17151',
-        name: 'Tomate frito',
-        quantity: '400g',
-        product_data: {
-          id: '17151',
-          display_name: 'Tomate frito Hacendado',
-          price_instructions: { unit_price: 0.95 },
-          thumbnail: 'https://prod-mercadona.imgix.net/images/55a6b7c8d9e0f1a2b3c4d5e6f7a8b9c0.jpg?fit=crop&h=300&w=300'
-        }
-      },
-      {
-        product_id: '69089',
-        name: 'Cebolla',
-        quantity: '1 unidad',
-        product_data: {
-          id: '69089',
-          display_name: 'Cebollas',
-          price_instructions: { unit_price: 2.40 },
-          thumbnail: 'https://prod-mercadona.imgix.net/images/d950590e426dca5e9531e1ff2809edb4.jpg?fit=crop&h=300&w=300'
-        }
-      },
-      {
-        product_id: '69297',
-        name: 'Ajos',
-        quantity: '2 dientes',
-        product_data: {
-          id: '69297',
-          display_name: 'Ajos morados',
-          price_instructions: { unit_price: 1.85 },
-          thumbnail: 'https://prod-mercadona.imgix.net/images/3e754d795d63e6a75070fb672c24d773.jpg?fit=crop&h=300&w=300'
-        }
-      },
-      {
-        product_id: '4241',
-        name: 'Aceite de oliva',
-        quantity: '3 cucharadas',
-        product_data: {
-          id: '4241',
-          display_name: 'Aceite de oliva 0,4º Hacendado',
-          price_instructions: { unit_price: 19.75 },
-          thumbnail: 'https://prod-mercadona.imgix.net/images/3b8cde7b3cb069ee0316029012cf8562.jpg?fit=crop&h=300&w=300'
-        }
-      }
-    ],
-    instructions: [
-      'Mezclar la carne picada con ajo picado, sal y pimienta',
-      'Formar bolitas y freír en aceite hasta dorar',
-      'Sofreír cebolla picada en la misma sartén',
-      'Añadir tomate y cocinar 10 min',
-      'Incorporar las albóndigas y cocinar 15 min más'
-    ]
-  },
-  {
-    id: 'gnocchi-nata-panceta',
-    name: 'Ñoquis con Nata y Panceta',
-    description: 'Cremosos ñoquis con salsa de nata y bacon crujiente',
-    servings: 4,
-    time: '20 min',
-    difficulty: 'Fácil',
-    image: 'https://prod-mercadona.imgix.net/images/cba9ea825acfc6789572d4088ac61392.jpg?fit=crop&h=300&w=300',
-    ingredients: [
-      {
-        product_id: '6175',
-        name: 'Ñoquis',
-        quantity: '500g',
-        product_data: {
-          id: '6175',
-          display_name: 'Pasta fresca gnocchi Hacendado',
-          price_instructions: { unit_price: 1.00 },
-          thumbnail: 'https://prod-mercadona.imgix.net/images/cba9ea825acfc6789572d4088ac61392.jpg?fit=crop&h=300&w=300'
-        }
-      },
-      {
-        product_id: '10161',
-        name: 'Nata para cocinar',
-        quantity: '200ml',
-        product_data: {
-          id: '10161',
-          display_name: 'Nata ligera para cocinar Hacendado',
-          price_instructions: { unit_price: 1.55 },
-          thumbnail: 'https://prod-mercadona.imgix.net/images/a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6.jpg?fit=crop&h=300&w=300'
-        }
-      },
-      {
-        product_id: '16252',
-        name: 'Bacon',
-        quantity: '150g',
-        product_data: {
-          id: '16252',
-          display_name: 'Bacón Hacendado cintas',
-          price_instructions: { unit_price: 2.30 },
-          thumbnail: 'https://prod-mercadona.imgix.net/images/b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7.jpg?fit=crop&h=300&w=300'
-        }
-      },
-      {
-        product_id: '69089',
-        name: 'Cebolla',
-        quantity: '1/2 unidad',
-        product_data: {
-          id: '69089',
-          display_name: 'Cebollas',
-          price_instructions: { unit_price: 2.40 },
-          thumbnail: 'https://prod-mercadona.imgix.net/images/d950590e426dca5e9531e1ff2809edb4.jpg?fit=crop&h=300&w=300'
-        }
-      }
-    ],
-    instructions: [
-      'Cocer los ñoquis según las instrucciones del paquete',
-      'Cortar el bacon en trozos y freír hasta que esté crujiente',
-      'Añadir la cebolla picada y sofreír',
-      'Incorporar la nata y dejar espesar',
-      'Mezclar con los ñoquis escurridos y servir'
-    ]
-  },
-  {
-    id: 'judias-patatas',
-    name: 'Judías Verdes con Patatas',
-    description: 'Plato tradicional de judías verdes rehogadas con patatas',
-    servings: 4,
-    time: '35 min',
-    difficulty: 'Fácil',
-    image: 'https://prod-mercadona.imgix.net/images/c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8.jpg?fit=crop&h=300&w=300',
-    ingredients: [
-      {
-        product_id: '61283',
-        name: 'Judías verdes',
-        quantity: '400g',
-        product_data: {
-          id: '61283',
-          display_name: 'Judía verde plana Hacendado ultracongelada',
-          price_instructions: { unit_price: 1.45 },
-          thumbnail: 'https://prod-mercadona.imgix.net/images/d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9.jpg?fit=crop&h=300&w=300'
-        }
-      },
-      {
-        product_id: '69066',
-        name: 'Patatas',
-        quantity: '4 medianas',
-        product_data: {
-          id: '69066',
-          display_name: 'Patata',
-          price_instructions: { unit_price: 0.42 },
-          thumbnail: 'https://prod-mercadona.imgix.net/images/e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0.jpg?fit=crop&h=300&w=300'
-        }
-      },
-      {
-        product_id: '69297',
-        name: 'Ajos',
-        quantity: '3 dientes',
-        product_data: {
-          id: '69297',
-          display_name: 'Ajos morados',
-          price_instructions: { unit_price: 1.85 },
-          thumbnail: 'https://prod-mercadona.imgix.net/images/3e754d795d63e6a75070fb672c24d773.jpg?fit=crop&h=300&w=300'
-        }
-      },
-      {
-        product_id: '4241',
-        name: 'Aceite de oliva',
-        quantity: '4 cucharadas',
-        product_data: {
-          id: '4241',
-          display_name: 'Aceite de oliva 0,4º Hacendado',
-          price_instructions: { unit_price: 19.75 },
-          thumbnail: 'https://prod-mercadona.imgix.net/images/3b8cde7b3cb069ee0316029012cf8562.jpg?fit=crop&h=300&w=300'
-        }
-      }
-    ],
-    instructions: [
-      'Pelar y cortar las patatas en dados',
-      'Cocer las patatas y judías en agua con sal',
-      'Escurrir cuando estén tiernas',
-      'Calentar aceite y dorar los ajos laminados',
-      'Saltear las verduras en el aceite con ajo'
-    ]
-  },
-  {
-    id: 'tortilla-espanola',
-    name: 'Tortilla Española',
-    description: 'La clásica tortilla de patatas española',
-    servings: 4,
-    time: '40 min',
-    difficulty: 'Media',
-    image: 'https://prod-mercadona.imgix.net/images/f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1.jpg?fit=crop&h=300&w=300',
-    ingredients: [
-      {
-        product_id: '69066',
-        name: 'Patatas',
-        quantity: '6 medianas',
-        product_data: {
-          id: '69066',
-          display_name: 'Patata',
-          price_instructions: { unit_price: 0.42 },
-          thumbnail: 'https://prod-mercadona.imgix.net/images/e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0.jpg?fit=crop&h=300&w=300'
-        }
-      },
-      {
-        product_id: '1025',
-        name: 'Huevos',
-        quantity: '6 unidades',
-        product_data: {
-          id: '1025',
-          display_name: 'Huevos frescos L',
-          price_instructions: { unit_price: 2.15 },
-          thumbnail: 'https://prod-mercadona.imgix.net/images/a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2.jpg?fit=crop&h=300&w=300'
-        }
-      },
-      {
-        product_id: '69089',
-        name: 'Cebolla (opcional)',
-        quantity: '1 unidad',
-        product_data: {
-          id: '69089',
-          display_name: 'Cebollas',
-          price_instructions: { unit_price: 2.40 },
-          thumbnail: 'https://prod-mercadona.imgix.net/images/d950590e426dca5e9531e1ff2809edb4.jpg?fit=crop&h=300&w=300'
-        }
-      },
-      {
-        product_id: '4241',
-        name: 'Aceite de oliva',
-        quantity: '200ml para freír',
-        product_data: {
-          id: '4241',
-          display_name: 'Aceite de oliva 0,4º Hacendado',
-          price_instructions: { unit_price: 19.75 },
-          thumbnail: 'https://prod-mercadona.imgix.net/images/3b8cde7b3cb069ee0316029012cf8562.jpg?fit=crop&h=300&w=300'
-        }
-      }
-    ],
-    instructions: [
-      'Pelar y cortar las patatas en rodajas finas',
-      'Freír las patatas a fuego medio hasta que estén tiernas',
-      'Batir los huevos con sal',
-      'Mezclar las patatas escurridas con el huevo',
-      'Cuajar en sartén por ambos lados'
-    ]
+    instructions: ['Hervir pasta 10 min', 'Sofreír cebolla', 'Añadir tomate y cocinar 5 min', 'Mezclar con la pasta']
   },
   {
     id: 'espaguetis-carbonara',
-    name: 'Espaguetis a la Carbonara',
-    description: 'Pasta cremosa con bacon y huevo al estilo italiano',
-    servings: 4,
-    time: '25 min',
-    difficulty: 'Media',
-    image: 'https://prod-mercadona.imgix.net/images/g7h8i9j0k1l2m3n4o5p6q7r8s9t0u1v2.jpg?fit=crop&h=300&w=300',
+    name: 'Espaguetis Carbonara',
+    description: 'Pasta cremosa con bacon y huevo',
+    servings: 4, time: '20 min', difficulty: 'Media',
+    image: 'https://prod-mercadona.imgix.net/images/espagueti.jpg',
     ingredients: [
-      {
-        product_id: '6269',
-        name: 'Espaguetis',
-        quantity: '400g',
-        product_data: {
-          id: '6269',
-          display_name: 'Pasta espagueti Hacendado',
-          price_instructions: { unit_price: 0.80 },
-          thumbnail: 'https://prod-mercadona.imgix.net/images/h8i9j0k1l2m3n4o5p6q7r8s9t0u1v2w3.jpg?fit=crop&h=300&w=300'
-        }
-      },
-      {
-        product_id: '16252',
-        name: 'Bacon',
-        quantity: '200g',
-        product_data: {
-          id: '16252',
-          display_name: 'Bacón Hacendado cintas',
-          price_instructions: { unit_price: 2.30 },
-          thumbnail: 'https://prod-mercadona.imgix.net/images/b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7.jpg?fit=crop&h=300&w=300'
-        }
-      },
-      {
-        product_id: '1025',
-        name: 'Huevos',
-        quantity: '4 unidades',
-        product_data: {
-          id: '1025',
-          display_name: 'Huevos frescos L',
-          price_instructions: { unit_price: 2.15 },
-          thumbnail: 'https://prod-mercadona.imgix.net/images/a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2.jpg?fit=crop&h=300&w=300'
-        }
-      },
-      {
-        product_id: '10161',
-        name: 'Nata',
-        quantity: '100ml',
-        product_data: {
-          id: '10161',
-          display_name: 'Nata ligera para cocinar Hacendado',
-          price_instructions: { unit_price: 1.55 },
-          thumbnail: 'https://prod-mercadona.imgix.net/images/a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6.jpg?fit=crop&h=300&w=300'
-        }
-      }
+      { product_id: '6269', name: 'Espaguetis', quantity: '400g', product_data: { id: '6269', display_name: 'Pasta espagueti Hacendado', price_instructions: { unit_price: 0.80 }, thumbnail: 'https://prod-mercadona.imgix.net/images/espagueti.jpg' }},
+      { product_id: '52884', name: 'Salchichas/Bacon', quantity: '200g', product_data: { id: '52884', display_name: 'Salchichas Campofrío', price_instructions: { unit_price: 1.25 }, thumbnail: 'https://prod-mercadona.imgix.net/images/salchicha.jpg' }},
+      { product_id: '10117', name: 'Nata cocinar', quantity: '200ml', product_data: { id: '10117', display_name: 'Nata fresca para cocinar', price_instructions: { unit_price: 1.30 }, thumbnail: 'https://prod-mercadona.imgix.net/images/nata.jpg' }},
     ],
-    instructions: [
-      'Cocer los espaguetis al dente',
-      'Freír el bacon hasta que esté crujiente',
-      'Batir huevos con nata y queso',
-      'Mezclar la pasta caliente con el bacon',
-      'Añadir la mezcla de huevo fuera del fuego y remover'
-    ]
-  }
+    instructions: ['Cocer espaguetis al dente', 'Freír salchichas troceadas', 'Añadir nata', 'Mezclar con pasta caliente']
+  },
+  {
+    id: 'gnocchi-nata',
+    name: 'Ñoquis con Nata',
+    description: 'Cremosos ñoquis con salsa de nata',
+    servings: 4, time: '15 min', difficulty: 'Fácil',
+    image: 'https://prod-mercadona.imgix.net/images/gnocchi.jpg',
+    ingredients: [
+      { product_id: '6175', name: 'Ñoquis', quantity: '500g', product_data: { id: '6175', display_name: 'Pasta fresca gnocchi Hacendado', price_instructions: { unit_price: 1.00 }, thumbnail: 'https://prod-mercadona.imgix.net/images/gnocchi.jpg' }},
+      { product_id: '10117', name: 'Nata cocinar', quantity: '200ml', product_data: { id: '10117', display_name: 'Nata fresca para cocinar', price_instructions: { unit_price: 1.30 }, thumbnail: 'https://prod-mercadona.imgix.net/images/nata.jpg' }},
+      { product_id: '13568', name: 'Cebolla', quantity: '100g', product_data: { id: '13568', display_name: 'Cebolla troceada ultracongelada', price_instructions: { unit_price: 0.95 }, thumbnail: 'https://prod-mercadona.imgix.net/images/cebolla.jpg' }},
+    ],
+    instructions: ['Cocer ñoquis 2-3 min', 'Sofreír cebolla', 'Añadir nata y espesar', 'Mezclar con ñoquis']
+  },
+  {
+    id: 'fideos-orientales',
+    name: 'Fideos Orientales',
+    description: 'Fideos rápidos estilo asiático con verduras',
+    servings: 2, time: '10 min', difficulty: 'Fácil',
+    image: 'https://prod-mercadona.imgix.net/images/fideos.jpg',
+    ingredients: [
+      { product_id: '19949', name: 'Fideos orientales', quantity: '2 paquetes', product_data: { id: '19949', display_name: 'Fideos orientales sabor gamba', price_instructions: { unit_price: 0.65 }, thumbnail: 'https://prod-mercadona.imgix.net/images/fideos.jpg' }},
+      { product_id: '35221', name: 'Pimientos', quantity: '150g', product_data: { id: '35221', display_name: 'Pimiento rojo y verde ultracongelado', price_instructions: { unit_price: 1.20 }, thumbnail: 'https://prod-mercadona.imgix.net/images/pimiento.jpg' }},
+    ],
+    instructions: ['Hervir fideos 3 min', 'Saltear pimientos', 'Mezclar con el sobre de condimento']
+  },
+  {
+    id: 'sopa-fideos',
+    name: 'Sopa de Fideos',
+    description: 'Reconfortante sopa de fideos casera',
+    servings: 4, time: '20 min', difficulty: 'Fácil',
+    image: 'https://prod-mercadona.imgix.net/images/fideos.jpg',
+    ingredients: [
+      { product_id: '13577', name: 'Fideos cabello ángel', quantity: '100g', product_data: { id: '13577', display_name: 'Fideo cabello de ángel Hacendado', price_instructions: { unit_price: 0.80 }, thumbnail: 'https://prod-mercadona.imgix.net/images/fideos.jpg' }},
+      { product_id: '61251', name: 'Ajo', quantity: '20g', product_data: { id: '61251', display_name: 'Ajo troceado ultracongelado', price_instructions: { unit_price: 0.95 }, thumbnail: 'https://prod-mercadona.imgix.net/images/ajo.jpg' }},
+    ],
+    instructions: ['Hervir agua con sal', 'Dorar ajo', 'Añadir fideos y cocer 5 min']
+  },
+
+  // === ARROZ ===
+  {
+    id: 'arroz-cubana',
+    name: 'Arroz a la Cubana',
+    description: 'Arroz con huevo frito, plátano y tomate',
+    servings: 4, time: '25 min', difficulty: 'Fácil',
+    image: 'https://prod-mercadona.imgix.net/images/arroz.jpg',
+    ingredients: [
+      { product_id: '5063', name: 'Arroz largo', quantity: '300g', product_data: { id: '5063', display_name: 'Arroz largo Hacendado', price_instructions: { unit_price: 1.25 }, thumbnail: 'https://prod-mercadona.imgix.net/images/arroz.jpg' }},
+      { product_id: '16044', name: 'Tomate frito', quantity: '200g', product_data: { id: '16044', display_name: 'Tomate triturado Hacendado', price_instructions: { unit_price: 0.65 }, thumbnail: 'https://prod-mercadona.imgix.net/images/tomate.jpg' }},
+      { product_id: '52884', name: 'Salchichas', quantity: '4 unid', product_data: { id: '52884', display_name: 'Salchichas Campofrío', price_instructions: { unit_price: 1.25 }, thumbnail: 'https://prod-mercadona.imgix.net/images/salchicha.jpg' }},
+    ],
+    instructions: ['Cocer arroz 15 min', 'Freír salchichas', 'Calentar tomate', 'Servir todo junto']
+  },
+  {
+    id: 'arroz-verduras',
+    name: 'Arroz con Verduras',
+    description: 'Arroz salteado con verduras variadas',
+    servings: 4, time: '25 min', difficulty: 'Fácil',
+    image: 'https://prod-mercadona.imgix.net/images/arroz.jpg',
+    ingredients: [
+      { product_id: '5044', name: 'Arroz redondo', quantity: '300g', product_data: { id: '5044', display_name: 'Arroz redondo Hacendado', price_instructions: { unit_price: 1.30 }, thumbnail: 'https://prod-mercadona.imgix.net/images/arroz.jpg' }},
+      { product_id: '35221', name: 'Pimientos', quantity: '200g', product_data: { id: '35221', display_name: 'Pimiento rojo y verde ultracongelado', price_instructions: { unit_price: 1.20 }, thumbnail: 'https://prod-mercadona.imgix.net/images/pimiento.jpg' }},
+      { product_id: '61200', name: 'Guisantes', quantity: '150g', product_data: { id: '61200', display_name: 'Guisante muy tierno ultracongelado', price_instructions: { unit_price: 1.05 }, thumbnail: 'https://prod-mercadona.imgix.net/images/guisante.jpg' }},
+    ],
+    instructions: ['Cocer arroz', 'Saltear verduras', 'Mezclar todo', 'Sazonar al gusto']
+  },
+
+  // === LEGUMBRES ===
+  {
+    id: 'lentejas-chorizo',
+    name: 'Lentejas con Chorizo',
+    description: 'Tradicionales lentejas españolas',
+    servings: 4, time: '30 min', difficulty: 'Fácil',
+    image: 'https://prod-mercadona.imgix.net/images/lenteja.jpg',
+    ingredients: [
+      { product_id: '26011', name: 'Lentejas cocidas', quantity: '2 botes', product_data: { id: '26011', display_name: 'Lenteja cocida Hacendado', price_instructions: { unit_price: 0.75 }, thumbnail: 'https://prod-mercadona.imgix.net/images/lenteja.jpg' }},
+      { product_id: '52884', name: 'Salchichas', quantity: '4 unid', product_data: { id: '52884', display_name: 'Salchichas Campofrío', price_instructions: { unit_price: 1.25 }, thumbnail: 'https://prod-mercadona.imgix.net/images/salchicha.jpg' }},
+      { product_id: '13568', name: 'Cebolla', quantity: '100g', product_data: { id: '13568', display_name: 'Cebolla troceada ultracongelada', price_instructions: { unit_price: 0.95 }, thumbnail: 'https://prod-mercadona.imgix.net/images/cebolla.jpg' }},
+    ],
+    instructions: ['Sofreír cebolla', 'Añadir salchichas troceadas', 'Incorporar lentejas', 'Cocinar 15 min']
+  },
+  {
+    id: 'garbanzos-espinacas',
+    name: 'Garbanzos con Espinacas',
+    description: 'Plato saludable y nutritivo',
+    servings: 4, time: '20 min', difficulty: 'Fácil',
+    image: 'https://prod-mercadona.imgix.net/images/garbanzo.jpg',
+    ingredients: [
+      { product_id: '26039', name: 'Garbanzos cocidos', quantity: '2 botes', product_data: { id: '26039', display_name: 'Garbanzo cocido Hacendado', price_instructions: { unit_price: 0.75 }, thumbnail: 'https://prod-mercadona.imgix.net/images/garbanzo.jpg' }},
+      { product_id: '61279', name: 'Espinacas', quantity: '300g', product_data: { id: '61279', display_name: 'Espinaca en porciones ultracongelada', price_instructions: { unit_price: 1.00 }, thumbnail: 'https://prod-mercadona.imgix.net/images/espinaca.jpg' }},
+      { product_id: '61251', name: 'Ajo', quantity: '20g', product_data: { id: '61251', display_name: 'Ajo troceado ultracongelado', price_instructions: { unit_price: 0.95 }, thumbnail: 'https://prod-mercadona.imgix.net/images/ajo.jpg' }},
+    ],
+    instructions: ['Dorar ajo en aceite', 'Añadir espinacas', 'Incorporar garbanzos', 'Sazonar con pimentón']
+  },
+  {
+    id: 'alubias-tomate',
+    name: 'Alubias con Tomate',
+    description: 'Alubias blancas guisadas con tomate',
+    servings: 4, time: '25 min', difficulty: 'Fácil',
+    image: 'https://prod-mercadona.imgix.net/images/alubia.jpg',
+    ingredients: [
+      { product_id: '26028', name: 'Alubias cocidas', quantity: '2 botes', product_data: { id: '26028', display_name: 'Alubia cocida blanca Hacendado', price_instructions: { unit_price: 0.70 }, thumbnail: 'https://prod-mercadona.imgix.net/images/alubia.jpg' }},
+      { product_id: '16044', name: 'Tomate triturado', quantity: '400g', product_data: { id: '16044', display_name: 'Tomate triturado Hacendado', price_instructions: { unit_price: 0.65 }, thumbnail: 'https://prod-mercadona.imgix.net/images/tomate.jpg' }},
+      { product_id: '13568', name: 'Cebolla', quantity: '100g', product_data: { id: '13568', display_name: 'Cebolla troceada ultracongelada', price_instructions: { unit_price: 0.95 }, thumbnail: 'https://prod-mercadona.imgix.net/images/cebolla.jpg' }},
+    ],
+    instructions: ['Sofreír cebolla', 'Añadir tomate', 'Incorporar alubias', 'Cocinar 15 min']
+  },
+
+  // === HUEVOS ===
+  {
+    id: 'tortilla-patatas',
+    name: 'Tortilla de Patatas',
+    description: 'La clásica tortilla española',
+    servings: 4, time: '35 min', difficulty: 'Media',
+    image: 'https://prod-mercadona.imgix.net/images/tortilla.jpg',
+    ingredients: [
+      { product_id: '69066', name: 'Patatas', quantity: '500g', product_data: { id: '69066', display_name: 'Patata', price_instructions: { unit_price: 0.42 }, thumbnail: 'https://prod-mercadona.imgix.net/images/patata.jpg' }},
+      { product_id: '13568', name: 'Cebolla', quantity: '150g', product_data: { id: '13568', display_name: 'Cebolla troceada ultracongelada', price_instructions: { unit_price: 0.95 }, thumbnail: 'https://prod-mercadona.imgix.net/images/cebolla.jpg' }},
+    ],
+    instructions: ['Freír patatas y cebolla', 'Batir huevos', 'Mezclar todo', 'Cuajar por ambos lados']
+  },
+  {
+    id: 'huevos-rotos',
+    name: 'Huevos Rotos',
+    description: 'Huevos fritos sobre patatas',
+    servings: 2, time: '25 min', difficulty: 'Fácil',
+    image: 'https://prod-mercadona.imgix.net/images/huevos.jpg',
+    ingredients: [
+      { product_id: '69066', name: 'Patatas', quantity: '400g', product_data: { id: '69066', display_name: 'Patata', price_instructions: { unit_price: 0.42 }, thumbnail: 'https://prod-mercadona.imgix.net/images/patata.jpg' }},
+      { product_id: '52884', name: 'Salchichas', quantity: '4 unid', product_data: { id: '52884', display_name: 'Salchichas Campofrío', price_instructions: { unit_price: 1.25 }, thumbnail: 'https://prod-mercadona.imgix.net/images/salchicha.jpg' }},
+    ],
+    instructions: ['Freír patatas', 'Freír huevos', 'Freír salchichas', 'Romper huevos sobre patatas']
+  },
+  {
+    id: 'revuelto-champis',
+    name: 'Revuelto de Champiñones',
+    description: 'Huevos revueltos con champiñones',
+    servings: 2, time: '15 min', difficulty: 'Fácil',
+    image: 'https://prod-mercadona.imgix.net/images/champi.jpg',
+    ingredients: [
+      { product_id: '16618', name: 'Champiñones', quantity: '1 lata', product_data: { id: '16618', display_name: 'Champiñones laminados Hacendado', price_instructions: { unit_price: 1.00 }, thumbnail: 'https://prod-mercadona.imgix.net/images/champi.jpg' }},
+      { product_id: '61251', name: 'Ajo', quantity: '10g', product_data: { id: '61251', display_name: 'Ajo troceado ultracongelado', price_instructions: { unit_price: 0.95 }, thumbnail: 'https://prod-mercadona.imgix.net/images/ajo.jpg' }},
+    ],
+    instructions: ['Saltear champiñones con ajo', 'Batir huevos', 'Añadir huevo y revolver', 'Servir cremoso']
+  },
+
+  // === VERDURAS ===
+  {
+    id: 'judias-patatas',
+    name: 'Judías Verdes con Patatas',
+    description: 'Plato tradicional de verduras',
+    servings: 4, time: '30 min', difficulty: 'Fácil',
+    image: 'https://prod-mercadona.imgix.net/images/judias.jpg',
+    ingredients: [
+      { product_id: '16315', name: 'Judías verdes', quantity: '2 latas', product_data: { id: '16315', display_name: 'Judías verdes redondas Hacendado', price_instructions: { unit_price: 1.20 }, thumbnail: 'https://prod-mercadona.imgix.net/images/judias.jpg' }},
+      { product_id: '69066', name: 'Patatas', quantity: '400g', product_data: { id: '69066', display_name: 'Patata', price_instructions: { unit_price: 0.42 }, thumbnail: 'https://prod-mercadona.imgix.net/images/patata.jpg' }},
+      { product_id: '61251', name: 'Ajo', quantity: '20g', product_data: { id: '61251', display_name: 'Ajo troceado ultracongelado', price_instructions: { unit_price: 0.95 }, thumbnail: 'https://prod-mercadona.imgix.net/images/ajo.jpg' }},
+    ],
+    instructions: ['Cocer patatas', 'Escurrir judías', 'Rehogar ajo', 'Saltear todo junto']
+  },
+  {
+    id: 'pisto-manchego',
+    name: 'Pisto Manchego',
+    description: 'Verduras salteadas estilo manchego',
+    servings: 4, time: '35 min', difficulty: 'Fácil',
+    image: 'https://prod-mercadona.imgix.net/images/pisto.jpg',
+    ingredients: [
+      { product_id: '35221', name: 'Pimientos', quantity: '300g', product_data: { id: '35221', display_name: 'Pimiento rojo y verde ultracongelado', price_instructions: { unit_price: 1.20 }, thumbnail: 'https://prod-mercadona.imgix.net/images/pimiento.jpg' }},
+      { product_id: '16044', name: 'Tomate triturado', quantity: '400g', product_data: { id: '16044', display_name: 'Tomate triturado Hacendado', price_instructions: { unit_price: 0.65 }, thumbnail: 'https://prod-mercadona.imgix.net/images/tomate.jpg' }},
+      { product_id: '13568', name: 'Cebolla', quantity: '150g', product_data: { id: '13568', display_name: 'Cebolla troceada ultracongelada', price_instructions: { unit_price: 0.95 }, thumbnail: 'https://prod-mercadona.imgix.net/images/cebolla.jpg' }},
+    ],
+    instructions: ['Sofreír cebolla', 'Añadir pimientos', 'Incorporar tomate', 'Cocinar 20 min a fuego lento']
+  },
+  {
+    id: 'espinacas-garbanzos',
+    name: 'Espinacas a la Catalana',
+    description: 'Espinacas con piñones y pasas',
+    servings: 4, time: '15 min', difficulty: 'Fácil',
+    image: 'https://prod-mercadona.imgix.net/images/espinaca.jpg',
+    ingredients: [
+      { product_id: '61279', name: 'Espinacas', quantity: '400g', product_data: { id: '61279', display_name: 'Espinaca en porciones ultracongelada', price_instructions: { unit_price: 1.00 }, thumbnail: 'https://prod-mercadona.imgix.net/images/espinaca.jpg' }},
+      { product_id: '61251', name: 'Ajo', quantity: '20g', product_data: { id: '61251', display_name: 'Ajo troceado ultracongelado', price_instructions: { unit_price: 0.95 }, thumbnail: 'https://prod-mercadona.imgix.net/images/ajo.jpg' }},
+    ],
+    instructions: ['Descongelar espinacas', 'Dorar ajo', 'Saltear espinacas', 'Servir caliente']
+  },
+  {
+    id: 'guisantes-jamon',
+    name: 'Guisantes con Jamón',
+    description: 'Clásico acompañamiento español',
+    servings: 4, time: '15 min', difficulty: 'Fácil',
+    image: 'https://prod-mercadona.imgix.net/images/guisante.jpg',
+    ingredients: [
+      { product_id: '61200', name: 'Guisantes', quantity: '400g', product_data: { id: '61200', display_name: 'Guisante muy tierno ultracongelado', price_instructions: { unit_price: 1.05 }, thumbnail: 'https://prod-mercadona.imgix.net/images/guisante.jpg' }},
+      { product_id: '52884', name: 'Salchichas', quantity: '2 unid', product_data: { id: '52884', display_name: 'Salchichas Campofrío', price_instructions: { unit_price: 1.25 }, thumbnail: 'https://prod-mercadona.imgix.net/images/salchicha.jpg' }},
+      { product_id: '13568', name: 'Cebolla', quantity: '50g', product_data: { id: '13568', display_name: 'Cebolla troceada ultracongelada', price_instructions: { unit_price: 0.95 }, thumbnail: 'https://prod-mercadona.imgix.net/images/cebolla.jpg' }},
+    ],
+    instructions: ['Sofreír cebolla', 'Añadir salchichas troceadas', 'Incorporar guisantes', 'Cocinar 10 min']
+  },
+
+  // === PLATOS RÁPIDOS ===
+  {
+    id: 'sandwich-mixto',
+    name: 'Sándwich Mixto',
+    description: 'Clásico sándwich de jamón y queso',
+    servings: 2, time: '10 min', difficulty: 'Fácil',
+    image: 'https://prod-mercadona.imgix.net/images/sandwich.jpg',
+    ingredients: [
+      { product_id: '52884', name: 'Salchichas/Fiambre', quantity: '100g', product_data: { id: '52884', display_name: 'Salchichas Campofrío', price_instructions: { unit_price: 1.25 }, thumbnail: 'https://prod-mercadona.imgix.net/images/salchicha.jpg' }},
+    ],
+    instructions: ['Tostar pan', 'Añadir fiambre', 'Cerrar y cortar']
+  },
+  {
+    id: 'frankfurt-mostaza',
+    name: 'Perritos Calientes',
+    description: 'Hot dogs caseros fáciles',
+    servings: 4, time: '10 min', difficulty: 'Fácil',
+    image: 'https://prod-mercadona.imgix.net/images/hotdog.jpg',
+    ingredients: [
+      { product_id: '53141', name: 'Salchichas Frankfurt', quantity: '1 paq', product_data: { id: '53141', display_name: 'Salchichas Frankfurt Hacendado', price_instructions: { unit_price: 1.90 }, thumbnail: 'https://prod-mercadona.imgix.net/images/frankfurt.jpg' }},
+      { product_id: '16044', name: 'Tomate', quantity: '100g', product_data: { id: '16044', display_name: 'Tomate triturado Hacendado', price_instructions: { unit_price: 0.65 }, thumbnail: 'https://prod-mercadona.imgix.net/images/tomate.jpg' }},
+    ],
+    instructions: ['Calentar salchichas', 'Tostar pan', 'Montar con salsas']
+  },
+  {
+    id: 'habas-jamon',
+    name: 'Habas con Jamón',
+    description: 'Habas tiernas salteadas',
+    servings: 4, time: '15 min', difficulty: 'Fácil',
+    image: 'https://prod-mercadona.imgix.net/images/habas.jpg',
+    ingredients: [
+      { product_id: '61233', name: 'Habas', quantity: '400g', product_data: { id: '61233', display_name: 'Habas finas ultracongeladas', price_instructions: { unit_price: 1.19 }, thumbnail: 'https://prod-mercadona.imgix.net/images/habas.jpg' }},
+      { product_id: '52884', name: 'Salchichas', quantity: '2 unid', product_data: { id: '52884', display_name: 'Salchichas Campofrío', price_instructions: { unit_price: 1.25 }, thumbnail: 'https://prod-mercadona.imgix.net/images/salchicha.jpg' }},
+      { product_id: '61251', name: 'Ajo', quantity: '10g', product_data: { id: '61251', display_name: 'Ajo troceado ultracongelado', price_instructions: { unit_price: 0.95 }, thumbnail: 'https://prod-mercadona.imgix.net/images/ajo.jpg' }},
+    ],
+    instructions: ['Dorar ajo', 'Añadir salchichas', 'Incorporar habas', 'Cocinar 10 min']
+  },
+  {
+    id: 'maiz-ensalada',
+    name: 'Ensalada de Maíz',
+    description: 'Ensalada rápida y nutritiva',
+    servings: 2, time: '5 min', difficulty: 'Fácil',
+    image: 'https://prod-mercadona.imgix.net/images/maiz.jpg',
+    ingredients: [
+      { product_id: '61289', name: 'Maíz dulce', quantity: '200g', product_data: { id: '61289', display_name: 'Maíz dulce ultracongelado', price_instructions: { unit_price: 1.24 }, thumbnail: 'https://prod-mercadona.imgix.net/images/maiz.jpg' }},
+      { product_id: '16737', name: 'Macedonia verduras', quantity: '1 lata', product_data: { id: '16737', display_name: 'Macedonia de verduras Hacendado', price_instructions: { unit_price: 0.90 }, thumbnail: 'https://prod-mercadona.imgix.net/images/macedonia.jpg' }},
+    ],
+    instructions: ['Escurrir maíz y macedonia', 'Mezclar en un bol', 'Aliñar al gusto']
+  },
+  {
+    id: 'crema-verduras',
+    name: 'Crema de Verduras',
+    description: 'Crema suave y reconfortante',
+    servings: 4, time: '25 min', difficulty: 'Fácil',
+    image: 'https://prod-mercadona.imgix.net/images/crema.jpg',
+    ingredients: [
+      { product_id: '69066', name: 'Patatas', quantity: '300g', product_data: { id: '69066', display_name: 'Patata', price_instructions: { unit_price: 0.42 }, thumbnail: 'https://prod-mercadona.imgix.net/images/patata.jpg' }},
+      { product_id: '35221', name: 'Pimientos', quantity: '200g', product_data: { id: '35221', display_name: 'Pimiento rojo y verde ultracongelado', price_instructions: { unit_price: 1.20 }, thumbnail: 'https://prod-mercadona.imgix.net/images/pimiento.jpg' }},
+      { product_id: '13568', name: 'Cebolla', quantity: '100g', product_data: { id: '13568', display_name: 'Cebolla troceada ultracongelada', price_instructions: { unit_price: 0.95 }, thumbnail: 'https://prod-mercadona.imgix.net/images/cebolla.jpg' }},
+    ],
+    instructions: ['Cocer todas las verduras', 'Triturar con batidora', 'Añadir sal y aceite', 'Servir caliente']
+  },
+  {
+    id: 'patatas-bravas',
+    name: 'Patatas Bravas',
+    description: 'Tapa clásica española',
+    servings: 4, time: '30 min', difficulty: 'Media',
+    image: 'https://prod-mercadona.imgix.net/images/bravas.jpg',
+    ingredients: [
+      { product_id: '69066', name: 'Patatas', quantity: '600g', product_data: { id: '69066', display_name: 'Patata', price_instructions: { unit_price: 0.42 }, thumbnail: 'https://prod-mercadona.imgix.net/images/patata.jpg' }},
+      { product_id: '16044', name: 'Tomate triturado', quantity: '200g', product_data: { id: '16044', display_name: 'Tomate triturado Hacendado', price_instructions: { unit_price: 0.65 }, thumbnail: 'https://prod-mercadona.imgix.net/images/tomate.jpg' }},
+    ],
+    instructions: ['Cortar patatas en dados', 'Freír hasta dorar', 'Preparar salsa brava', 'Servir con salsa']
+  },
 ];
 
 type TabType = 'home' | 'search' | 'list' | 'favorites' | 'recipes';
@@ -1080,6 +996,92 @@ export default function Index() {
   // Render Recipes Tab
   const [selectedRecipe, setSelectedRecipe] = useState<Recipe | null>(null);
   const [addingRecipeIngredients, setAddingRecipeIngredients] = useState<boolean>(false);
+  const [selectedIngredients, setSelectedIngredients] = useState<{[key: string]: boolean}>({});
+
+  // Initialize all ingredients as selected when recipe is selected
+  const initializeIngredients = (recipe: Recipe) => {
+    const initialSelection: {[key: string]: boolean} = {};
+    recipe.ingredients.forEach(ing => {
+      initialSelection[ing.product_id] = true;
+    });
+    setSelectedIngredients(initialSelection);
+    setSelectedRecipe(recipe);
+  };
+
+  const toggleIngredient = (productId: string) => {
+    setSelectedIngredients(prev => ({
+      ...prev,
+      [productId]: !prev[productId]
+    }));
+  };
+
+  const selectAllIngredients = () => {
+    if (selectedRecipe) {
+      const allSelected: {[key: string]: boolean} = {};
+      selectedRecipe.ingredients.forEach(ing => {
+        allSelected[ing.product_id] = true;
+      });
+      setSelectedIngredients(allSelected);
+    }
+  };
+
+  const deselectAllIngredients = () => {
+    setSelectedIngredients({});
+  };
+
+  const getSelectedCount = (): number => {
+    return Object.values(selectedIngredients).filter(Boolean).length;
+  };
+
+  const getSelectedPrice = (): number => {
+    if (!selectedRecipe) return 0;
+    return selectedRecipe.ingredients.reduce((total, ing) => {
+      if (selectedIngredients[ing.product_id]) {
+        return total + getProductPrice(ing.product_data);
+      }
+      return total;
+    }, 0);
+  };
+
+  const addSelectedToList = async () => {
+    if (!selectedRecipe) return;
+    
+    const ingredientsToAdd = selectedRecipe.ingredients.filter(
+      ing => selectedIngredients[ing.product_id]
+    );
+    
+    if (ingredientsToAdd.length === 0) {
+      Alert.alert('Selecciona ingredientes', 'Por favor selecciona al menos un ingrediente');
+      return;
+    }
+
+    setAddingRecipeIngredients(true);
+    try {
+      for (const ingredient of ingredientsToAdd) {
+        await fetch(`${API_URL}/api/shopping-list/add`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            device_id: deviceId,
+            product_id: ingredient.product_id,
+            product_data: ingredient.product_data,
+            quantity: 1,
+          }),
+        });
+      }
+      await loadShoppingList();
+      Alert.alert(
+        '¡Añadido!',
+        `${ingredientsToAdd.length} ingrediente(s) añadidos a tu lista`,
+        [{ text: 'Ver Lista', onPress: () => setActiveTab('list') }, { text: 'OK' }]
+      );
+    } catch (error) {
+      console.error('Error adding ingredients:', error);
+      Alert.alert('Error', 'No se pudieron añadir los ingredientes');
+    } finally {
+      setAddingRecipeIngredients(false);
+    }
+  };
 
   const addRecipeToList = async (recipe: Recipe) => {
     setAddingRecipeIngredients(true);
@@ -1096,7 +1098,6 @@ export default function Index() {
           }),
         });
       }
-      // Refresh shopping list
       await loadShoppingList();
       Alert.alert(
         '¡Añadido!',
@@ -1125,7 +1126,10 @@ export default function Index() {
         <ScrollView style={styles.recipeDetailContainer}>
           <TouchableOpacity
             style={styles.backButton}
-            onPress={() => setSelectedRecipe(null)}
+            onPress={() => {
+              setSelectedRecipe(null);
+              setSelectedIngredients({});
+            }}
           >
             <Ionicons name="arrow-back" size={24} color="#00a650" />
             <Text style={styles.backButtonText}>Recetas</Text>
@@ -1145,7 +1149,7 @@ export default function Index() {
               <View style={styles.recipeMeta}>
                 <Ionicons name="people-outline" size={16} color="#666" />
                 <Text style={styles.recipeMetaText}>
-                  {selectedRecipe.servings} personas
+                  {selectedRecipe.servings} pers.
                 </Text>
               </View>
               <View style={styles.recipeMeta}>
@@ -1160,42 +1164,70 @@ export default function Index() {
           <View style={styles.recipeSection}>
             <View style={styles.recipeSectionHeader}>
               <Text style={styles.recipeSectionTitle}>Ingredientes</Text>
-              <Text style={styles.recipeTotalPrice}>
-                ≈ {getRecipeTotalPrice(selectedRecipe).toFixed(2)} €
-              </Text>
+              <View style={styles.selectButtons}>
+                <TouchableOpacity onPress={selectAllIngredients} style={styles.selectBtn}>
+                  <Text style={styles.selectBtnText}>Todos</Text>
+                </TouchableOpacity>
+                <TouchableOpacity onPress={deselectAllIngredients} style={styles.selectBtn}>
+                  <Text style={styles.selectBtnText}>Ninguno</Text>
+                </TouchableOpacity>
+              </View>
             </View>
 
-            {selectedRecipe.ingredients.map((ingredient, index) => (
-              <View key={index} style={styles.ingredientItem}>
-                {ingredient.product_data.thumbnail ? (
-                  <Image
-                    source={{ uri: ingredient.product_data.thumbnail }}
-                    style={styles.ingredientImage}
-                  />
-                ) : (
-                  <View style={styles.ingredientImagePlaceholder}>
-                    <Ionicons name="cube-outline" size={20} color="#ccc" />
+            {selectedRecipe.ingredients.map((ingredient, index) => {
+              const isSelected = selectedIngredients[ingredient.product_id];
+              return (
+                <TouchableOpacity 
+                  key={index} 
+                  style={[
+                    styles.ingredientItem,
+                    isSelected && styles.ingredientItemSelected
+                  ]}
+                  onPress={() => toggleIngredient(ingredient.product_id)}
+                >
+                  <View style={[
+                    styles.ingredientCheckbox,
+                    isSelected && styles.ingredientCheckboxSelected
+                  ]}>
+                    {isSelected && <Ionicons name="checkmark" size={16} color="#fff" />}
                   </View>
-                )}
-                <View style={styles.ingredientInfo}>
-                  <Text style={styles.ingredientName}>{ingredient.name}</Text>
-                  <Text style={styles.ingredientQuantity}>
-                    {ingredient.quantity}
+                  {ingredient.product_data.thumbnail ? (
+                    <Image
+                      source={{ uri: ingredient.product_data.thumbnail }}
+                      style={styles.ingredientImage}
+                    />
+                  ) : (
+                    <View style={styles.ingredientImagePlaceholder}>
+                      <Ionicons name="cube-outline" size={20} color="#ccc" />
+                    </View>
+                  )}
+                  <View style={styles.ingredientInfo}>
+                    <Text style={styles.ingredientName}>{ingredient.name}</Text>
+                    <Text style={styles.ingredientQuantity}>
+                      {ingredient.quantity}
+                    </Text>
+                  </View>
+                  <Text style={styles.ingredientPrice}>
+                    {getProductPrice(ingredient.product_data).toFixed(2)} €
                   </Text>
-                </View>
-                <Text style={styles.ingredientPrice}>
-                  {getProductPrice(ingredient.product_data).toFixed(2)} €
-                </Text>
-              </View>
-            ))}
+                </TouchableOpacity>
+              );
+            })}
+
+            <View style={styles.selectedSummary}>
+              <Text style={styles.selectedSummaryText}>
+                {getSelectedCount()} seleccionados · {getSelectedPrice().toFixed(2)} €
+              </Text>
+            </View>
 
             <TouchableOpacity
               style={[
                 styles.addAllButton,
                 addingRecipeIngredients && styles.addAllButtonDisabled,
+                getSelectedCount() === 0 && styles.addAllButtonDisabled,
               ]}
-              onPress={() => addRecipeToList(selectedRecipe)}
-              disabled={addingRecipeIngredients}
+              onPress={addSelectedToList}
+              disabled={addingRecipeIngredients || getSelectedCount() === 0}
             >
               {addingRecipeIngredients ? (
                 <ActivityIndicator size="small" color="#fff" />
@@ -1203,7 +1235,7 @@ export default function Index() {
                 <>
                   <Ionicons name="cart" size={20} color="#fff" />
                   <Text style={styles.addAllButtonText}>
-                    Añadir todo a la lista
+                    Añadir seleccionados ({getSelectedCount()})
                   </Text>
                 </>
               )}
@@ -1225,9 +1257,9 @@ export default function Index() {
       ) : (
         // Recipes List View
         <>
-          <Text style={styles.sectionTitle}>Recetas Rápidas</Text>
+          <Text style={styles.sectionTitle}>Recetas Económicas ({PRELOADED_RECIPES.length})</Text>
           <Text style={styles.recipesSubtitle}>
-            Añade todos los ingredientes a tu lista con un toque
+            Selecciona ingredientes y añádelos a tu lista
           </Text>
 
           <ScrollView style={styles.recipesList}>
@@ -1235,7 +1267,7 @@ export default function Index() {
               <TouchableOpacity
                 key={recipe.id}
                 style={styles.recipeCard}
-                onPress={() => setSelectedRecipe(recipe)}
+                onPress={() => initializeIngredients(recipe)}
               >
                 <View style={styles.recipeCardContent}>
                   <View style={styles.recipeCardInfo}>
@@ -2069,5 +2101,52 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#333',
     lineHeight: 22,
+  },
+  // Ingredient Selection Styles
+  selectButtons: {
+    flexDirection: 'row',
+  },
+  selectBtn: {
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    backgroundColor: '#e8f5e9',
+    borderRadius: 12,
+    marginLeft: 8,
+  },
+  selectBtnText: {
+    fontSize: 12,
+    color: '#00a650',
+    fontWeight: '500',
+  },
+  ingredientItemSelected: {
+    backgroundColor: '#e8f5e9',
+    borderRadius: 8,
+    marginVertical: 2,
+  },
+  ingredientCheckbox: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: '#ccc',
+    marginRight: 10,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  ingredientCheckboxSelected: {
+    backgroundColor: '#00a650',
+    borderColor: '#00a650',
+  },
+  selectedSummary: {
+    backgroundColor: '#f5f5f5',
+    padding: 12,
+    borderRadius: 8,
+    marginTop: 12,
+    alignItems: 'center',
+  },
+  selectedSummaryText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#333',
   },
 });
