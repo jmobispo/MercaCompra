@@ -13,11 +13,53 @@ import {
   SafeAreaView,
   StatusBar,
   Platform,
+  KeyboardAvoidingView,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Application from 'expo-application';
 
 const API_URL = process.env.EXPO_PUBLIC_BACKEND_URL || '';
+
+// Imágenes reales de productos Mercadona
+const PRODUCT_IMAGES: {[key: string]: string} = {
+  '6260': 'https://prod-mercadona.imgix.net/images/f846b6d8b9daffa2b61c4c115020d4dd.jpg?fit=crop&h=300&w=300',
+  '6269': 'https://prod-mercadona.imgix.net/images/12cb042a1db2a965e3a7b1be7b01bd62.jpg?fit=crop&h=300&w=300',
+  '6175': 'https://prod-mercadona.imgix.net/images/cba9ea825acfc6789572d4088ac61392.jpg?fit=crop&h=300&w=300',
+  '6142': 'https://prod-mercadona.imgix.net/images/a479103aa629d24e19a1655e8459b8ee.jpg?fit=crop&h=300&w=300',
+  '17151': 'https://prod-mercadona.imgix.net/images/bef3c040943e4b6dd59b15f565ec4f08.jpg?fit=crop&h=300&w=300',
+  '16044': 'https://prod-mercadona.imgix.net/images/db53895dcbf286affe16def253a0ab89.jpg?fit=crop&h=300&w=300',
+  '13568': 'https://prod-mercadona.imgix.net/images/01e62dd81eb0ed0c43d341f5dc84d170.jpg?fit=crop&h=300&w=300',
+  '61251': 'https://prod-mercadona.imgix.net/images/1c5db356adc87b3adf62cdfb01512dfc.jpg?fit=crop&h=300&w=300',
+  '51050': 'https://prod-mercadona.imgix.net/images/82991bcf404ead6164e1b3b4ad79eeea.jpg?fit=crop&h=300&w=300',
+  '51203': 'https://prod-mercadona.imgix.net/images/18901ca537c8de2c4c77f69baf4ee430.jpg?fit=crop&h=300&w=300',
+  '4740': 'https://prod-mercadona.imgix.net/images/a5648e373920a10023a7ab6304eb0dc0.jpg?fit=crop&h=300&w=300',
+  '16252': 'https://prod-mercadona.imgix.net/images/9f4bbcd3b575f55df7aa9cea15ed0266.jpg?fit=crop&h=300&w=300',
+  '10117': 'https://prod-mercadona.imgix.net/images/108f4b61a8ddeca7146ea3cf0622921d.jpg?fit=crop&h=300&w=300',
+  '10161': 'https://prod-mercadona.imgix.net/images/f451d3695c8b94b17cb61540de841da8.jpg?fit=crop&h=300&w=300',
+  '16618': 'https://prod-mercadona.imgix.net/images/7c2f9a8b1e3d4c5f6a7b8c9d0e1f2a3b.jpg?fit=crop&h=300&w=300',
+  '2867': 'https://prod-mercadona.imgix.net/images/2781547566ca8d299f1e2e0d9cdccd4f.jpg?fit=crop&h=300&w=300',
+  '2871': 'https://prod-mercadona.imgix.net/images/087eaf211a0fc38ef1ced35ff9b44a18.jpg?fit=crop&h=300&w=300',
+  '2872': 'https://prod-mercadona.imgix.net/images/e5279086a2d46bed3787947f6a620949.jpg?fit=crop&h=300&w=300',
+  '35221': 'https://prod-mercadona.imgix.net/images/edc3300ee19dd682083042d5b90d4ca1.jpg?fit=crop&h=300&w=300',
+  '5044': 'https://prod-mercadona.imgix.net/images/5a6b7c8d9e0f1a2b3c4d5e6f7a8b9c0d.jpg?fit=crop&h=300&w=300',
+  '5063': 'https://prod-mercadona.imgix.net/images/6b7c8d9e0f1a2b3c4d5e6f7a8b9c0d1e.jpg?fit=crop&h=300&w=300',
+  '53141': 'https://prod-mercadona.imgix.net/images/d3ca58a7c971dab07cb0095a4391f33b.jpg?fit=crop&h=300&w=300',
+  '14485': 'https://prod-mercadona.imgix.net/images/8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f.jpg?fit=crop&h=300&w=300',
+  '61200': 'https://prod-mercadona.imgix.net/images/110a733a4288e3cee3fa98822491ea5a.jpg?fit=crop&h=300&w=300',
+  '61279': 'https://prod-mercadona.imgix.net/images/708f8d553aec26d56e2e09daf447df4b.jpg?fit=crop&h=300&w=300',
+  '61289': 'https://prod-mercadona.imgix.net/images/be6852af02a87787b9dad6356b8069aa.jpg?fit=crop&h=300&w=300',
+  '26011': 'https://prod-mercadona.imgix.net/images/ffbc3f23e35051fc1a326bda5a4f9063.jpg?fit=crop&h=300&w=300',
+  '26028': 'https://prod-mercadona.imgix.net/images/5f0806bcbd4a2de3c9f7dd39468359bb.jpg?fit=crop&h=300&w=300',
+  '26039': 'https://prod-mercadona.imgix.net/images/66cff189ab481a314894b2ca6c1a5ff3.jpg?fit=crop&h=300&w=300',
+  '69066': 'https://prod-mercadona.imgix.net/images/12ec1b808bbcbc2d5ad6b40d9021cf76.jpg?fit=crop&h=300&w=300',
+  '16315': 'https://prod-mercadona.imgix.net/images/a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6.jpg?fit=crop&h=300&w=300',
+  '4940': 'https://prod-mercadona.imgix.net/images/b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7.jpg?fit=crop&h=300&w=300',
+};
+
+// Función para obtener imagen de producto
+const getProductImageUrl = (productId: string, fallbackUrl?: string): string => {
+  return PRODUCT_IMAGES[productId] || fallbackUrl || '';
+};
 
 // Types
 interface Category {
@@ -978,6 +1020,11 @@ export default function Index() {
   };
 
   const getProductImage = (product: Product): string | null => {
+    // Primero intentar obtener del diccionario de imágenes reales
+    const realImage = PRODUCT_IMAGES[product.id];
+    if (realImage) return realImage;
+    
+    // Luego intentar del producto mismo
     return (
       product.thumbnail ||
       product.photos?.[0]?.thumbnail ||
@@ -1324,6 +1371,179 @@ export default function Index() {
   const [selectedRecipe, setSelectedRecipe] = useState<Recipe | null>(null);
   const [addingRecipeIngredients, setAddingRecipeIngredients] = useState<boolean>(false);
   const [selectedIngredients, setSelectedIngredients] = useState<{[key: string]: boolean}>({});
+  
+  // Estado para crear recetas personalizadas
+  const [showCreateRecipe, setShowCreateRecipe] = useState<boolean>(false);
+  const [customRecipes, setCustomRecipes] = useState<Recipe[]>([]);
+  const [newRecipeName, setNewRecipeName] = useState<string>('');
+  const [newRecipeDescription, setNewRecipeDescription] = useState<string>('');
+  const [newRecipeServings, setNewRecipeServings] = useState<string>('4');
+  const [newRecipeTime, setNewRecipeTime] = useState<string>('30 min');
+  const [newRecipeIngredients, setNewRecipeIngredients] = useState<RecipeIngredient[]>([]);
+  const [showAddIngredient, setShowAddIngredient] = useState<boolean>(false);
+  const [searchIngredient, setSearchIngredient] = useState<string>('');
+  const [searchResults, setSearchResults] = useState<Product[]>([]);
+  const [searchingProducts, setSearchingProducts] = useState<boolean>(false);
+
+  // Cargar recetas personalizadas del backend
+  useEffect(() => {
+    if (deviceId) {
+      loadCustomRecipes();
+    }
+  }, [deviceId]);
+
+  const loadCustomRecipes = async () => {
+    try {
+      const response = await fetch(`${API_URL}/api/recipes/${deviceId}`);
+      if (response.ok) {
+        const data = await response.json();
+        setCustomRecipes(data);
+      }
+    } catch (error) {
+      console.error('Error loading custom recipes:', error);
+    }
+  };
+
+  const searchProducts = async (query: string) => {
+    if (query.length < 2) {
+      setSearchResults([]);
+      return;
+    }
+    setSearchingProducts(true);
+    try {
+      // Buscar en varias categorías
+      const categoriesToSearch = [120, 126, 145, 44, 52, 53, 121, 75];
+      const allProducts: Product[] = [];
+      
+      for (const catId of categoriesToSearch.slice(0, 3)) {
+        const response = await fetch(
+          `${API_URL}/api/mercadona/categories/${catId}?postal_code=${postalCode}`
+        );
+        if (response.ok) {
+          const data = await response.json();
+          if (data.categories) {
+            data.categories.forEach((subcat: any) => {
+              if (subcat.products) {
+                subcat.products.forEach((p: Product) => {
+                  const name = (p.display_name || p.name || '').toLowerCase();
+                  if (name.includes(query.toLowerCase())) {
+                    allProducts.push(p);
+                  }
+                });
+              }
+            });
+          }
+        }
+      }
+      setSearchResults(allProducts.slice(0, 10));
+    } catch (error) {
+      console.error('Error searching products:', error);
+    } finally {
+      setSearchingProducts(false);
+    }
+  };
+
+  const addIngredientToNewRecipe = (product: Product, quantity: string) => {
+    const newIngredient: RecipeIngredient = {
+      product_id: product.id,
+      name: product.display_name || product.name || '',
+      quantity: quantity,
+      product_data: {
+        ...product,
+        thumbnail: getProductImage(product) || product.thumbnail,
+      },
+    };
+    setNewRecipeIngredients([...newRecipeIngredients, newIngredient]);
+    setShowAddIngredient(false);
+    setSearchIngredient('');
+    setSearchResults([]);
+  };
+
+  const removeIngredientFromNewRecipe = (index: number) => {
+    setNewRecipeIngredients(newRecipeIngredients.filter((_, i) => i !== index));
+  };
+
+  const saveNewRecipe = async () => {
+    if (!newRecipeName.trim()) {
+      Alert.alert('Error', 'Por favor introduce un nombre para la receta');
+      return;
+    }
+    if (newRecipeIngredients.length === 0) {
+      Alert.alert('Error', 'Por favor añade al menos un ingrediente');
+      return;
+    }
+
+    try {
+      const newRecipe = {
+        device_id: deviceId,
+        name: newRecipeName,
+        description: newRecipeDescription,
+        servings: parseInt(newRecipeServings) || 4,
+        time: newRecipeTime,
+        difficulty: 'Personal',
+        ingredients: newRecipeIngredients,
+        instructions: [],
+      };
+
+      const response = await fetch(`${API_URL}/api/recipes`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newRecipe),
+      });
+
+      if (response.ok) {
+        await loadCustomRecipes();
+        setShowCreateRecipe(false);
+        resetNewRecipeForm();
+        Alert.alert('¡Guardado!', 'Tu receta ha sido guardada');
+      }
+    } catch (error) {
+      console.error('Error saving recipe:', error);
+      Alert.alert('Error', 'No se pudo guardar la receta');
+    }
+  };
+
+  const resetNewRecipeForm = () => {
+    setNewRecipeName('');
+    setNewRecipeDescription('');
+    setNewRecipeServings('4');
+    setNewRecipeTime('30 min');
+    setNewRecipeIngredients([]);
+  };
+
+  const deleteCustomRecipe = async (recipeId: string) => {
+    if (Platform.OS === 'web') {
+      const confirmed = window.confirm('¿Eliminar esta receta?');
+      if (confirmed) {
+        try {
+          await fetch(`${API_URL}/api/recipes/${deviceId}/${recipeId}`, {
+            method: 'DELETE',
+          });
+          await loadCustomRecipes();
+        } catch (error) {
+          console.error('Error deleting recipe:', error);
+        }
+      }
+    } else {
+      Alert.alert('Eliminar receta', '¿Estás seguro?', [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Eliminar',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await fetch(`${API_URL}/api/recipes/${deviceId}/${recipeId}`, {
+                method: 'DELETE',
+              });
+              await loadCustomRecipes();
+            } catch (error) {
+              console.error('Error deleting recipe:', error);
+            }
+          },
+        },
+      ]);
+    }
+  };
 
   // Initialize all ingredients as selected when recipe is selected
   const initializeIngredients = (recipe: Recipe) => {
@@ -1581,15 +1801,249 @@ export default function Index() {
             ))}
           </View>
         </ScrollView>
+      ) : showCreateRecipe ? (
+        // Create Recipe View
+        <KeyboardAvoidingView 
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={{ flex: 1 }}
+        >
+          <ScrollView style={styles.createRecipeContainer}>
+            <TouchableOpacity
+              style={styles.backButton}
+              onPress={() => {
+                setShowCreateRecipe(false);
+                resetNewRecipeForm();
+              }}
+            >
+              <Ionicons name="arrow-back" size={24} color="#00a650" />
+              <Text style={styles.backButtonText}>Cancelar</Text>
+            </TouchableOpacity>
+
+            <Text style={styles.createRecipeTitle}>Nueva Receta</Text>
+
+            <View style={styles.formGroup}>
+              <Text style={styles.formLabel}>Nombre de la receta *</Text>
+              <TextInput
+                style={styles.formInput}
+                value={newRecipeName}
+                onChangeText={setNewRecipeName}
+                placeholder="Ej: Mi pasta favorita"
+              />
+            </View>
+
+            <View style={styles.formGroup}>
+              <Text style={styles.formLabel}>Descripción</Text>
+              <TextInput
+                style={[styles.formInput, styles.formTextArea]}
+                value={newRecipeDescription}
+                onChangeText={setNewRecipeDescription}
+                placeholder="Describe tu receta..."
+                multiline
+                numberOfLines={3}
+              />
+            </View>
+
+            <View style={styles.formRow}>
+              <View style={[styles.formGroup, { flex: 1, marginRight: 8 }]}>
+                <Text style={styles.formLabel}>Porciones</Text>
+                <TextInput
+                  style={styles.formInput}
+                  value={newRecipeServings}
+                  onChangeText={setNewRecipeServings}
+                  keyboardType="numeric"
+                  placeholder="4"
+                />
+              </View>
+              <View style={[styles.formGroup, { flex: 1, marginLeft: 8 }]}>
+                <Text style={styles.formLabel}>Tiempo</Text>
+                <TextInput
+                  style={styles.formInput}
+                  value={newRecipeTime}
+                  onChangeText={setNewRecipeTime}
+                  placeholder="30 min"
+                />
+              </View>
+            </View>
+
+            <View style={styles.formGroup}>
+              <View style={styles.ingredientsHeader}>
+                <Text style={styles.formLabel}>Ingredientes ({newRecipeIngredients.length})</Text>
+                <TouchableOpacity
+                  style={styles.addIngredientBtn}
+                  onPress={() => setShowAddIngredient(true)}
+                >
+                  <Ionicons name="add-circle" size={24} color="#00a650" />
+                  <Text style={styles.addIngredientBtnText}>Añadir</Text>
+                </TouchableOpacity>
+              </View>
+
+              {newRecipeIngredients.map((ing, index) => (
+                <View key={index} style={styles.newIngredientItem}>
+                  <Text style={styles.newIngredientName}>{ing.name}</Text>
+                  <Text style={styles.newIngredientQty}>{ing.quantity}</Text>
+                  <TouchableOpacity onPress={() => removeIngredientFromNewRecipe(index)}>
+                    <Ionicons name="close-circle" size={24} color="#e74c3c" />
+                  </TouchableOpacity>
+                </View>
+              ))}
+
+              {newRecipeIngredients.length === 0 && (
+                <Text style={styles.noIngredientsText}>
+                  Pulsa "Añadir" para buscar productos de Mercadona
+                </Text>
+              )}
+            </View>
+
+            <TouchableOpacity style={styles.saveRecipeBtn} onPress={saveNewRecipe}>
+              <Ionicons name="checkmark-circle" size={24} color="#fff" />
+              <Text style={styles.saveRecipeBtnText}>Guardar Receta</Text>
+            </TouchableOpacity>
+          </ScrollView>
+
+          {/* Modal para añadir ingrediente */}
+          <Modal visible={showAddIngredient} transparent animationType="slide">
+            <View style={styles.modalOverlay}>
+              <View style={[styles.modalContent, { maxHeight: '80%' }]}>
+                <View style={styles.modalHeader}>
+                  <Text style={styles.modalTitle}>Buscar Ingrediente</Text>
+                  <TouchableOpacity onPress={() => {
+                    setShowAddIngredient(false);
+                    setSearchIngredient('');
+                    setSearchResults([]);
+                  }}>
+                    <Ionicons name="close" size={24} color="#666" />
+                  </TouchableOpacity>
+                </View>
+
+                <TextInput
+                  style={styles.searchInput}
+                  value={searchIngredient}
+                  onChangeText={(text) => {
+                    setSearchIngredient(text);
+                    searchProducts(text);
+                  }}
+                  placeholder="Buscar en Mercadona... (ej: tomate, pasta)"
+                  autoFocus
+                />
+
+                {searchingProducts && (
+                  <ActivityIndicator size="small" color="#00a650" style={{ marginTop: 10 }} />
+                )}
+
+                <ScrollView style={styles.searchResultsList}>
+                  {searchResults.map((product) => (
+                    <TouchableOpacity
+                      key={product.id}
+                      style={styles.searchResultItem}
+                      onPress={() => {
+                        const qty = Platform.OS === 'web' 
+                          ? window.prompt('Cantidad (ej: 500g, 2 unidades):', '1 unidad') || '1 unidad'
+                          : '1 unidad';
+                        addIngredientToNewRecipe(product, qty);
+                      }}
+                    >
+                      {getProductImage(product) ? (
+                        <Image
+                          source={{ uri: getProductImage(product)! }}
+                          style={styles.searchResultImage}
+                        />
+                      ) : (
+                        <View style={styles.searchResultImagePlaceholder}>
+                          <Ionicons name="cube-outline" size={20} color="#ccc" />
+                        </View>
+                      )}
+                      <View style={styles.searchResultInfo}>
+                        <Text style={styles.searchResultName} numberOfLines={2}>
+                          {product.display_name || product.name}
+                        </Text>
+                        <Text style={styles.searchResultPrice}>
+                          {getProductPrice(product).toFixed(2)} €
+                        </Text>
+                      </View>
+                      <Ionicons name="add-circle" size={28} color="#00a650" />
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+              </View>
+            </View>
+          </Modal>
+        </KeyboardAvoidingView>
       ) : (
         // Recipes List View
         <>
-          <Text style={styles.sectionTitle}>Recetas Económicas ({PRELOADED_RECIPES.length})</Text>
+          <View style={styles.recipesHeader}>
+            <Text style={styles.sectionTitle}>Recetas</Text>
+            <TouchableOpacity
+              style={styles.createRecipeBtn}
+              onPress={() => setShowCreateRecipe(true)}
+            >
+              <Ionicons name="add" size={20} color="#fff" />
+              <Text style={styles.createRecipeBtnText}>Crear</Text>
+            </TouchableOpacity>
+          </View>
           <Text style={styles.recipesSubtitle}>
             Selecciona ingredientes y añádelos a tu lista
           </Text>
 
           <ScrollView style={styles.recipesList}>
+            {/* Recetas personalizadas */}
+            {customRecipes.length > 0 && (
+              <>
+                <Text style={styles.recipesSectionLabel}>Mis Recetas ({customRecipes.length})</Text>
+                {customRecipes.map((recipe) => (
+                  <TouchableOpacity
+                    key={recipe.id}
+                    style={[styles.recipeCard, styles.customRecipeCard]}
+                    onPress={() => initializeIngredients(recipe)}
+                  >
+                    <View style={styles.recipeCardContent}>
+                      <View style={styles.recipeCardInfo}>
+                        <View style={styles.customRecipeBadge}>
+                          <Text style={styles.customRecipeBadgeText}>Personal</Text>
+                        </View>
+                        <Text style={styles.recipeCardTitle}>{recipe.name}</Text>
+                        <Text style={styles.recipeCardDescription} numberOfLines={2}>
+                          {recipe.description || 'Sin descripción'}
+                        </Text>
+                        <View style={styles.recipeCardMeta}>
+                          <View style={styles.recipeCardMetaItem}>
+                            <Ionicons name="restaurant-outline" size={14} color="#666" />
+                            <Text style={styles.recipeCardMetaText}>
+                              {recipe.ingredients.length} ingred.
+                            </Text>
+                          </View>
+                          <Text style={styles.recipeCardPrice}>
+                            ≈ {getRecipeTotalPrice(recipe).toFixed(2)} €
+                          </Text>
+                        </View>
+                      </View>
+                      <View style={styles.customRecipeActions}>
+                        <TouchableOpacity
+                          onPress={(e) => {
+                            e.stopPropagation();
+                            deleteCustomRecipe(recipe.id);
+                          }}
+                        >
+                          <Ionicons name="trash-outline" size={22} color="#e74c3c" />
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                          style={{ marginTop: 12 }}
+                          onPress={(e) => {
+                            e.stopPropagation();
+                            addRecipeToList(recipe);
+                          }}
+                        >
+                          <Ionicons name="add-circle" size={32} color="#00a650" />
+                        </TouchableOpacity>
+                      </View>
+                    </View>
+                  </TouchableOpacity>
+                ))}
+              </>
+            )}
+
+            {/* Recetas predefinidas */}
+            <Text style={styles.recipesSectionLabel}>Recetas Sugeridas ({PRELOADED_RECIPES.length})</Text>
             {PRELOADED_RECIPES.map((recipe) => (
               <TouchableOpacity
                 key={recipe.id}
@@ -2475,5 +2929,198 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
     color: '#333',
+  },
+  // Create Recipe Styles
+  recipesHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  createRecipeBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#00a650',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 20,
+  },
+  createRecipeBtnText: {
+    color: '#fff',
+    fontWeight: '600',
+    marginLeft: 4,
+  },
+  createRecipeContainer: {
+    flex: 1,
+  },
+  createRecipeTitle: {
+    fontSize: 22,
+    fontWeight: 'bold',
+    color: '#333',
+    marginBottom: 20,
+  },
+  formGroup: {
+    marginBottom: 16,
+  },
+  formLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#333',
+    marginBottom: 8,
+  },
+  formInput: {
+    borderWidth: 1,
+    borderColor: '#ddd',
+    borderRadius: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    fontSize: 16,
+    backgroundColor: '#fff',
+  },
+  formTextArea: {
+    height: 80,
+    textAlignVertical: 'top',
+  },
+  formRow: {
+    flexDirection: 'row',
+  },
+  ingredientsHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  addIngredientBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  addIngredientBtnText: {
+    color: '#00a650',
+    fontWeight: '600',
+    marginLeft: 4,
+  },
+  newIngredientItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#fff',
+    padding: 12,
+    borderRadius: 10,
+    marginBottom: 8,
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
+  },
+  newIngredientName: {
+    flex: 1,
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#333',
+  },
+  newIngredientQty: {
+    fontSize: 13,
+    color: '#666',
+    marginRight: 12,
+  },
+  noIngredientsText: {
+    textAlign: 'center',
+    color: '#999',
+    fontStyle: 'italic',
+    paddingVertical: 20,
+  },
+  saveRecipeBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#00a650',
+    paddingVertical: 14,
+    borderRadius: 12,
+    marginTop: 16,
+    marginBottom: 40,
+  },
+  saveRecipeBtnText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+    marginLeft: 8,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  searchInput: {
+    borderWidth: 1,
+    borderColor: '#ddd',
+    borderRadius: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    fontSize: 16,
+    backgroundColor: '#f9f9f9',
+  },
+  searchResultsList: {
+    maxHeight: 300,
+    marginTop: 12,
+  },
+  searchResultItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f0f0',
+  },
+  searchResultImage: {
+    width: 44,
+    height: 44,
+    borderRadius: 8,
+    marginRight: 12,
+  },
+  searchResultImagePlaceholder: {
+    width: 44,
+    height: 44,
+    borderRadius: 8,
+    backgroundColor: '#f5f5f5',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  searchResultInfo: {
+    flex: 1,
+  },
+  searchResultName: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#333',
+  },
+  searchResultPrice: {
+    fontSize: 13,
+    color: '#00a650',
+    marginTop: 2,
+  },
+  recipesSectionLabel: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#666',
+    marginTop: 16,
+    marginBottom: 8,
+  },
+  customRecipeCard: {
+    borderLeftWidth: 4,
+    borderLeftColor: '#00a650',
+  },
+  customRecipeBadge: {
+    backgroundColor: '#e8f5e9',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 10,
+    alignSelf: 'flex-start',
+    marginBottom: 4,
+  },
+  customRecipeBadgeText: {
+    fontSize: 11,
+    color: '#00a650',
+    fontWeight: '600',
+  },
+  customRecipeActions: {
+    alignItems: 'center',
   },
 });
