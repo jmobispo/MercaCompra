@@ -202,16 +202,16 @@ async def get_product_details(product_id: str, postal_code: str = Query(default=
 
 @api_router.get("/mercadona/search")
 async def search_products(query: str = Query(..., min_length=2), postal_code: str = Query(default="28001")):
-    """Search products across all categories"""
+    """Search products across categories - optimized for speed"""
     warehouse = get_warehouse_from_postal(postal_code)
     all_products = []
     
-    # IDs de categorías principales que funcionan en la API de Mercadona
-    # Estos son los IDs de nivel superior que contienen subcategorías con productos
-    main_category_ids = [72, 75, 77, 78, 80, 53, 54, 56, 43, 44, 48, 52, 120, 121, 122, 123, 125, 126, 112, 113]
+    # IDs de categorías principales más importantes (reducido para evitar rate limiting)
+    # Priorizamos las categorías más comunes: lácteos, carnes, verduras, pasta, etc.
+    main_category_ids = [72, 53, 54, 37, 38, 40, 120, 121, 122, 98, 132, 78, 77, 59, 112, 115]
     
     try:
-        async with httpx.AsyncClient(timeout=30.0) as client:
+        async with httpx.AsyncClient(timeout=15.0) as client:
             query_lower = query.lower()
             
             for cat_id in main_category_ids:

@@ -1637,29 +1637,58 @@ export default function Index() {
     }
 
     try {
-      const response = await fetch(`${API_URL}/api/recipes/${deviceId}/${editingRecipe.id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name: newRecipeName,
-          description: newRecipeDescription,
-          servings: parseInt(newRecipeServings) || 4,
-          time: newRecipeTime,
-          ingredients: newRecipeIngredients,
-        }),
-      });
+      // Si es una receta duplicada (comienza con 'custom-'), crear una nueva
+      const isNewRecipe = editingRecipe.id.startsWith('custom-') || editingRecipe.id.startsWith('recipe-');
+      
+      if (isNewRecipe) {
+        // Crear nueva receta
+        const response = await fetch(`${API_URL}/api/recipes`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            device_id: deviceId,
+            name: newRecipeName,
+            description: newRecipeDescription,
+            servings: parseInt(newRecipeServings) || 4,
+            time: newRecipeTime,
+            ingredients: newRecipeIngredients,
+          }),
+        });
 
-      if (response.ok) {
-        await loadCustomRecipes();
-        setShowCreateRecipe(false);
-        resetNewRecipeForm();
-        Alert.alert('¡Actualizado!', 'Tu receta ha sido actualizada');
+        if (response.ok) {
+          await loadCustomRecipes();
+          setShowCreateRecipe(false);
+          resetNewRecipeForm();
+          Alert.alert('¡Guardado!', 'Tu receta personalizada ha sido creada');
+        } else {
+          throw new Error('Error al crear');
+        }
       } else {
-        throw new Error('Error al actualizar');
+        // Actualizar receta existente
+        const response = await fetch(`${API_URL}/api/recipes/${deviceId}/${editingRecipe.id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            name: newRecipeName,
+            description: newRecipeDescription,
+            servings: parseInt(newRecipeServings) || 4,
+            time: newRecipeTime,
+            ingredients: newRecipeIngredients,
+          }),
+        });
+
+        if (response.ok) {
+          await loadCustomRecipes();
+          setShowCreateRecipe(false);
+          resetNewRecipeForm();
+          Alert.alert('¡Actualizado!', 'Tu receta ha sido actualizada');
+        } else {
+          throw new Error('Error al actualizar');
+        }
       }
     } catch (error) {
-      console.error('Error updating recipe:', error);
-      Alert.alert('Error', 'No se pudo actualizar la receta');
+      console.error('Error saving recipe:', error);
+      Alert.alert('Error', 'No se pudo guardar la receta');
     }
   };
 
@@ -2242,15 +2271,33 @@ export default function Index() {
                       </Text>
                     </View>
                   </View>
-                  <TouchableOpacity
-                    style={styles.recipeAddButton}
-                    onPress={(e) => {
-                      e.stopPropagation();
-                      addRecipeToList(recipe);
-                    }}
-                  >
-                    <Ionicons name="add-circle" size={32} color="#00a650" />
-                  </TouchableOpacity>
+                  <View style={styles.preloadedRecipeActions}>
+                    <TouchableOpacity
+                      style={styles.duplicateRecipeBtn}
+                      onPress={(e) => {
+                        e.stopPropagation();
+                        // Duplicar la receta como una receta personal editable
+                        const duplicatedRecipe: Recipe = {
+                          ...recipe,
+                          id: `custom-${Date.now()}`,
+                          name: `${recipe.name} (Mi versión)`,
+                        };
+                        startEditRecipe(duplicatedRecipe);
+                      }}
+                    >
+                      <Ionicons name="copy-outline" size={18} color="#3498db" />
+                      <Text style={styles.duplicateRecipeBtnText}>Editar copia</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={styles.recipeAddButton}
+                      onPress={(e) => {
+                        e.stopPropagation();
+                        addRecipeToList(recipe);
+                      }}
+                    >
+                      <Ionicons name="add-circle" size={32} color="#00a650" />
+                    </TouchableOpacity>
+                  </View>
                 </View>
               </TouchableOpacity>
             ))}
@@ -2957,6 +3004,26 @@ const styles = StyleSheet.create({
   },
   recipeAddButton: {
     padding: 8,
+  },
+  preloadedRecipeActions: {
+    flexDirection: 'column',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+  },
+  duplicateRecipeBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#e8f4fc',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 8,
+    gap: 4,
+  },
+  duplicateRecipeBtnText: {
+    fontSize: 11,
+    color: '#3498db',
+    fontWeight: '500',
   },
   recipeDetailContainer: {
     flex: 1,
