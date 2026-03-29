@@ -749,6 +749,12 @@ export default function Index() {
   const [tempBudget, setTempBudget] = useState<string>('100');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [categoryPath, setCategoryPath] = useState<Category[]>([]);
+  
+  // Estado del buscador general
+  const [generalSearchQuery, setGeneralSearchQuery] = useState<string>('');
+  const [generalSearchResults, setGeneralSearchResults] = useState<Product[]>([]);
+  const [isSearching, setIsSearching] = useState<boolean>(false);
+  const [showSearchResults, setShowSearchResults] = useState<boolean>(false);
 
   // Initialize device ID
   useEffect(() => {
@@ -1098,6 +1104,39 @@ export default function Index() {
     }
   };
 
+  // Función de búsqueda general de productos
+  const performGeneralSearch = async (query: string) => {
+    if (query.length < 2) {
+      setGeneralSearchResults([]);
+      setShowSearchResults(false);
+      return;
+    }
+    setIsSearching(true);
+    setShowSearchResults(true);
+    try {
+      const response = await fetch(
+        `${API_URL}/api/mercadona/search?query=${encodeURIComponent(query)}&postal_code=${postalCode}`
+      );
+      if (response.ok) {
+        const data = await response.json();
+        setGeneralSearchResults(data.products || []);
+      } else {
+        setGeneralSearchResults([]);
+      }
+    } catch (error) {
+      console.error('Error searching products:', error);
+      setGeneralSearchResults([]);
+    } finally {
+      setIsSearching(false);
+    }
+  };
+
+  const clearGeneralSearch = () => {
+    setGeneralSearchQuery('');
+    setGeneralSearchResults([]);
+    setShowSearchResults(false);
+  };
+
   // Product Card Component
   const ProductCard = ({ product }: { product: Product }) => {
     const isFavorite = favorites.some((f) => f.product_id === product.id);
@@ -1155,40 +1194,95 @@ export default function Index() {
   // Render Home Tab
   const renderHomeTab = () => (
     <View style={styles.tabContent}>
-      <View style={styles.headerRow}>
-        <Text style={styles.sectionTitle}>Categorías</Text>
-        <TouchableOpacity
-          style={styles.postalButton}
-          onPress={() => {
-            setTempPostalCode(postalCode);
-            setShowPostalModal(true);
-          }}
-        >
-          <Ionicons name="location" size={16} color="#00a650" />
-          <Text style={styles.postalButtonText}>{postalCode}</Text>
-        </TouchableOpacity>
+      {/* Barra de búsqueda general */}
+      <View style={styles.searchContainer}>
+        <View style={styles.searchInputWrapper}>
+          <Ionicons name="search" size={20} color="#888" style={styles.searchIcon} />
+          <TextInput
+            style={styles.searchInput}
+            placeholder="Buscar productos..."
+            placeholderTextColor="#888"
+            value={generalSearchQuery}
+            onChangeText={(text) => {
+              setGeneralSearchQuery(text);
+              performGeneralSearch(text);
+            }}
+          />
+          {generalSearchQuery.length > 0 && (
+            <TouchableOpacity onPress={clearGeneralSearch} style={styles.clearSearchBtn}>
+              <Ionicons name="close-circle" size={20} color="#888" />
+            </TouchableOpacity>
+          )}
+        </View>
       </View>
 
-      {loading && !selectedCategory ? (
-        <ActivityIndicator size="large" color="#00a650" style={styles.loader} />
-      ) : selectedCategory || categoryPath.length > 0 ? (
-        <View style={styles.categoryDetailView}>
-          <TouchableOpacity style={styles.backButton} onPress={goBackCategory}>
-            <Ionicons name="arrow-back" size={24} color="#00a650" />
-            <Text style={styles.backButtonText}>
-              {categoryPath.length > 0
-                ? categoryPath[categoryPath.length - 1].name
-                : 'Categorías'}
+      {/* Resultados de búsqueda */}
+      {showSearchResults ? (
+        <View style={styles.searchResultsContainer}>
+          <View style={styles.searchResultsHeader}>
+            <Text style={styles.searchResultsTitle}>
+              Resultados para "{generalSearchQuery}" ({generalSearchResults.length})
             </Text>
-          </TouchableOpacity>
-
-          {products.length > 0 ? (
+            <TouchableOpacity onPress={clearGeneralSearch}>
+              <Text style={styles.clearSearchText}>Limpiar</Text>
+            </TouchableOpacity>
+          </View>
+          
+          {isSearching ? (
+            <ActivityIndicator size="large" color="#00a650" style={styles.loader} />
+          ) : generalSearchResults.length > 0 ? (
             <ScrollView
               style={styles.productsList}
               contentContainerStyle={styles.productsGrid}
             >
-              {products.map((product) => (
+              {generalSearchResults.map((product) => (
                 <ProductCard key={product.id} product={product} />
+              ))}
+            </ScrollView>
+          ) : (
+            <View style={styles.emptyState}>
+              <Ionicons name="search-outline" size={64} color="#ccc" />
+              <Text style={styles.emptyStateText}>No se encontraron productos</Text>
+              <Text style={styles.emptyStateSubtext}>Prueba con otros términos de búsqueda</Text>
+            </View>
+          )}
+        </View>
+      ) : (
+        <>
+          <View style={styles.headerRow}>
+            <Text style={styles.sectionTitle}>Categorías</Text>
+            <TouchableOpacity
+              style={styles.postalButton}
+              onPress={() => {
+                setTempPostalCode(postalCode);
+                setShowPostalModal(true);
+              }}
+            >
+              <Ionicons name="location" size={16} color="#00a650" />
+              <Text style={styles.postalButtonText}>{postalCode}</Text>
+            </TouchableOpacity>
+          </View>
+
+          {loading && !selectedCategory ? (
+            <ActivityIndicator size="large" color="#00a650" style={styles.loader} />
+          ) : selectedCategory || categoryPath.length > 0 ? (
+            <View style={styles.categoryDetailView}>
+              <TouchableOpacity style={styles.backButton} onPress={goBackCategory}>
+                <Ionicons name="arrow-back" size={24} color="#00a650" />
+                <Text style={styles.backButtonText}>
+                  {categoryPath.length > 0
+                    ? categoryPath[categoryPath.length - 1].name
+                    : 'Categorías'}
+                </Text>
+              </TouchableOpacity>
+
+              {products.length > 0 ? (
+                <ScrollView
+                  style={styles.productsList}
+                  contentContainerStyle={styles.productsGrid}
+                >
+                  {products.map((product) => (
+                    <ProductCard key={product.id} product={product} />
               ))}
             </ScrollView>
           ) : selectedCategory?.categories &&
@@ -1234,6 +1328,8 @@ export default function Index() {
             </TouchableOpacity>
           ))}
         </ScrollView>
+      )}
+        </>
       )}
     </View>
   );
@@ -1429,33 +1525,19 @@ export default function Index() {
     }
     setSearchingProducts(true);
     try {
-      // Buscar en varias categorías
-      const categoriesToSearch = [120, 126, 145, 44, 52, 53, 121, 75];
-      const allProducts: Product[] = [];
-      
-      for (const catId of categoriesToSearch.slice(0, 3)) {
-        const response = await fetch(
-          `${API_URL}/api/mercadona/categories/${catId}?postal_code=${postalCode}`
-        );
-        if (response.ok) {
-          const data = await response.json();
-          if (data.categories) {
-            data.categories.forEach((subcat: any) => {
-              if (subcat.products) {
-                subcat.products.forEach((p: Product) => {
-                  const name = (p.display_name || p.name || '').toLowerCase();
-                  if (name.includes(query.toLowerCase())) {
-                    allProducts.push(p);
-                  }
-                });
-              }
-            });
-          }
-        }
+      // Usar el nuevo endpoint de búsqueda
+      const response = await fetch(
+        `${API_URL}/api/mercadona/search?query=${encodeURIComponent(query)}&postal_code=${postalCode}`
+      );
+      if (response.ok) {
+        const data = await response.json();
+        setSearchResults(data.products || []);
+      } else {
+        setSearchResults([]);
       }
-      setSearchResults(allProducts.slice(0, 10));
     } catch (error) {
       console.error('Error searching products:', error);
+      setSearchResults([]);
     } finally {
       setSearchingProducts(false);
     }
@@ -2382,6 +2464,50 @@ const styles = StyleSheet.create({
   tabContent: {
     flex: 1,
     padding: 16,
+  },
+  // Estilos del buscador general
+  searchContainer: {
+    marginBottom: 16,
+  },
+  searchInputWrapper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
+  },
+  searchIcon: {
+    marginRight: 8,
+  },
+  searchInput: {
+    flex: 1,
+    height: 48,
+    fontSize: 16,
+    color: '#333',
+  },
+  clearSearchBtn: {
+    padding: 4,
+  },
+  searchResultsContainer: {
+    flex: 1,
+  },
+  searchResultsHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  searchResultsTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#333',
+  },
+  clearSearchText: {
+    fontSize: 14,
+    color: '#00a650',
+    fontWeight: '500',
   },
   headerRow: {
     flexDirection: 'row',

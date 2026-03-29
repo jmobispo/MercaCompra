@@ -200,6 +200,53 @@ async def get_product_details(product_id: str, postal_code: str = Query(default=
         logging.error(f"Error fetching product {product_id}: {e}")
         raise HTTPException(status_code=502, detail=f"Error connecting to Mercadona: {str(e)}")
 
+@api_router.get("/mercadona/search")
+async def search_products(query: str = Query(..., min_length=2), postal_code: str = Query(default="28001")):
+    """Search products across all categories"""
+    warehouse = get_warehouse_from_postal(postal_code)
+    all_products = []
+    
+    # IDs de categorías principales que funcionan en la API de Mercadona
+    # Estos son los IDs de nivel superior que contienen subcategorías con productos
+    main_category_ids = [72, 75, 77, 78, 80, 53, 54, 56, 43, 44, 48, 52, 120, 121, 122, 123, 125, 126, 112, 113]
+    
+    try:
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            query_lower = query.lower()
+            
+            for cat_id in main_category_ids:
+                if len(all_products) >= 30:
+                    break
+                    
+                try:
+                    cat_detail = await client.get(
+                        f"{MERCADONA_API}/categories/{cat_id}/",
+                        params={"lang": "es", "wh": warehouse},
+                        headers={
+                            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+                            "Accept": "application/json"
+                        }
+                    )
+                    if cat_detail.status_code == 200:
+                        cat_data = cat_detail.json()
+                        subcats = cat_data.get("categories", [])
+                        
+                        for subcat in subcats:
+                            products = subcat.get("products", [])
+                            for product in products:
+                                name = (product.get("display_name") or product.get("name") or "").lower()
+                                if query_lower in name:
+                                    all_products.append(product)
+                                    if len(all_products) >= 30:
+                                        return {"products": all_products}
+                except:
+                    continue
+                    
+        return {"products": all_products}
+    except httpx.HTTPError as e:
+        logging.error(f"Error searching products: {e}")
+        raise HTTPException(status_code=502, detail=f"Error connecting to Mercadona: {str(e)}")
+
 # ============== User Settings ==============
 
 @api_router.get("/settings/{device_id}", response_model=UserSettings)
