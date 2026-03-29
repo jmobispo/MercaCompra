@@ -12,7 +12,7 @@ from datetime import datetime
 from typing import Dict, Any, List
 
 # Backend URL from frontend .env configuration
-BASE_URL = "https://mercadona-api-sync.preview.emergentagent.com/api"
+BASE_URL = "https://presupuesto-lista.preview.emergentagent.com/api"
 
 class MercadonaAPITester:
     def __init__(self):

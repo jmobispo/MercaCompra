@@ -36,15 +36,15 @@ const PRODUCT_IMAGES: {[key: string]: string} = {
   '16252': 'https://prod-mercadona.imgix.net/images/9f4bbcd3b575f55df7aa9cea15ed0266.jpg?fit=crop&h=300&w=300',
   '10117': 'https://prod-mercadona.imgix.net/images/108f4b61a8ddeca7146ea3cf0622921d.jpg?fit=crop&h=300&w=300',
   '10161': 'https://prod-mercadona.imgix.net/images/f451d3695c8b94b17cb61540de841da8.jpg?fit=crop&h=300&w=300',
-  '16618': 'https://prod-mercadona.imgix.net/images/7c2f9a8b1e3d4c5f6a7b8c9d0e1f2a3b.jpg?fit=crop&h=300&w=300',
+  '16618': 'https://prod-mercadona.imgix.net/images/4c97fc1fdefb7083f3ddfa0fd6169cb4.jpg?fit=crop&h=300&w=300',
   '2867': 'https://prod-mercadona.imgix.net/images/2781547566ca8d299f1e2e0d9cdccd4f.jpg?fit=crop&h=300&w=300',
   '2871': 'https://prod-mercadona.imgix.net/images/087eaf211a0fc38ef1ced35ff9b44a18.jpg?fit=crop&h=300&w=300',
   '2872': 'https://prod-mercadona.imgix.net/images/e5279086a2d46bed3787947f6a620949.jpg?fit=crop&h=300&w=300',
   '35221': 'https://prod-mercadona.imgix.net/images/edc3300ee19dd682083042d5b90d4ca1.jpg?fit=crop&h=300&w=300',
-  '5044': 'https://prod-mercadona.imgix.net/images/5a6b7c8d9e0f1a2b3c4d5e6f7a8b9c0d.jpg?fit=crop&h=300&w=300',
-  '5063': 'https://prod-mercadona.imgix.net/images/6b7c8d9e0f1a2b3c4d5e6f7a8b9c0d1e.jpg?fit=crop&h=300&w=300',
+  '5044': 'https://prod-mercadona.imgix.net/images/0daf43fb5761b823ce83c985930c97c9.jpg?fit=crop&h=300&w=300',
+  '5063': 'https://prod-mercadona.imgix.net/images/801f924df0d429d82c0a136901dcb9b0.jpg?fit=crop&h=300&w=300',
   '53141': 'https://prod-mercadona.imgix.net/images/d3ca58a7c971dab07cb0095a4391f33b.jpg?fit=crop&h=300&w=300',
-  '14485': 'https://prod-mercadona.imgix.net/images/8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f.jpg?fit=crop&h=300&w=300',
+  '14485': 'https://prod-mercadona.imgix.net/images/ca671a930747bd720275ab34ee0ecfc3.jpg?fit=crop&h=300&w=300',
   '61200': 'https://prod-mercadona.imgix.net/images/110a733a4288e3cee3fa98822491ea5a.jpg?fit=crop&h=300&w=300',
   '61279': 'https://prod-mercadona.imgix.net/images/708f8d553aec26d56e2e09daf447df4b.jpg?fit=crop&h=300&w=300',
   '61289': 'https://prod-mercadona.imgix.net/images/be6852af02a87787b9dad6356b8069aa.jpg?fit=crop&h=300&w=300',
@@ -52,8 +52,8 @@ const PRODUCT_IMAGES: {[key: string]: string} = {
   '26028': 'https://prod-mercadona.imgix.net/images/5f0806bcbd4a2de3c9f7dd39468359bb.jpg?fit=crop&h=300&w=300',
   '26039': 'https://prod-mercadona.imgix.net/images/66cff189ab481a314894b2ca6c1a5ff3.jpg?fit=crop&h=300&w=300',
   '69066': 'https://prod-mercadona.imgix.net/images/12ec1b808bbcbc2d5ad6b40d9021cf76.jpg?fit=crop&h=300&w=300',
-  '16315': 'https://prod-mercadona.imgix.net/images/a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6.jpg?fit=crop&h=300&w=300',
-  '4940': 'https://prod-mercadona.imgix.net/images/b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7.jpg?fit=crop&h=300&w=300',
+  '16315': 'https://prod-mercadona.imgix.net/images/5da9e6258cbd2e45b4b84ad093cfc80b.jpg?fit=crop&h=300&w=300',
+  '4940': 'https://prod-mercadona.imgix.net/images/44c1552cc9f3945d63d01565d313846c.jpg?fit=crop&h=300&w=300',
 };
 
 // Función para obtener imagen de producto
@@ -1020,17 +1020,32 @@ export default function Index() {
   };
 
   const getProductImage = (product: Product): string | null => {
-    // Primero intentar obtener del diccionario de imágenes reales
+    // Primero intentar obtener del diccionario de imágenes reales por ID
     const realImage = PRODUCT_IMAGES[product.id];
     if (realImage) return realImage;
     
-    // Luego intentar del producto mismo
-    return (
-      product.thumbnail ||
-      product.photos?.[0]?.thumbnail ||
-      product.photos?.[0]?.regular ||
-      null
-    );
+    // Verificar si la URL del thumbnail es válida (contiene hash, no un nombre simple)
+    const isValidMercadonaUrl = (url: string | undefined): boolean => {
+      if (!url) return false;
+      // URLs válidas de Mercadona tienen un hash largo en el nombre del archivo
+      // Ejemplo válido: /images/67d0e2f86e0f0a8e6c7ad8e5cf254a9d.jpg
+      // Ejemplo inválido (placeholder): /images/tomate.jpg
+      const hashPattern = /\/images\/[a-f0-9]{20,}\.(jpg|jpeg|png|webp)/i;
+      return hashPattern.test(url);
+    };
+    
+    // Solo usar thumbnail o photos si son URLs reales (no placeholders)
+    const thumbnail = product.thumbnail;
+    if (isValidMercadonaUrl(thumbnail)) return thumbnail!;
+    
+    const photoThumb = product.photos?.[0]?.thumbnail;
+    if (isValidMercadonaUrl(photoThumb)) return photoThumb!;
+    
+    const photoRegular = product.photos?.[0]?.regular;
+    if (isValidMercadonaUrl(photoRegular)) return photoRegular!;
+    
+    // Si no hay imagen válida, devolver null (se mostrará placeholder genérico)
+    return null;
   };
 
   const getTotalPrice = (): number => {

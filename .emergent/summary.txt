@@ -1,0 +1,147 @@
+<analysis>**original_problem_statement**: 
+Necesito que te conectes a la api de Mercadona para sacar toda la info de los productos. Quiero una app que me ayude a hacer una lista de compra dependiendo de presupuesto, recetas terminadas habituales en la alimentación, selección de productos etc, Cod postal seleccionable, y que se vayan guardando en favoritos.
+
+**User's preferred language**: Spanish (INSTRUCT NEXT AGENT: You MUST respond in Spanish).
+
+**what currently exists?** 
+A full-stack mobile-responsive Expo application (React Native) and a FastAPI backend. The backend acts as a proxy to Mercadona's unofficial API (fetching categories, subcategories, and products based on postal code/warehouse). The frontend features a tabbed interface containing: Home (Categories & Products), Shopping List (with budget calculator), Favorites, and a Recipes section (27 pre-loaded economic recipes with multi-select ingredient functionality). Currently, shopping list and favorites are stored in-memory on the backend using a generated .
+
+**Last working item**: 
+- **Last item agent was working**: Fixing a bug where products added to the shopping list from the Recipes section are missing images. (User explicitly commanded: Arregla únicamente el problema de las imágenes en recetas. No hagas nada más. -> Fix ONLY the image problem in recipes. Do nothing else.).
+- **Status**: IN PROGRESS
+- **Agent Testing Done**: N
+- **Which testing method agent to use?**: Use screenshot tool to verify frontend UI visually after fixing the image URLs.
+- **User Testing Done**: N
+
+**All Pending/In progress Issue list**: 
+Issue 1: Missing Images for Recipe Ingredients (P0 - HIGHEST)
+- **Attempted fixes**: The agent created a  dictionary mapping product IDs to real Mercadona image URLs and updated the  method. However, the static  array still contains mock/placeholder image URLs (e.g., ) inside the  object of each ingredient.
+- **Next debug checklist**: 
+  - File: 
+  - Check lines 100-800 where  are defined.
+  - Update the  and  properties inside the  of each  to use the correct URLs, or ensure  forces a lookup in the  dictionary even if a placeholder string is present.
+- **Why fix this issue and what will be achieved with the fix?**: User specifically complained that items added manually have photos, but items added via recipes are blank. Fixing this resolves the immediate user blocker.
+- **Status**: IN PROGRESS
+- **Is recurring issue?**: N
+- **Should Test frontend/backend/both after fix?**: Frontend (Screenshot tool)
+- **Blocked on other issue**: None.
+
+**In progress Task List**: 
+Task 1: Patching Recipe Static Data Images (P0)
+- **Where to resume**: Modify the  file around the recipe definitions and  logic.
+- **What will be achieved with this?**: All shopping list items will display correct thumbnail images regardless of origin.
+- **Status**: IN PROGRESS
+- **Should Test frontend/backend/both after fix?**: Frontend
+- **Blocked on something**: NA
+
+**Upcoming and Future Tasks**:
+Upcoming Tasks:
+- Task 1 (P1): Allow users to create, edit, and delete their own custom recipes manually. (Requested by user but paused due to strict instruction to fix images first).
+- Task 2 (P1): Implement Google Login (JWT/Social Auth) to persist user profiles instead of relying on local device IDs. (Requested by user but paused).
+- Task 3 (P2): Refactor  into smaller components and move the massive 2000+ line static recipe dictionary into a separate file or database.
+- Task 4 (P2): Migrate in-memory python dictionary storage ( and  in ) to actual MongoDB database schemas.
+
+Future Tasks:
+- Task 5 (P3): Add product search by name functionality (Previously suggested by agent).
+- Task 6 (P3): Implement purchase history functionality (Previously suggested by agent).
+
+**Completed work in this session**:
+- Backend proxy for Mercadona API via  (Categories and Products) (DONE)
+- Shopping list logic with budget threshold checking (DONE)
+- Favorites system integration (DONE)
+- Fixed  parsing bug caused by string-based prices from Mercadona (DONE)
+- 27 Preloaded economic recipes with selectable ingredients checkboxes (DONE)
+- Fixed Web UI bug for clearing shopping list (replaced  with ) (DONE)
+
+**Earlier issues found/mentioned but not fixed**:
+None explicitly pending besides the image bug and technical debt.
+
+**Known issue recurrence from previous fork**:
+- Issue recurrence in previous fork: NA (First session)
+- Recurrence count: 0
+- Status: NA
+
+**Code Architecture**:
+
+
+**Key Technical Concepts**:
+- **Frontend**: React Native, Expo Router, Web/Mobile compatibility.
+- **Backend**: FastAPI, Python, HTTPX (acting as a reverse proxy for Mercadona's unofficial API based on Postal Code -> Warehouse mapping).
+- **State Management**: React  and . Backend relies on transient in-memory dictionaries keyed by  (generated on frontend).
+
+**key DB schema**:
+*Currently Mocked / In-Memory in *:
+- : 
+- : 
+*Note: MongoDB is present in the environment but currently unused.*
+
+**changes in tech stack**:
+- Installed  in backend for async proxy requests.
+- Installed  in frontend for device ID generation.
+
+**All files of reference**:
+1. : Contains API endpoints and Mercadona web scraper proxy.
+2. : Core UI application containing all logic, tabs, and massive mocked recipe payload.
+3. : Backend testing outputs.
+
+**Areas that need refactoring**:
+- **Critical Refactoring Needed**:  is over 3,000 lines long. The  and  constants should be extracted into a separate data file (e.g., ). Tab components (, , etc.) should be extracted into their own files.
+- **Backend Persistence**:  currently loses all shopping lists and favorites if the container restarts because it uses in-memory python dictionaries. Needs wiring to MongoDB.
+
+**key api endpoints**:
+- 
+- 
+- 
+- 
+- 
+- 
+
+**Critical Info for New Agent**:
+- **USER STRICT INSTRUCTION**: The user explicitly said: Arregla únicamente el problema de las imágenes en recetas. No hagas nada más. Do NOT start building the Google Login or Custom Recipes features until the image bug is solved and presented to the user.
+- **Image Bug Context**: Recipes use mock data representing Mercadona products. The images inside  for recipe ingredients are dummy URLs. You need to map them properly using the  dictionary or correct URLs so they render in the  tab.
+- **Do not modify**  urls or . Ensure you run expo: ERROR (not running)
+expo: started after frontend changes.
+
+**documents and test reports created in this job**:
+-  (Updated with backend deep testing results)
+
+**Last 10 User Messages and any pending HUMAN messages**:
+1. (Pending) No pares, sigue -> User telling the agent to continue fixing the image bug.
+2. Arregla únicamente el problema de las imágenes en recetas. No hagas nada más.
+3. No funciona, el chocolate lo añado manualmente y sale la foto, el resto de productos se han añadido desde las recetas y no tienen imagen, por otro lado, tampoco funciona la posibilidad de añadir, eliminar, o actualizar recetas manualmente. También me gustaría que la app funcionara con loging que pudieras lograrte con Google y de varias opciones
+4. Necesito que revises las recetas, son demasiado simples, complétalas ,hazlas más elaboradas y añade 10 más.
+5. El botón de vaciar lista no funciona.
+6. Añade más recetas tipo, al menos 20, platos variados . Aparte en la zona de recetas me gustaría poder elegir lo que añadir a la cesta. Los productos de las recetas que se busquen los más económicos posibles
+7. Necesitaría que cargaras recetas fáciles y sencillas...
+8. Da fallos al elegir productos de categorías
+9. Quiero una app que me ayude a hacer una lista de compra...
+10. Start the task now
+
+**Project Health Check**:
+- **Mocked**: Backend persistence (uses dict instead of DB). Recipe Data (hardcoded in ).
+- **Working**: Backend API proxy to Mercadona, Add/Remove from cart, Recipe multi-selection.
+
+**3rd Party Integrations**:
+- **Mercadona Unofficial API** — Scraped/Proxied via  (No API key required, uses HTTP requests to ).
+
+**Testing status**:
+- Testing agent used after significant changes: YES (Backend testing done)
+- Troubleshoot agent used after agent stuck in loop: NO
+- Test files created: None explicitly beyond standard testing docs.
+- Known regressions: Recipes images not showing up in the cart.
+
+**Credentials to test flow**:
+- None needed. Open the frontend and select a postal code (e.g., ) to view products.
+
+**What agent forgot to execute**:
+- The agent forgot to wire MongoDB for persistent storage, relying entirely on RAM dictionaries, which will result in data loss upon container termination.
+- The agent did not start the Google Auth or Custom Recipes due to user overriding commands, but these remain pending for the next steps.
+
+**Debugging checklist for current issue**
+    Issue: Missing Images for Recipe Ingredients in the Shopping List
+    
+    Frontend files to check: 
+    -  (Line ~1020: Check  method to ensure it overrides placeholder images from ).
+    -  (Line ~100-800: Check  and verify  and  properties).
+  
+    Backend files to check: NA (Data is hardcoded in frontend).</analysis>
