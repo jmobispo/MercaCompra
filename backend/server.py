@@ -114,6 +114,8 @@ class Recipe(BaseModel):
     ingredients: List[RecipeIngredient] = []
     instructions: str = ""
     servings: int = 4
+    time: str = "30 min"
+    difficulty: str = "Personal"
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
 
@@ -124,6 +126,17 @@ class RecipeCreate(BaseModel):
     ingredients: List[RecipeIngredient] = []
     instructions: str = ""
     servings: int = 4
+    time: str = "30 min"
+    difficulty: str = "Personal"
+
+class RecipeUpdate(BaseModel):
+    name: Optional[str] = None
+    description: Optional[str] = None
+    ingredients: Optional[List[RecipeIngredient]] = None
+    instructions: Optional[str] = None
+    servings: Optional[int] = None
+    time: Optional[str] = None
+    difficulty: Optional[str] = None
 
 # ============== Mercadona API Proxy ==============
 
@@ -382,6 +395,43 @@ async def delete_recipe(device_id: str, recipe_id: str):
     if result.deleted_count == 0:
         raise HTTPException(status_code=404, detail="Recipe not found")
     return {"message": "Recipe deleted"}
+
+@api_router.put("/recipes/{device_id}/{recipe_id}", response_model=Recipe)
+async def update_recipe(device_id: str, recipe_id: str, recipe_update: RecipeUpdate):
+    """Update an existing recipe"""
+    # Find existing recipe
+    existing = await db.recipes.find_one({"device_id": device_id, "id": recipe_id})
+    if not existing:
+        raise HTTPException(status_code=404, detail="Recipe not found")
+    
+    # Build update dict with only provided fields
+    update_data = {}
+    if recipe_update.name is not None:
+        update_data["name"] = recipe_update.name
+    if recipe_update.description is not None:
+        update_data["description"] = recipe_update.description
+    if recipe_update.ingredients is not None:
+        update_data["ingredients"] = [ing.dict() for ing in recipe_update.ingredients]
+    if recipe_update.instructions is not None:
+        update_data["instructions"] = recipe_update.instructions
+    if recipe_update.servings is not None:
+        update_data["servings"] = recipe_update.servings
+    if recipe_update.time is not None:
+        update_data["time"] = recipe_update.time
+    if recipe_update.difficulty is not None:
+        update_data["difficulty"] = recipe_update.difficulty
+    
+    update_data["updated_at"] = datetime.utcnow()
+    
+    # Update in database
+    await db.recipes.update_one(
+        {"device_id": device_id, "id": recipe_id},
+        {"$set": update_data}
+    )
+    
+    # Return updated recipe
+    updated = await db.recipes.find_one({"device_id": device_id, "id": recipe_id})
+    return Recipe(**updated)
 
 @api_router.post("/recipes/{device_id}/{recipe_id}/add-to-list")
 async def add_recipe_to_list(device_id: str, recipe_id: str):

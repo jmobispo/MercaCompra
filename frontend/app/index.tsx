@@ -1399,6 +1399,9 @@ export default function Index() {
   const [searchIngredient, setSearchIngredient] = useState<string>('');
   const [searchResults, setSearchResults] = useState<Product[]>([]);
   const [searchingProducts, setSearchingProducts] = useState<boolean>(false);
+  
+  // Estado para editar recetas
+  const [editingRecipe, setEditingRecipe] = useState<Recipe | null>(null);
 
   // Cargar recetas personalizadas del backend
   useEffect(() => {
@@ -1524,6 +1527,58 @@ export default function Index() {
     setNewRecipeServings('4');
     setNewRecipeTime('30 min');
     setNewRecipeIngredients([]);
+    setEditingRecipe(null);
+  };
+
+  // Función para iniciar edición de receta
+  const startEditRecipe = (recipe: Recipe) => {
+    setEditingRecipe(recipe);
+    setNewRecipeName(recipe.name);
+    setNewRecipeDescription(recipe.description || '');
+    setNewRecipeServings(String(recipe.servings));
+    setNewRecipeTime(recipe.time);
+    setNewRecipeIngredients([...recipe.ingredients]);
+    setShowCreateRecipe(true);
+  };
+
+  // Función para guardar edición de receta
+  const updateRecipe = async () => {
+    if (!editingRecipe) return;
+    
+    if (!newRecipeName.trim()) {
+      Alert.alert('Error', 'Por favor introduce un nombre para la receta');
+      return;
+    }
+    if (newRecipeIngredients.length === 0) {
+      Alert.alert('Error', 'Por favor añade al menos un ingrediente');
+      return;
+    }
+
+    try {
+      const response = await fetch(`${API_URL}/api/recipes/${deviceId}/${editingRecipe.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: newRecipeName,
+          description: newRecipeDescription,
+          servings: parseInt(newRecipeServings) || 4,
+          time: newRecipeTime,
+          ingredients: newRecipeIngredients,
+        }),
+      });
+
+      if (response.ok) {
+        await loadCustomRecipes();
+        setShowCreateRecipe(false);
+        resetNewRecipeForm();
+        Alert.alert('¡Actualizado!', 'Tu receta ha sido actualizada');
+      } else {
+        throw new Error('Error al actualizar');
+      }
+    } catch (error) {
+      console.error('Error updating recipe:', error);
+      Alert.alert('Error', 'No se pudo actualizar la receta');
+    }
   };
 
   const deleteCustomRecipe = async (recipeId: string) => {
@@ -1834,7 +1889,9 @@ export default function Index() {
               <Text style={styles.backButtonText}>Cancelar</Text>
             </TouchableOpacity>
 
-            <Text style={styles.createRecipeTitle}>Nueva Receta</Text>
+            <Text style={styles.createRecipeTitle}>
+              {editingRecipe ? 'Editar Receta' : 'Nueva Receta'}
+            </Text>
 
             <View style={styles.formGroup}>
               <Text style={styles.formLabel}>Nombre de la receta *</Text>
@@ -1909,9 +1966,14 @@ export default function Index() {
               )}
             </View>
 
-            <TouchableOpacity style={styles.saveRecipeBtn} onPress={saveNewRecipe}>
+            <TouchableOpacity 
+              style={styles.saveRecipeBtn} 
+              onPress={editingRecipe ? updateRecipe : saveNewRecipe}
+            >
               <Ionicons name="checkmark-circle" size={24} color="#fff" />
-              <Text style={styles.saveRecipeBtnText}>Guardar Receta</Text>
+              <Text style={styles.saveRecipeBtnText}>
+                {editingRecipe ? 'Actualizar Receta' : 'Guardar Receta'}
+              </Text>
             </TouchableOpacity>
           </ScrollView>
 
@@ -2033,6 +2095,15 @@ export default function Index() {
                         </View>
                       </View>
                       <View style={styles.customRecipeActions}>
+                        <TouchableOpacity
+                          onPress={(e) => {
+                            e.stopPropagation();
+                            startEditRecipe(recipe);
+                          }}
+                          style={{ marginBottom: 8 }}
+                        >
+                          <Ionicons name="create-outline" size={22} color="#3498db" />
+                        </TouchableOpacity>
                         <TouchableOpacity
                           onPress={(e) => {
                             e.stopPropagation();
