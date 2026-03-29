@@ -77,306 +77,614 @@ interface Recipe {
   instructions: string[];
 }
 
-// Recetas precargadas con productos ECONÓMICOS de Mercadona
+// Recetas precargadas con productos ECONÓMICOS de Mercadona - VERSIÓN COMPLETA
 const PRELOADED_RECIPES: Recipe[] = [
-  // === PASTA ===
+  // === PASTA (5 recetas) ===
   {
     id: 'macarrones-tomate',
-    name: 'Macarrones con Tomate',
-    description: 'Clásico plato de pasta con salsa de tomate casera',
-    servings: 4, time: '25 min', difficulty: 'Fácil',
+    name: 'Macarrones con Tomate y Queso',
+    description: 'Clásico plato de pasta con salsa de tomate casera gratinada con queso',
+    servings: 4, time: '30 min', difficulty: 'Fácil',
     image: 'https://prod-mercadona.imgix.net/images/67d0e2f86e0f0a8e6c7ad8e5cf254a9d.jpg',
     ingredients: [
       { product_id: '6260', name: 'Macarrones', quantity: '500g', product_data: { id: '6260', display_name: 'Macarrón fino Hacendado', price_instructions: { unit_price: 0.80 }, thumbnail: 'https://prod-mercadona.imgix.net/images/67d0e2f86e0f0a8e6c7ad8e5cf254a9d.jpg' }},
-      { product_id: '16044', name: 'Tomate triturado', quantity: '400g', product_data: { id: '16044', display_name: 'Tomate triturado Hacendado', price_instructions: { unit_price: 0.65 }, thumbnail: 'https://prod-mercadona.imgix.net/images/tomate.jpg' }},
-      { product_id: '13568', name: 'Cebolla', quantity: '100g', product_data: { id: '13568', display_name: 'Cebolla troceada ultracongelada', price_instructions: { unit_price: 0.95 }, thumbnail: 'https://prod-mercadona.imgix.net/images/cebolla.jpg' }},
+      { product_id: '17151', name: 'Tomate frito', quantity: '400g', product_data: { id: '17151', display_name: 'Tomate frito Hacendado', price_instructions: { unit_price: 0.95 }, thumbnail: 'https://prod-mercadona.imgix.net/images/tomate.jpg' }},
+      { product_id: '13568', name: 'Cebolla', quantity: '150g', product_data: { id: '13568', display_name: 'Cebolla troceada ultracongelada', price_instructions: { unit_price: 0.95 }, thumbnail: 'https://prod-mercadona.imgix.net/images/cebolla.jpg' }},
+      { product_id: '61251', name: 'Ajo', quantity: '20g', product_data: { id: '61251', display_name: 'Ajo troceado ultracongelado', price_instructions: { unit_price: 0.95 }, thumbnail: 'https://prod-mercadona.imgix.net/images/ajo.jpg' }},
+      { product_id: '51050', name: 'Mozzarella', quantity: '125g', product_data: { id: '51050', display_name: 'Mozzarella fresca de vaca Hacendado', price_instructions: { unit_price: 0.90 }, thumbnail: 'https://prod-mercadona.imgix.net/images/mozzarella.jpg' }},
+      { product_id: '4740', name: 'Aceite de oliva virgen', quantity: '2 cucharadas', product_data: { id: '4740', display_name: 'Aceite de oliva virgen extra Hacendado', price_instructions: { unit_price: 4.95 }, thumbnail: 'https://prod-mercadona.imgix.net/images/aceite.jpg' }},
     ],
-    instructions: ['Hervir pasta 10 min', 'Sofreír cebolla', 'Añadir tomate y cocinar 5 min', 'Mezclar con la pasta']
+    instructions: [
+      'Hervir agua con sal abundante y cocer los macarrones al dente (10-12 min)',
+      'Mientras, sofreír el ajo en aceite de oliva hasta que dore ligeramente',
+      'Añadir la cebolla y cocinar 5 minutos hasta que esté transparente',
+      'Incorporar el tomate frito, sal y pimienta, cocinar 10 minutos a fuego medio',
+      'Escurrir la pasta y mezclar con la salsa de tomate',
+      'Poner en fuente de horno, cubrir con mozzarella troceada y gratinar 5 min'
+    ]
   },
   {
     id: 'espaguetis-carbonara',
-    name: 'Espaguetis Carbonara',
-    description: 'Pasta cremosa con bacon y huevo',
-    servings: 4, time: '20 min', difficulty: 'Media',
+    name: 'Espaguetis a la Carbonara',
+    description: 'Auténtica pasta carbonara cremosa con bacon crujiente y huevo',
+    servings: 4, time: '25 min', difficulty: 'Media',
     image: 'https://prod-mercadona.imgix.net/images/espagueti.jpg',
     ingredients: [
       { product_id: '6269', name: 'Espaguetis', quantity: '400g', product_data: { id: '6269', display_name: 'Pasta espagueti Hacendado', price_instructions: { unit_price: 0.80 }, thumbnail: 'https://prod-mercadona.imgix.net/images/espagueti.jpg' }},
-      { product_id: '52884', name: 'Salchichas/Bacon', quantity: '200g', product_data: { id: '52884', display_name: 'Salchichas Campofrío', price_instructions: { unit_price: 1.25 }, thumbnail: 'https://prod-mercadona.imgix.net/images/salchicha.jpg' }},
-      { product_id: '10117', name: 'Nata cocinar', quantity: '200ml', product_data: { id: '10117', display_name: 'Nata fresca para cocinar', price_instructions: { unit_price: 1.30 }, thumbnail: 'https://prod-mercadona.imgix.net/images/nata.jpg' }},
+      { product_id: '16252', name: 'Bacon en tiras', quantity: '200g', product_data: { id: '16252', display_name: 'Bacón Hacendado cintas', price_instructions: { unit_price: 2.30 }, thumbnail: 'https://prod-mercadona.imgix.net/images/bacon.jpg' }},
+      { product_id: '10117', name: 'Nata para cocinar', quantity: '200ml', product_data: { id: '10117', display_name: 'Nata fresca para cocinar', price_instructions: { unit_price: 1.30 }, thumbnail: 'https://prod-mercadona.imgix.net/images/nata.jpg' }},
+      { product_id: '51203', name: 'Queso para untar', quantity: '100g', product_data: { id: '51203', display_name: 'Queso untar suave de vaca Hacendado', price_instructions: { unit_price: 1.45 }, thumbnail: 'https://prod-mercadona.imgix.net/images/queso.jpg' }},
+      { product_id: '61251', name: 'Ajo', quantity: '10g', product_data: { id: '61251', display_name: 'Ajo troceado ultracongelado', price_instructions: { unit_price: 0.95 }, thumbnail: 'https://prod-mercadona.imgix.net/images/ajo.jpg' }},
     ],
-    instructions: ['Cocer espaguetis al dente', 'Freír salchichas troceadas', 'Añadir nata', 'Mezclar con pasta caliente']
+    instructions: [
+      'Cocer los espaguetis en agua con sal hasta que estén al dente',
+      'Cortar el bacon en trozos pequeños y freír hasta que esté crujiente',
+      'Añadir el ajo picado y sofreír 1 minuto sin que se queme',
+      'Batir la nata con el queso y una pizca de pimienta negra',
+      'Escurrir la pasta reservando un poco de agua de cocción',
+      'Mezclar la pasta con el bacon, retirar del fuego y añadir la mezcla de nata',
+      'Remover rápidamente para que quede cremoso, añadir agua de cocción si es necesario'
+    ]
   },
   {
-    id: 'gnocchi-nata',
-    name: 'Ñoquis con Nata',
-    description: 'Cremosos ñoquis con salsa de nata',
-    servings: 4, time: '15 min', difficulty: 'Fácil',
+    id: 'gnocchi-nata-champis',
+    name: 'Ñoquis con Nata y Champiñones',
+    description: 'Cremosos ñoquis con salsa de nata, champiñones y un toque de ajo',
+    servings: 4, time: '20 min', difficulty: 'Fácil',
     image: 'https://prod-mercadona.imgix.net/images/gnocchi.jpg',
     ingredients: [
       { product_id: '6175', name: 'Ñoquis', quantity: '500g', product_data: { id: '6175', display_name: 'Pasta fresca gnocchi Hacendado', price_instructions: { unit_price: 1.00 }, thumbnail: 'https://prod-mercadona.imgix.net/images/gnocchi.jpg' }},
-      { product_id: '10117', name: 'Nata cocinar', quantity: '200ml', product_data: { id: '10117', display_name: 'Nata fresca para cocinar', price_instructions: { unit_price: 1.30 }, thumbnail: 'https://prod-mercadona.imgix.net/images/nata.jpg' }},
+      { product_id: '10117', name: 'Nata para cocinar', quantity: '200ml', product_data: { id: '10117', display_name: 'Nata fresca para cocinar', price_instructions: { unit_price: 1.30 }, thumbnail: 'https://prod-mercadona.imgix.net/images/nata.jpg' }},
+      { product_id: '16618', name: 'Champiñones laminados', quantity: '1 lata (315g)', product_data: { id: '16618', display_name: 'Champiñones laminados Hacendado', price_instructions: { unit_price: 1.00 }, thumbnail: 'https://prod-mercadona.imgix.net/images/champi.jpg' }},
       { product_id: '13568', name: 'Cebolla', quantity: '100g', product_data: { id: '13568', display_name: 'Cebolla troceada ultracongelada', price_instructions: { unit_price: 0.95 }, thumbnail: 'https://prod-mercadona.imgix.net/images/cebolla.jpg' }},
+      { product_id: '61251', name: 'Ajo', quantity: '15g', product_data: { id: '61251', display_name: 'Ajo troceado ultracongelado', price_instructions: { unit_price: 0.95 }, thumbnail: 'https://prod-mercadona.imgix.net/images/ajo.jpg' }},
+      { product_id: '51203', name: 'Queso untar', quantity: '50g', product_data: { id: '51203', display_name: 'Queso untar suave de vaca Hacendado', price_instructions: { unit_price: 1.45 }, thumbnail: 'https://prod-mercadona.imgix.net/images/queso.jpg' }},
     ],
-    instructions: ['Cocer ñoquis 2-3 min', 'Sofreír cebolla', 'Añadir nata y espesar', 'Mezclar con ñoquis']
+    instructions: [
+      'Cocer los ñoquis en agua hirviendo con sal (flotan cuando están listos, 2-3 min)',
+      'En una sartén grande, sofreír la cebolla en aceite hasta que esté transparente',
+      'Añadir el ajo y los champiñones escurridos, saltear 3-4 minutos',
+      'Incorporar la nata y el queso de untar, remover hasta que se integre',
+      'Sazonar con sal, pimienta y nuez moscada al gusto',
+      'Añadir los ñoquis escurridos a la salsa y mezclar bien',
+      'Servir caliente con un poco de perejil por encima'
+    ]
   },
   {
-    id: 'fideos-orientales',
-    name: 'Fideos Orientales',
-    description: 'Fideos rápidos estilo asiático con verduras',
-    servings: 2, time: '10 min', difficulty: 'Fácil',
-    image: 'https://prod-mercadona.imgix.net/images/fideos.jpg',
+    id: 'pasta-boloñesa',
+    name: 'Pasta a la Boloñesa',
+    description: 'Tradicional salsa boloñesa con carne picada y tomate, servida con pasta',
+    servings: 4, time: '45 min', difficulty: 'Media',
+    image: 'https://prod-mercadona.imgix.net/images/espagueti.jpg',
     ingredients: [
-      { product_id: '19949', name: 'Fideos orientales', quantity: '2 paquetes', product_data: { id: '19949', display_name: 'Fideos orientales sabor gamba', price_instructions: { unit_price: 0.65 }, thumbnail: 'https://prod-mercadona.imgix.net/images/fideos.jpg' }},
-      { product_id: '35221', name: 'Pimientos', quantity: '150g', product_data: { id: '35221', display_name: 'Pimiento rojo y verde ultracongelado', price_instructions: { unit_price: 1.20 }, thumbnail: 'https://prod-mercadona.imgix.net/images/pimiento.jpg' }},
-    ],
-    instructions: ['Hervir fideos 3 min', 'Saltear pimientos', 'Mezclar con el sobre de condimento']
-  },
-  {
-    id: 'sopa-fideos',
-    name: 'Sopa de Fideos',
-    description: 'Reconfortante sopa de fideos casera',
-    servings: 4, time: '20 min', difficulty: 'Fácil',
-    image: 'https://prod-mercadona.imgix.net/images/fideos.jpg',
-    ingredients: [
-      { product_id: '13577', name: 'Fideos cabello ángel', quantity: '100g', product_data: { id: '13577', display_name: 'Fideo cabello de ángel Hacendado', price_instructions: { unit_price: 0.80 }, thumbnail: 'https://prod-mercadona.imgix.net/images/fideos.jpg' }},
+      { product_id: '6269', name: 'Espaguetis o tallarines', quantity: '400g', product_data: { id: '6269', display_name: 'Pasta espagueti Hacendado', price_instructions: { unit_price: 0.80 }, thumbnail: 'https://prod-mercadona.imgix.net/images/espagueti.jpg' }},
+      { product_id: '2867', name: 'Carne picada de cerdo', quantity: '400g', product_data: { id: '2867', display_name: 'Preparado de carne picada cerdo', price_instructions: { unit_price: 2.75 }, thumbnail: 'https://prod-mercadona.imgix.net/images/carne.jpg' }},
+      { product_id: '17151', name: 'Tomate frito', quantity: '400g', product_data: { id: '17151', display_name: 'Tomate frito Hacendado', price_instructions: { unit_price: 0.95 }, thumbnail: 'https://prod-mercadona.imgix.net/images/tomate.jpg' }},
+      { product_id: '13568', name: 'Cebolla', quantity: '150g', product_data: { id: '13568', display_name: 'Cebolla troceada ultracongelada', price_instructions: { unit_price: 0.95 }, thumbnail: 'https://prod-mercadona.imgix.net/images/cebolla.jpg' }},
       { product_id: '61251', name: 'Ajo', quantity: '20g', product_data: { id: '61251', display_name: 'Ajo troceado ultracongelado', price_instructions: { unit_price: 0.95 }, thumbnail: 'https://prod-mercadona.imgix.net/images/ajo.jpg' }},
+      { product_id: '35221', name: 'Pimiento', quantity: '100g', product_data: { id: '35221', display_name: 'Pimiento rojo y verde ultracongelado', price_instructions: { unit_price: 1.20 }, thumbnail: 'https://prod-mercadona.imgix.net/images/pimiento.jpg' }},
     ],
-    instructions: ['Hervir agua con sal', 'Dorar ajo', 'Añadir fideos y cocer 5 min']
+    instructions: [
+      'Sofreír la cebolla y el pimiento en aceite durante 5 minutos',
+      'Añadir el ajo y la carne picada, cocinar hasta que la carne esté dorada',
+      'Incorporar el tomate frito, sal, pimienta y una pizca de orégano',
+      'Cocinar a fuego lento durante 20-25 minutos removiendo ocasionalmente',
+      'Mientras, cocer la pasta en agua con sal abundante',
+      'Escurrir la pasta y servir con la salsa boloñesa por encima'
+    ]
+  },
+  {
+    id: 'lasaña-carne',
+    name: 'Lasaña de Carne',
+    description: 'Capas de pasta con ragú de carne y bechamel gratinada',
+    servings: 6, time: '60 min', difficulty: 'Media',
+    image: 'https://prod-mercadona.imgix.net/images/lasana.jpg',
+    ingredients: [
+      { product_id: '6142', name: 'Placas de lasaña', quantity: '250g', product_data: { id: '6142', display_name: 'Pasta lasaña Hacendado', price_instructions: { unit_price: 1.10 }, thumbnail: 'https://prod-mercadona.imgix.net/images/lasana.jpg' }},
+      { product_id: '2867', name: 'Carne picada', quantity: '500g', product_data: { id: '2867', display_name: 'Preparado de carne picada cerdo', price_instructions: { unit_price: 2.75 }, thumbnail: 'https://prod-mercadona.imgix.net/images/carne.jpg' }},
+      { product_id: '17151', name: 'Tomate frito', quantity: '400g', product_data: { id: '17151', display_name: 'Tomate frito Hacendado', price_instructions: { unit_price: 0.95 }, thumbnail: 'https://prod-mercadona.imgix.net/images/tomate.jpg' }},
+      { product_id: '13568', name: 'Cebolla', quantity: '150g', product_data: { id: '13568', display_name: 'Cebolla troceada ultracongelada', price_instructions: { unit_price: 0.95 }, thumbnail: 'https://prod-mercadona.imgix.net/images/cebolla.jpg' }},
+      { product_id: '10117', name: 'Nata para cocinar', quantity: '200ml', product_data: { id: '10117', display_name: 'Nata fresca para cocinar', price_instructions: { unit_price: 1.30 }, thumbnail: 'https://prod-mercadona.imgix.net/images/nata.jpg' }},
+      { product_id: '51050', name: 'Mozzarella', quantity: '200g', product_data: { id: '51050', display_name: 'Mozzarella fresca de vaca Hacendado', price_instructions: { unit_price: 0.90 }, thumbnail: 'https://prod-mercadona.imgix.net/images/mozzarella.jpg' }},
+    ],
+    instructions: [
+      'Preparar el ragú: sofreír cebolla, añadir carne y dorar, luego tomate. Cocinar 20 min',
+      'Preparar bechamel casera o mezclar nata con queso de untar y calentar',
+      'En una fuente de horno, poner capa de ragú, placas de lasaña, bechamel',
+      'Repetir las capas terminando con bechamel y mozzarella rallada',
+      'Hornear a 180°C durante 30-35 minutos hasta que esté dorada',
+      'Dejar reposar 5 minutos antes de servir'
+    ]
   },
 
-  // === ARROZ ===
+  // === ARROZ (4 recetas) ===
   {
     id: 'arroz-cubana',
-    name: 'Arroz a la Cubana',
-    description: 'Arroz con huevo frito, plátano y tomate',
-    servings: 4, time: '25 min', difficulty: 'Fácil',
+    name: 'Arroz a la Cubana Completo',
+    description: 'Arroz blanco con huevo frito, plátano frito, tomate y salchichas',
+    servings: 4, time: '30 min', difficulty: 'Fácil',
     image: 'https://prod-mercadona.imgix.net/images/arroz.jpg',
     ingredients: [
-      { product_id: '5063', name: 'Arroz largo', quantity: '300g', product_data: { id: '5063', display_name: 'Arroz largo Hacendado', price_instructions: { unit_price: 1.25 }, thumbnail: 'https://prod-mercadona.imgix.net/images/arroz.jpg' }},
-      { product_id: '16044', name: 'Tomate frito', quantity: '200g', product_data: { id: '16044', display_name: 'Tomate triturado Hacendado', price_instructions: { unit_price: 0.65 }, thumbnail: 'https://prod-mercadona.imgix.net/images/tomate.jpg' }},
-      { product_id: '52884', name: 'Salchichas', quantity: '4 unid', product_data: { id: '52884', display_name: 'Salchichas Campofrío', price_instructions: { unit_price: 1.25 }, thumbnail: 'https://prod-mercadona.imgix.net/images/salchicha.jpg' }},
+      { product_id: '5063', name: 'Arroz largo', quantity: '320g', product_data: { id: '5063', display_name: 'Arroz largo Hacendado', price_instructions: { unit_price: 1.25 }, thumbnail: 'https://prod-mercadona.imgix.net/images/arroz.jpg' }},
+      { product_id: '17151', name: 'Tomate frito', quantity: '300g', product_data: { id: '17151', display_name: 'Tomate frito Hacendado', price_instructions: { unit_price: 0.95 }, thumbnail: 'https://prod-mercadona.imgix.net/images/tomate.jpg' }},
+      { product_id: '53141', name: 'Salchichas Frankfurt', quantity: '4 unidades', product_data: { id: '53141', display_name: 'Salchichas Frankfurt Hacendado', price_instructions: { unit_price: 1.90 }, thumbnail: 'https://prod-mercadona.imgix.net/images/frankfurt.jpg' }},
+      { product_id: '61251', name: 'Ajo', quantity: '10g', product_data: { id: '61251', display_name: 'Ajo troceado ultracongelado', price_instructions: { unit_price: 0.95 }, thumbnail: 'https://prod-mercadona.imgix.net/images/ajo.jpg' }},
+      { product_id: '4740', name: 'Aceite de oliva', quantity: '3 cucharadas', product_data: { id: '4740', display_name: 'Aceite de oliva virgen extra Hacendado', price_instructions: { unit_price: 4.95 }, thumbnail: 'https://prod-mercadona.imgix.net/images/aceite.jpg' }},
     ],
-    instructions: ['Cocer arroz 15 min', 'Freír salchichas', 'Calentar tomate', 'Servir todo junto']
+    instructions: [
+      'Lavar el arroz y cocerlo en agua con sal (proporción 1:2) durante 15-18 minutos',
+      'Calentar el tomate frito en una sartén con un poco de ajo dorado',
+      'Freír las salchichas hasta que estén doradas por todos lados',
+      'Freír los huevos en abundante aceite caliente (uno por persona)',
+      'Servir el arroz en el centro, tomate a un lado, huevo encima y salchichas'
+    ]
   },
   {
     id: 'arroz-verduras',
-    name: 'Arroz con Verduras',
-    description: 'Arroz salteado con verduras variadas',
-    servings: 4, time: '25 min', difficulty: 'Fácil',
+    name: 'Arroz Salteado con Verduras',
+    description: 'Arroz estilo oriental con verduras variadas y salsa de soja',
+    servings: 4, time: '30 min', difficulty: 'Fácil',
     image: 'https://prod-mercadona.imgix.net/images/arroz.jpg',
     ingredients: [
       { product_id: '5044', name: 'Arroz redondo', quantity: '300g', product_data: { id: '5044', display_name: 'Arroz redondo Hacendado', price_instructions: { unit_price: 1.30 }, thumbnail: 'https://prod-mercadona.imgix.net/images/arroz.jpg' }},
       { product_id: '35221', name: 'Pimientos', quantity: '200g', product_data: { id: '35221', display_name: 'Pimiento rojo y verde ultracongelado', price_instructions: { unit_price: 1.20 }, thumbnail: 'https://prod-mercadona.imgix.net/images/pimiento.jpg' }},
       { product_id: '61200', name: 'Guisantes', quantity: '150g', product_data: { id: '61200', display_name: 'Guisante muy tierno ultracongelado', price_instructions: { unit_price: 1.05 }, thumbnail: 'https://prod-mercadona.imgix.net/images/guisante.jpg' }},
+      { product_id: '13568', name: 'Cebolla', quantity: '100g', product_data: { id: '13568', display_name: 'Cebolla troceada ultracongelada', price_instructions: { unit_price: 0.95 }, thumbnail: 'https://prod-mercadona.imgix.net/images/cebolla.jpg' }},
+      { product_id: '61251', name: 'Ajo', quantity: '15g', product_data: { id: '61251', display_name: 'Ajo troceado ultracongelado', price_instructions: { unit_price: 0.95 }, thumbnail: 'https://prod-mercadona.imgix.net/images/ajo.jpg' }},
+      { product_id: '61289', name: 'Maíz dulce', quantity: '100g', product_data: { id: '61289', display_name: 'Maíz dulce ultracongelado', price_instructions: { unit_price: 1.24 }, thumbnail: 'https://prod-mercadona.imgix.net/images/maiz.jpg' }},
     ],
-    instructions: ['Cocer arroz', 'Saltear verduras', 'Mezclar todo', 'Sazonar al gusto']
+    instructions: [
+      'Cocer el arroz y dejarlo enfriar (mejor si es del día anterior)',
+      'Saltear las verduras en un wok o sartén grande con aceite muy caliente',
+      'Empezar por la cebolla y el ajo, luego pimientos, guisantes y maíz',
+      'Añadir el arroz frío y saltear a fuego alto removiendo constantemente',
+      'Sazonar con sal y un chorrito de salsa de soja',
+      'Servir caliente decorado con cebollino si se desea'
+    ]
+  },
+  {
+    id: 'arroz-pollo',
+    name: 'Arroz con Pollo',
+    description: 'Clásico arroz con pollo, verduras y un toque de azafrán',
+    servings: 4, time: '45 min', difficulty: 'Media',
+    image: 'https://prod-mercadona.imgix.net/images/arroz.jpg',
+    ingredients: [
+      { product_id: '5044', name: 'Arroz redondo', quantity: '320g', product_data: { id: '5044', display_name: 'Arroz redondo Hacendado', price_instructions: { unit_price: 1.30 }, thumbnail: 'https://prod-mercadona.imgix.net/images/arroz.jpg' }},
+      { product_id: '14485', name: 'Churrasco de pollo', quantity: '400g', product_data: { id: '14485', display_name: 'Churrasco de pollo', price_instructions: { unit_price: 2.80 }, thumbnail: 'https://prod-mercadona.imgix.net/images/pollo.jpg' }},
+      { product_id: '35221', name: 'Pimientos', quantity: '150g', product_data: { id: '35221', display_name: 'Pimiento rojo y verde ultracongelado', price_instructions: { unit_price: 1.20 }, thumbnail: 'https://prod-mercadona.imgix.net/images/pimiento.jpg' }},
+      { product_id: '13568', name: 'Cebolla', quantity: '100g', product_data: { id: '13568', display_name: 'Cebolla troceada ultracongelada', price_instructions: { unit_price: 0.95 }, thumbnail: 'https://prod-mercadona.imgix.net/images/cebolla.jpg' }},
+      { product_id: '61251', name: 'Ajo', quantity: '20g', product_data: { id: '61251', display_name: 'Ajo troceado ultracongelado', price_instructions: { unit_price: 0.95 }, thumbnail: 'https://prod-mercadona.imgix.net/images/ajo.jpg' }},
+      { product_id: '16044', name: 'Tomate triturado', quantity: '200g', product_data: { id: '16044', display_name: 'Tomate triturado Hacendado', price_instructions: { unit_price: 0.60 }, thumbnail: 'https://prod-mercadona.imgix.net/images/tomate.jpg' }},
+    ],
+    instructions: [
+      'Cortar el pollo en trozos y dorar en una paella o sartén amplia',
+      'Retirar el pollo y en el mismo aceite sofreír cebolla, ajo y pimientos',
+      'Añadir el tomate y cocinar 5 minutos',
+      'Incorporar el arroz y nacar durante 2 minutos',
+      'Añadir el caldo caliente (doble de agua que de arroz) y el pollo',
+      'Cocinar 18-20 minutos sin remover, dejar reposar 5 minutos antes de servir'
+    ]
+  },
+  {
+    id: 'risotto-champinones',
+    name: 'Risotto de Champiñones',
+    description: 'Cremoso risotto italiano con champiñones y queso',
+    servings: 4, time: '35 min', difficulty: 'Media',
+    image: 'https://prod-mercadona.imgix.net/images/arroz.jpg',
+    ingredients: [
+      { product_id: '5044', name: 'Arroz redondo', quantity: '320g', product_data: { id: '5044', display_name: 'Arroz redondo Hacendado', price_instructions: { unit_price: 1.30 }, thumbnail: 'https://prod-mercadona.imgix.net/images/arroz.jpg' }},
+      { product_id: '16618', name: 'Champiñones', quantity: '2 latas', product_data: { id: '16618', display_name: 'Champiñones laminados Hacendado', price_instructions: { unit_price: 1.00 }, thumbnail: 'https://prod-mercadona.imgix.net/images/champi.jpg' }},
+      { product_id: '13568', name: 'Cebolla', quantity: '100g', product_data: { id: '13568', display_name: 'Cebolla troceada ultracongelada', price_instructions: { unit_price: 0.95 }, thumbnail: 'https://prod-mercadona.imgix.net/images/cebolla.jpg' }},
+      { product_id: '10117', name: 'Nata para cocinar', quantity: '100ml', product_data: { id: '10117', display_name: 'Nata fresca para cocinar', price_instructions: { unit_price: 1.30 }, thumbnail: 'https://prod-mercadona.imgix.net/images/nata.jpg' }},
+      { product_id: '51203', name: 'Queso untar', quantity: '100g', product_data: { id: '51203', display_name: 'Queso untar suave de vaca Hacendado', price_instructions: { unit_price: 1.45 }, thumbnail: 'https://prod-mercadona.imgix.net/images/queso.jpg' }},
+      { product_id: '61251', name: 'Ajo', quantity: '10g', product_data: { id: '61251', display_name: 'Ajo troceado ultracongelado', price_instructions: { unit_price: 0.95 }, thumbnail: 'https://prod-mercadona.imgix.net/images/ajo.jpg' }},
+    ],
+    instructions: [
+      'Saltear los champiñones con ajo en mantequilla, reservar',
+      'En la misma olla, pochar la cebolla hasta que esté transparente',
+      'Añadir el arroz y nacar 2 minutos removiendo',
+      'Ir añadiendo caldo caliente cucharón a cucharón, removiendo constantemente',
+      'Cuando el arroz esté al dente (18-20 min), añadir nata, queso y champiñones',
+      'Rectificar de sal y pimienta, servir inmediatamente'
+    ]
   },
 
-  // === LEGUMBRES ===
+  // === LEGUMBRES (4 recetas) ===
   {
-    id: 'lentejas-chorizo',
-    name: 'Lentejas con Chorizo',
-    description: 'Tradicionales lentejas españolas',
-    servings: 4, time: '30 min', difficulty: 'Fácil',
+    id: 'lentejas-completas',
+    name: 'Lentejas Estofadas Completas',
+    description: 'Tradicionales lentejas españolas con verduras y chorizo',
+    servings: 4, time: '35 min', difficulty: 'Fácil',
     image: 'https://prod-mercadona.imgix.net/images/lenteja.jpg',
     ingredients: [
-      { product_id: '26011', name: 'Lentejas cocidas', quantity: '2 botes', product_data: { id: '26011', display_name: 'Lenteja cocida Hacendado', price_instructions: { unit_price: 0.75 }, thumbnail: 'https://prod-mercadona.imgix.net/images/lenteja.jpg' }},
-      { product_id: '52884', name: 'Salchichas', quantity: '4 unid', product_data: { id: '52884', display_name: 'Salchichas Campofrío', price_instructions: { unit_price: 1.25 }, thumbnail: 'https://prod-mercadona.imgix.net/images/salchicha.jpg' }},
-      { product_id: '13568', name: 'Cebolla', quantity: '100g', product_data: { id: '13568', display_name: 'Cebolla troceada ultracongelada', price_instructions: { unit_price: 0.95 }, thumbnail: 'https://prod-mercadona.imgix.net/images/cebolla.jpg' }},
+      { product_id: '26011', name: 'Lentejas cocidas', quantity: '2 botes (800g)', product_data: { id: '26011', display_name: 'Lenteja cocida Hacendado', price_instructions: { unit_price: 0.75 }, thumbnail: 'https://prod-mercadona.imgix.net/images/lenteja.jpg' }},
+      { product_id: '53141', name: 'Salchichas', quantity: '4 unidades', product_data: { id: '53141', display_name: 'Salchichas Frankfurt Hacendado', price_instructions: { unit_price: 1.90 }, thumbnail: 'https://prod-mercadona.imgix.net/images/frankfurt.jpg' }},
+      { product_id: '13568', name: 'Cebolla', quantity: '150g', product_data: { id: '13568', display_name: 'Cebolla troceada ultracongelada', price_instructions: { unit_price: 0.95 }, thumbnail: 'https://prod-mercadona.imgix.net/images/cebolla.jpg' }},
+      { product_id: '35221', name: 'Pimiento', quantity: '100g', product_data: { id: '35221', display_name: 'Pimiento rojo y verde ultracongelado', price_instructions: { unit_price: 1.20 }, thumbnail: 'https://prod-mercadona.imgix.net/images/pimiento.jpg' }},
+      { product_id: '61251', name: 'Ajo', quantity: '20g', product_data: { id: '61251', display_name: 'Ajo troceado ultracongelado', price_instructions: { unit_price: 0.95 }, thumbnail: 'https://prod-mercadona.imgix.net/images/ajo.jpg' }},
+      { product_id: '16044', name: 'Tomate triturado', quantity: '200g', product_data: { id: '16044', display_name: 'Tomate triturado Hacendado', price_instructions: { unit_price: 0.60 }, thumbnail: 'https://prod-mercadona.imgix.net/images/tomate.jpg' }},
     ],
-    instructions: ['Sofreír cebolla', 'Añadir salchichas troceadas', 'Incorporar lentejas', 'Cocinar 15 min']
+    instructions: [
+      'Sofreír la cebolla y el pimiento en aceite hasta que estén tiernos',
+      'Añadir el ajo y cocinar 1 minuto más',
+      'Incorporar las salchichas troceadas y dorar ligeramente',
+      'Añadir el tomate y cocinar 5 minutos',
+      'Incorporar las lentejas escurridas con un poco de su líquido',
+      'Sazonar con sal, pimienta y pimentón, cocinar 15 minutos a fuego lento'
+    ]
   },
   {
     id: 'garbanzos-espinacas',
     name: 'Garbanzos con Espinacas',
-    description: 'Plato saludable y nutritivo',
-    servings: 4, time: '20 min', difficulty: 'Fácil',
+    description: 'Plato saludable de garbanzos con espinacas y un toque de comino',
+    servings: 4, time: '25 min', difficulty: 'Fácil',
+    image: 'https://prod-mercadona.imgix.net/images/garbanzo.jpg',
+    ingredients: [
+      { product_id: '26039', name: 'Garbanzos cocidos', quantity: '2 botes (800g)', product_data: { id: '26039', display_name: 'Garbanzo cocido Hacendado', price_instructions: { unit_price: 0.75 }, thumbnail: 'https://prod-mercadona.imgix.net/images/garbanzo.jpg' }},
+      { product_id: '61279', name: 'Espinacas', quantity: '400g', product_data: { id: '61279', display_name: 'Espinaca en porciones ultracongelada', price_instructions: { unit_price: 1.00 }, thumbnail: 'https://prod-mercadona.imgix.net/images/espinaca.jpg' }},
+      { product_id: '61251', name: 'Ajo', quantity: '30g', product_data: { id: '61251', display_name: 'Ajo troceado ultracongelado', price_instructions: { unit_price: 0.95 }, thumbnail: 'https://prod-mercadona.imgix.net/images/ajo.jpg' }},
+      { product_id: '13568', name: 'Cebolla', quantity: '100g', product_data: { id: '13568', display_name: 'Cebolla troceada ultracongelada', price_instructions: { unit_price: 0.95 }, thumbnail: 'https://prod-mercadona.imgix.net/images/cebolla.jpg' }},
+      { product_id: '16044', name: 'Tomate triturado', quantity: '150g', product_data: { id: '16044', display_name: 'Tomate triturado Hacendado', price_instructions: { unit_price: 0.60 }, thumbnail: 'https://prod-mercadona.imgix.net/images/tomate.jpg' }},
+      { product_id: '4740', name: 'Aceite de oliva virgen', quantity: '3 cucharadas', product_data: { id: '4740', display_name: 'Aceite de oliva virgen extra Hacendado', price_instructions: { unit_price: 4.95 }, thumbnail: 'https://prod-mercadona.imgix.net/images/aceite.jpg' }},
+    ],
+    instructions: [
+      'Dorar el ajo en abundante aceite de oliva sin que se queme',
+      'Añadir la cebolla y pochar hasta que esté transparente',
+      'Incorporar las espinacas (si son congeladas, dejar que suelten el agua)',
+      'Añadir el tomate y cocinar 5 minutos',
+      'Incorporar los garbanzos escurridos, sazonar con sal, pimienta, comino y pimentón',
+      'Cocinar todo junto 10 minutos, ajustar el punto de sal'
+    ]
+  },
+  {
+    id: 'alubias-tomate',
+    name: 'Alubias con Tomate y Bacon',
+    description: 'Alubias blancas guisadas con tomate y bacon crujiente',
+    servings: 4, time: '30 min', difficulty: 'Fácil',
+    image: 'https://prod-mercadona.imgix.net/images/alubia.jpg',
+    ingredients: [
+      { product_id: '26028', name: 'Alubias cocidas', quantity: '2 botes (800g)', product_data: { id: '26028', display_name: 'Alubia cocida blanca Hacendado', price_instructions: { unit_price: 0.70 }, thumbnail: 'https://prod-mercadona.imgix.net/images/alubia.jpg' }},
+      { product_id: '16252', name: 'Bacon', quantity: '150g', product_data: { id: '16252', display_name: 'Bacón Hacendado cintas', price_instructions: { unit_price: 2.30 }, thumbnail: 'https://prod-mercadona.imgix.net/images/bacon.jpg' }},
+      { product_id: '17151', name: 'Tomate frito', quantity: '400g', product_data: { id: '17151', display_name: 'Tomate frito Hacendado', price_instructions: { unit_price: 0.95 }, thumbnail: 'https://prod-mercadona.imgix.net/images/tomate.jpg' }},
+      { product_id: '13568', name: 'Cebolla', quantity: '150g', product_data: { id: '13568', display_name: 'Cebolla troceada ultracongelada', price_instructions: { unit_price: 0.95 }, thumbnail: 'https://prod-mercadona.imgix.net/images/cebolla.jpg' }},
+      { product_id: '61251', name: 'Ajo', quantity: '15g', product_data: { id: '61251', display_name: 'Ajo troceado ultracongelado', price_instructions: { unit_price: 0.95 }, thumbnail: 'https://prod-mercadona.imgix.net/images/ajo.jpg' }},
+    ],
+    instructions: [
+      'Cortar el bacon en trozos y freír hasta que esté crujiente, reservar',
+      'En la misma grasa, sofreír la cebolla y el ajo',
+      'Añadir el tomate frito y cocinar 5 minutos',
+      'Incorporar las alubias escurridas',
+      'Sazonar con sal, pimienta y una hoja de laurel',
+      'Cocinar 15 minutos, servir con el bacon crujiente por encima'
+    ]
+  },
+  {
+    id: 'potaje-garbanzos',
+    name: 'Potaje de Garbanzos',
+    description: 'Reconfortante potaje con garbanzos, espinacas y huevo cocido',
+    servings: 4, time: '30 min', difficulty: 'Fácil',
     image: 'https://prod-mercadona.imgix.net/images/garbanzo.jpg',
     ingredients: [
       { product_id: '26039', name: 'Garbanzos cocidos', quantity: '2 botes', product_data: { id: '26039', display_name: 'Garbanzo cocido Hacendado', price_instructions: { unit_price: 0.75 }, thumbnail: 'https://prod-mercadona.imgix.net/images/garbanzo.jpg' }},
       { product_id: '61279', name: 'Espinacas', quantity: '300g', product_data: { id: '61279', display_name: 'Espinaca en porciones ultracongelada', price_instructions: { unit_price: 1.00 }, thumbnail: 'https://prod-mercadona.imgix.net/images/espinaca.jpg' }},
-      { product_id: '61251', name: 'Ajo', quantity: '20g', product_data: { id: '61251', display_name: 'Ajo troceado ultracongelado', price_instructions: { unit_price: 0.95 }, thumbnail: 'https://prod-mercadona.imgix.net/images/ajo.jpg' }},
-    ],
-    instructions: ['Dorar ajo en aceite', 'Añadir espinacas', 'Incorporar garbanzos', 'Sazonar con pimentón']
-  },
-  {
-    id: 'alubias-tomate',
-    name: 'Alubias con Tomate',
-    description: 'Alubias blancas guisadas con tomate',
-    servings: 4, time: '25 min', difficulty: 'Fácil',
-    image: 'https://prod-mercadona.imgix.net/images/alubia.jpg',
-    ingredients: [
-      { product_id: '26028', name: 'Alubias cocidas', quantity: '2 botes', product_data: { id: '26028', display_name: 'Alubia cocida blanca Hacendado', price_instructions: { unit_price: 0.70 }, thumbnail: 'https://prod-mercadona.imgix.net/images/alubia.jpg' }},
-      { product_id: '16044', name: 'Tomate triturado', quantity: '400g', product_data: { id: '16044', display_name: 'Tomate triturado Hacendado', price_instructions: { unit_price: 0.65 }, thumbnail: 'https://prod-mercadona.imgix.net/images/tomate.jpg' }},
+      { product_id: '69066', name: 'Patatas', quantity: '200g', product_data: { id: '69066', display_name: 'Patata', price_instructions: { unit_price: 1.20 }, thumbnail: 'https://prod-mercadona.imgix.net/images/patata.jpg' }},
       { product_id: '13568', name: 'Cebolla', quantity: '100g', product_data: { id: '13568', display_name: 'Cebolla troceada ultracongelada', price_instructions: { unit_price: 0.95 }, thumbnail: 'https://prod-mercadona.imgix.net/images/cebolla.jpg' }},
+      { product_id: '61251', name: 'Ajo', quantity: '20g', product_data: { id: '61251', display_name: 'Ajo troceado ultracongelado', price_instructions: { unit_price: 0.95 }, thumbnail: 'https://prod-mercadona.imgix.net/images/ajo.jpg' }},
+      { product_id: '16044', name: 'Tomate', quantity: '100g', product_data: { id: '16044', display_name: 'Tomate triturado Hacendado', price_instructions: { unit_price: 0.60 }, thumbnail: 'https://prod-mercadona.imgix.net/images/tomate.jpg' }},
     ],
-    instructions: ['Sofreír cebolla', 'Añadir tomate', 'Incorporar alubias', 'Cocinar 15 min']
+    instructions: [
+      'Sofreír cebolla y ajo en aceite, añadir una cucharadita de pimentón',
+      'Incorporar las patatas peladas y troceadas, cubrir con agua',
+      'Cocinar 10 minutos, añadir los garbanzos y el tomate',
+      'Añadir las espinacas y cocinar otros 10 minutos',
+      'Sazonar con sal, comino y pimienta',
+      'Servir con huevo cocido picado por encima (opcional)'
+    ]
   },
 
-  // === HUEVOS ===
+  // === HUEVOS (4 recetas) ===
   {
     id: 'tortilla-patatas',
     name: 'Tortilla de Patatas',
-    description: 'La clásica tortilla española',
-    servings: 4, time: '35 min', difficulty: 'Media',
+    description: 'La auténtica tortilla española con patatas y cebolla',
+    servings: 4, time: '40 min', difficulty: 'Media',
     image: 'https://prod-mercadona.imgix.net/images/tortilla.jpg',
     ingredients: [
-      { product_id: '69066', name: 'Patatas', quantity: '500g', product_data: { id: '69066', display_name: 'Patata', price_instructions: { unit_price: 0.42 }, thumbnail: 'https://prod-mercadona.imgix.net/images/patata.jpg' }},
-      { product_id: '13568', name: 'Cebolla', quantity: '150g', product_data: { id: '13568', display_name: 'Cebolla troceada ultracongelada', price_instructions: { unit_price: 0.95 }, thumbnail: 'https://prod-mercadona.imgix.net/images/cebolla.jpg' }},
+      { product_id: '69066', name: 'Patatas', quantity: '600g', product_data: { id: '69066', display_name: 'Patata', price_instructions: { unit_price: 1.20 }, thumbnail: 'https://prod-mercadona.imgix.net/images/patata.jpg' }},
+      { product_id: '13568', name: 'Cebolla', quantity: '200g', product_data: { id: '13568', display_name: 'Cebolla troceada ultracongelada', price_instructions: { unit_price: 0.95 }, thumbnail: 'https://prod-mercadona.imgix.net/images/cebolla.jpg' }},
+      { product_id: '4740', name: 'Aceite de oliva', quantity: '200ml para freír', product_data: { id: '4740', display_name: 'Aceite de oliva virgen extra Hacendado', price_instructions: { unit_price: 4.95 }, thumbnail: 'https://prod-mercadona.imgix.net/images/aceite.jpg' }},
     ],
-    instructions: ['Freír patatas y cebolla', 'Batir huevos', 'Mezclar todo', 'Cuajar por ambos lados']
+    instructions: [
+      'Pelar y cortar las patatas en rodajas finas (3mm aprox)',
+      'Freír las patatas y la cebolla en abundante aceite a fuego medio',
+      'Cuando estén tiernas (no crujientes), escurrir bien reservando el aceite',
+      'Batir 5-6 huevos con sal y mezclar con las patatas',
+      'En una sartén con poco aceite, verter la mezcla y cuajar a fuego medio',
+      'Dar la vuelta con ayuda de un plato y cuajar por el otro lado',
+      'La tortilla debe quedar jugosa por dentro'
+    ]
   },
   {
     id: 'huevos-rotos',
-    name: 'Huevos Rotos',
-    description: 'Huevos fritos sobre patatas',
-    servings: 2, time: '25 min', difficulty: 'Fácil',
+    name: 'Huevos Rotos con Jamón',
+    description: 'Huevos fritos sobre cama de patatas crujientes con jamón',
+    servings: 2, time: '30 min', difficulty: 'Fácil',
     image: 'https://prod-mercadona.imgix.net/images/huevos.jpg',
     ingredients: [
-      { product_id: '69066', name: 'Patatas', quantity: '400g', product_data: { id: '69066', display_name: 'Patata', price_instructions: { unit_price: 0.42 }, thumbnail: 'https://prod-mercadona.imgix.net/images/patata.jpg' }},
-      { product_id: '52884', name: 'Salchichas', quantity: '4 unid', product_data: { id: '52884', display_name: 'Salchichas Campofrío', price_instructions: { unit_price: 1.25 }, thumbnail: 'https://prod-mercadona.imgix.net/images/salchicha.jpg' }},
+      { product_id: '69066', name: 'Patatas', quantity: '500g', product_data: { id: '69066', display_name: 'Patata', price_instructions: { unit_price: 1.20 }, thumbnail: 'https://prod-mercadona.imgix.net/images/patata.jpg' }},
+      { product_id: '16252', name: 'Bacon/Jamón', quantity: '100g', product_data: { id: '16252', display_name: 'Bacón Hacendado cintas', price_instructions: { unit_price: 2.30 }, thumbnail: 'https://prod-mercadona.imgix.net/images/bacon.jpg' }},
+      { product_id: '61251', name: 'Ajo', quantity: '15g', product_data: { id: '61251', display_name: 'Ajo troceado ultracongelado', price_instructions: { unit_price: 0.95 }, thumbnail: 'https://prod-mercadona.imgix.net/images/ajo.jpg' }},
+      { product_id: '4740', name: 'Aceite de oliva', quantity: 'para freír', product_data: { id: '4740', display_name: 'Aceite de oliva virgen extra Hacendado', price_instructions: { unit_price: 4.95 }, thumbnail: 'https://prod-mercadona.imgix.net/images/aceite.jpg' }},
     ],
-    instructions: ['Freír patatas', 'Freír huevos', 'Freír salchichas', 'Romper huevos sobre patatas']
+    instructions: [
+      'Pelar y cortar las patatas en bastones o rodajas',
+      'Freír las patatas en abundante aceite hasta que estén doradas y crujientes',
+      'En otra sartén, freír el bacon hasta que esté crujiente',
+      'Freír los huevos en aceite muy caliente para que queden con la yema líquida',
+      'Colocar las patatas en el plato, el bacon encima',
+      'Poner los huevos fritos y romper las yemas sobre las patatas'
+    ]
   },
   {
-    id: 'revuelto-champis',
-    name: 'Revuelto de Champiñones',
-    description: 'Huevos revueltos con champiñones',
+    id: 'revuelto-variado',
+    name: 'Revuelto de Champiñones y Gambas',
+    description: 'Cremoso revuelto con champiñones, gambas y un toque de ajo',
     servings: 2, time: '15 min', difficulty: 'Fácil',
-    image: 'https://prod-mercadona.imgix.net/images/champi.jpg',
+    image: 'https://prod-mercadona.imgix.net/images/revuelto.jpg',
     ingredients: [
       { product_id: '16618', name: 'Champiñones', quantity: '1 lata', product_data: { id: '16618', display_name: 'Champiñones laminados Hacendado', price_instructions: { unit_price: 1.00 }, thumbnail: 'https://prod-mercadona.imgix.net/images/champi.jpg' }},
-      { product_id: '61251', name: 'Ajo', quantity: '10g', product_data: { id: '61251', display_name: 'Ajo troceado ultracongelado', price_instructions: { unit_price: 0.95 }, thumbnail: 'https://prod-mercadona.imgix.net/images/ajo.jpg' }},
+      { product_id: '61251', name: 'Ajo', quantity: '20g', product_data: { id: '61251', display_name: 'Ajo troceado ultracongelado', price_instructions: { unit_price: 0.95 }, thumbnail: 'https://prod-mercadona.imgix.net/images/ajo.jpg' }},
+      { product_id: '4740', name: 'Aceite de oliva', quantity: '3 cucharadas', product_data: { id: '4740', display_name: 'Aceite de oliva virgen extra Hacendado', price_instructions: { unit_price: 4.95 }, thumbnail: 'https://prod-mercadona.imgix.net/images/aceite.jpg' }},
     ],
-    instructions: ['Saltear champiñones con ajo', 'Batir huevos', 'Añadir huevo y revolver', 'Servir cremoso']
+    instructions: [
+      'Escurrir bien los champiñones y saltearlos con el ajo en aceite',
+      'Cuando estén dorados, bajar el fuego',
+      'Batir 4 huevos con sal y pimienta, verter sobre los champiñones',
+      'Remover constantemente con una espátula de madera',
+      'Retirar del fuego cuando aún esté cremoso (seguirá cuajando con el calor residual)',
+      'Servir inmediatamente con pan tostado'
+    ]
+  },
+  {
+    id: 'huevos-rancheros',
+    name: 'Huevos Rancheros',
+    description: 'Huevos sobre tortilla con salsa de tomate picante',
+    servings: 2, time: '20 min', difficulty: 'Fácil',
+    image: 'https://prod-mercadona.imgix.net/images/huevos.jpg',
+    ingredients: [
+      { product_id: '17151', name: 'Tomate frito', quantity: '300g', product_data: { id: '17151', display_name: 'Tomate frito Hacendado', price_instructions: { unit_price: 0.95 }, thumbnail: 'https://prod-mercadona.imgix.net/images/tomate.jpg' }},
+      { product_id: '13568', name: 'Cebolla', quantity: '100g', product_data: { id: '13568', display_name: 'Cebolla troceada ultracongelada', price_instructions: { unit_price: 0.95 }, thumbnail: 'https://prod-mercadona.imgix.net/images/cebolla.jpg' }},
+      { product_id: '35221', name: 'Pimientos', quantity: '100g', product_data: { id: '35221', display_name: 'Pimiento rojo y verde ultracongelado', price_instructions: { unit_price: 1.20 }, thumbnail: 'https://prod-mercadona.imgix.net/images/pimiento.jpg' }},
+      { product_id: '61251', name: 'Ajo', quantity: '10g', product_data: { id: '61251', display_name: 'Ajo troceado ultracongelado', price_instructions: { unit_price: 0.95 }, thumbnail: 'https://prod-mercadona.imgix.net/images/ajo.jpg' }},
+      { product_id: '26039', name: 'Garbanzos (opcional)', quantity: '1 bote', product_data: { id: '26039', display_name: 'Garbanzo cocido Hacendado', price_instructions: { unit_price: 0.75 }, thumbnail: 'https://prod-mercadona.imgix.net/images/garbanzo.jpg' }},
+    ],
+    instructions: [
+      'Sofreír cebolla, pimiento y ajo hasta que estén tiernos',
+      'Añadir el tomate frito y cocinar 5 minutos',
+      'Hacer huecos en la salsa y cascar los huevos directamente',
+      'Tapar y cocinar a fuego medio hasta que las claras estén cuajadas',
+      'Las yemas deben quedar líquidas',
+      'Servir directamente de la sartén con pan para mojar'
+    ]
   },
 
-  // === VERDURAS ===
+  // === VERDURAS (5 recetas) ===
   {
     id: 'judias-patatas',
     name: 'Judías Verdes con Patatas',
-    description: 'Plato tradicional de verduras',
-    servings: 4, time: '30 min', difficulty: 'Fácil',
+    description: 'Plato tradicional de judías verdes rehogadas con patatas y ajo',
+    servings: 4, time: '35 min', difficulty: 'Fácil',
     image: 'https://prod-mercadona.imgix.net/images/judias.jpg',
     ingredients: [
-      { product_id: '16315', name: 'Judías verdes', quantity: '2 latas', product_data: { id: '16315', display_name: 'Judías verdes redondas Hacendado', price_instructions: { unit_price: 1.20 }, thumbnail: 'https://prod-mercadona.imgix.net/images/judias.jpg' }},
-      { product_id: '69066', name: 'Patatas', quantity: '400g', product_data: { id: '69066', display_name: 'Patata', price_instructions: { unit_price: 0.42 }, thumbnail: 'https://prod-mercadona.imgix.net/images/patata.jpg' }},
-      { product_id: '61251', name: 'Ajo', quantity: '20g', product_data: { id: '61251', display_name: 'Ajo troceado ultracongelado', price_instructions: { unit_price: 0.95 }, thumbnail: 'https://prod-mercadona.imgix.net/images/ajo.jpg' }},
+      { product_id: '16315', name: 'Judías verdes', quantity: '2 latas (600g)', product_data: { id: '16315', display_name: 'Judías verdes redondas Hacendado', price_instructions: { unit_price: 1.20 }, thumbnail: 'https://prod-mercadona.imgix.net/images/judias.jpg' }},
+      { product_id: '69066', name: 'Patatas', quantity: '400g', product_data: { id: '69066', display_name: 'Patata', price_instructions: { unit_price: 1.20 }, thumbnail: 'https://prod-mercadona.imgix.net/images/patata.jpg' }},
+      { product_id: '61251', name: 'Ajo', quantity: '30g', product_data: { id: '61251', display_name: 'Ajo troceado ultracongelado', price_instructions: { unit_price: 0.95 }, thumbnail: 'https://prod-mercadona.imgix.net/images/ajo.jpg' }},
+      { product_id: '16252', name: 'Bacon', quantity: '100g', product_data: { id: '16252', display_name: 'Bacón Hacendado cintas', price_instructions: { unit_price: 2.30 }, thumbnail: 'https://prod-mercadona.imgix.net/images/bacon.jpg' }},
+      { product_id: '4940', name: 'Vinagre', quantity: '1 cucharada', product_data: { id: '4940', display_name: 'Vinagre de vino blanco Hacendado', price_instructions: { unit_price: 0.65 }, thumbnail: 'https://prod-mercadona.imgix.net/images/vinagre.jpg' }},
     ],
-    instructions: ['Cocer patatas', 'Escurrir judías', 'Rehogar ajo', 'Saltear todo junto']
+    instructions: [
+      'Pelar y cortar las patatas en dados, cocerlas en agua con sal',
+      'Cuando falten 5 minutos, añadir las judías escurridas para que se calienten',
+      'En una sartén, dorar el ajo laminado y el bacon en aceite',
+      'Escurrir las patatas y judías, añadirlas a la sartén',
+      'Saltear todo junto, añadir un chorrito de vinagre',
+      'Sazonar con sal, pimienta y pimentón'
+    ]
   },
   {
     id: 'pisto-manchego',
     name: 'Pisto Manchego',
-    description: 'Verduras salteadas estilo manchego',
-    servings: 4, time: '35 min', difficulty: 'Fácil',
+    description: 'Verduras salteadas estilo tradicional manchego',
+    servings: 4, time: '40 min', difficulty: 'Fácil',
     image: 'https://prod-mercadona.imgix.net/images/pisto.jpg',
     ingredients: [
       { product_id: '35221', name: 'Pimientos', quantity: '300g', product_data: { id: '35221', display_name: 'Pimiento rojo y verde ultracongelado', price_instructions: { unit_price: 1.20 }, thumbnail: 'https://prod-mercadona.imgix.net/images/pimiento.jpg' }},
-      { product_id: '16044', name: 'Tomate triturado', quantity: '400g', product_data: { id: '16044', display_name: 'Tomate triturado Hacendado', price_instructions: { unit_price: 0.65 }, thumbnail: 'https://prod-mercadona.imgix.net/images/tomate.jpg' }},
-      { product_id: '13568', name: 'Cebolla', quantity: '150g', product_data: { id: '13568', display_name: 'Cebolla troceada ultracongelada', price_instructions: { unit_price: 0.95 }, thumbnail: 'https://prod-mercadona.imgix.net/images/cebolla.jpg' }},
-    ],
-    instructions: ['Sofreír cebolla', 'Añadir pimientos', 'Incorporar tomate', 'Cocinar 20 min a fuego lento']
-  },
-  {
-    id: 'espinacas-garbanzos',
-    name: 'Espinacas a la Catalana',
-    description: 'Espinacas con piñones y pasas',
-    servings: 4, time: '15 min', difficulty: 'Fácil',
-    image: 'https://prod-mercadona.imgix.net/images/espinaca.jpg',
-    ingredients: [
-      { product_id: '61279', name: 'Espinacas', quantity: '400g', product_data: { id: '61279', display_name: 'Espinaca en porciones ultracongelada', price_instructions: { unit_price: 1.00 }, thumbnail: 'https://prod-mercadona.imgix.net/images/espinaca.jpg' }},
+      { product_id: '17151', name: 'Tomate frito', quantity: '400g', product_data: { id: '17151', display_name: 'Tomate frito Hacendado', price_instructions: { unit_price: 0.95 }, thumbnail: 'https://prod-mercadona.imgix.net/images/tomate.jpg' }},
+      { product_id: '13568', name: 'Cebolla', quantity: '200g', product_data: { id: '13568', display_name: 'Cebolla troceada ultracongelada', price_instructions: { unit_price: 0.95 }, thumbnail: 'https://prod-mercadona.imgix.net/images/cebolla.jpg' }},
       { product_id: '61251', name: 'Ajo', quantity: '20g', product_data: { id: '61251', display_name: 'Ajo troceado ultracongelado', price_instructions: { unit_price: 0.95 }, thumbnail: 'https://prod-mercadona.imgix.net/images/ajo.jpg' }},
+      { product_id: '4740', name: 'Aceite de oliva', quantity: '4 cucharadas', product_data: { id: '4740', display_name: 'Aceite de oliva virgen extra Hacendado', price_instructions: { unit_price: 4.95 }, thumbnail: 'https://prod-mercadona.imgix.net/images/aceite.jpg' }},
     ],
-    instructions: ['Descongelar espinacas', 'Dorar ajo', 'Saltear espinacas', 'Servir caliente']
+    instructions: [
+      'Cortar todas las verduras en dados pequeños si no están ya troceadas',
+      'Sofreír la cebolla en aceite de oliva a fuego medio durante 10 minutos',
+      'Añadir el ajo y los pimientos, cocinar otros 10 minutos',
+      'Incorporar el tomate frito, sal, pimienta y una pizca de azúcar',
+      'Cocinar a fuego lento 15-20 minutos hasta que las verduras estén tiernas',
+      'Servir caliente o frío, ideal con huevo frito encima'
+    ]
   },
   {
     id: 'guisantes-jamon',
     name: 'Guisantes con Jamón',
-    description: 'Clásico acompañamiento español',
-    servings: 4, time: '15 min', difficulty: 'Fácil',
+    description: 'Clásico acompañamiento español de guisantes salteados con jamón',
+    servings: 4, time: '20 min', difficulty: 'Fácil',
     image: 'https://prod-mercadona.imgix.net/images/guisante.jpg',
     ingredients: [
-      { product_id: '61200', name: 'Guisantes', quantity: '400g', product_data: { id: '61200', display_name: 'Guisante muy tierno ultracongelado', price_instructions: { unit_price: 1.05 }, thumbnail: 'https://prod-mercadona.imgix.net/images/guisante.jpg' }},
-      { product_id: '52884', name: 'Salchichas', quantity: '2 unid', product_data: { id: '52884', display_name: 'Salchichas Campofrío', price_instructions: { unit_price: 1.25 }, thumbnail: 'https://prod-mercadona.imgix.net/images/salchicha.jpg' }},
-      { product_id: '13568', name: 'Cebolla', quantity: '50g', product_data: { id: '13568', display_name: 'Cebolla troceada ultracongelada', price_instructions: { unit_price: 0.95 }, thumbnail: 'https://prod-mercadona.imgix.net/images/cebolla.jpg' }},
-    ],
-    instructions: ['Sofreír cebolla', 'Añadir salchichas troceadas', 'Incorporar guisantes', 'Cocinar 10 min']
-  },
-
-  // === PLATOS RÁPIDOS ===
-  {
-    id: 'sandwich-mixto',
-    name: 'Sándwich Mixto',
-    description: 'Clásico sándwich de jamón y queso',
-    servings: 2, time: '10 min', difficulty: 'Fácil',
-    image: 'https://prod-mercadona.imgix.net/images/sandwich.jpg',
-    ingredients: [
-      { product_id: '52884', name: 'Salchichas/Fiambre', quantity: '100g', product_data: { id: '52884', display_name: 'Salchichas Campofrío', price_instructions: { unit_price: 1.25 }, thumbnail: 'https://prod-mercadona.imgix.net/images/salchicha.jpg' }},
-    ],
-    instructions: ['Tostar pan', 'Añadir fiambre', 'Cerrar y cortar']
-  },
-  {
-    id: 'frankfurt-mostaza',
-    name: 'Perritos Calientes',
-    description: 'Hot dogs caseros fáciles',
-    servings: 4, time: '10 min', difficulty: 'Fácil',
-    image: 'https://prod-mercadona.imgix.net/images/hotdog.jpg',
-    ingredients: [
-      { product_id: '53141', name: 'Salchichas Frankfurt', quantity: '1 paq', product_data: { id: '53141', display_name: 'Salchichas Frankfurt Hacendado', price_instructions: { unit_price: 1.90 }, thumbnail: 'https://prod-mercadona.imgix.net/images/frankfurt.jpg' }},
-      { product_id: '16044', name: 'Tomate', quantity: '100g', product_data: { id: '16044', display_name: 'Tomate triturado Hacendado', price_instructions: { unit_price: 0.65 }, thumbnail: 'https://prod-mercadona.imgix.net/images/tomate.jpg' }},
-    ],
-    instructions: ['Calentar salchichas', 'Tostar pan', 'Montar con salsas']
-  },
-  {
-    id: 'habas-jamon',
-    name: 'Habas con Jamón',
-    description: 'Habas tiernas salteadas',
-    servings: 4, time: '15 min', difficulty: 'Fácil',
-    image: 'https://prod-mercadona.imgix.net/images/habas.jpg',
-    ingredients: [
-      { product_id: '61233', name: 'Habas', quantity: '400g', product_data: { id: '61233', display_name: 'Habas finas ultracongeladas', price_instructions: { unit_price: 1.19 }, thumbnail: 'https://prod-mercadona.imgix.net/images/habas.jpg' }},
-      { product_id: '52884', name: 'Salchichas', quantity: '2 unid', product_data: { id: '52884', display_name: 'Salchichas Campofrío', price_instructions: { unit_price: 1.25 }, thumbnail: 'https://prod-mercadona.imgix.net/images/salchicha.jpg' }},
+      { product_id: '61200', name: 'Guisantes', quantity: '500g', product_data: { id: '61200', display_name: 'Guisante muy tierno ultracongelado', price_instructions: { unit_price: 1.05 }, thumbnail: 'https://prod-mercadona.imgix.net/images/guisante.jpg' }},
+      { product_id: '16252', name: 'Bacon/Jamón', quantity: '150g', product_data: { id: '16252', display_name: 'Bacón Hacendado cintas', price_instructions: { unit_price: 2.30 }, thumbnail: 'https://prod-mercadona.imgix.net/images/bacon.jpg' }},
+      { product_id: '13568', name: 'Cebolla', quantity: '100g', product_data: { id: '13568', display_name: 'Cebolla troceada ultracongelada', price_instructions: { unit_price: 0.95 }, thumbnail: 'https://prod-mercadona.imgix.net/images/cebolla.jpg' }},
       { product_id: '61251', name: 'Ajo', quantity: '10g', product_data: { id: '61251', display_name: 'Ajo troceado ultracongelado', price_instructions: { unit_price: 0.95 }, thumbnail: 'https://prod-mercadona.imgix.net/images/ajo.jpg' }},
     ],
-    instructions: ['Dorar ajo', 'Añadir salchichas', 'Incorporar habas', 'Cocinar 10 min']
-  },
-  {
-    id: 'maiz-ensalada',
-    name: 'Ensalada de Maíz',
-    description: 'Ensalada rápida y nutritiva',
-    servings: 2, time: '5 min', difficulty: 'Fácil',
-    image: 'https://prod-mercadona.imgix.net/images/maiz.jpg',
-    ingredients: [
-      { product_id: '61289', name: 'Maíz dulce', quantity: '200g', product_data: { id: '61289', display_name: 'Maíz dulce ultracongelado', price_instructions: { unit_price: 1.24 }, thumbnail: 'https://prod-mercadona.imgix.net/images/maiz.jpg' }},
-      { product_id: '16737', name: 'Macedonia verduras', quantity: '1 lata', product_data: { id: '16737', display_name: 'Macedonia de verduras Hacendado', price_instructions: { unit_price: 0.90 }, thumbnail: 'https://prod-mercadona.imgix.net/images/macedonia.jpg' }},
-    ],
-    instructions: ['Escurrir maíz y macedonia', 'Mezclar en un bol', 'Aliñar al gusto']
+    instructions: [
+      'Sofreír la cebolla picada en aceite hasta que esté transparente',
+      'Añadir el bacon/jamón cortado en trozos y dorar ligeramente',
+      'Incorporar el ajo y cocinar 1 minuto',
+      'Añadir los guisantes congelados y un vaso de agua',
+      'Cocinar 10-12 minutos hasta que los guisantes estén tiernos',
+      'Sazonar con sal y pimienta, servir caliente'
+    ]
   },
   {
     id: 'crema-verduras',
     name: 'Crema de Verduras',
-    description: 'Crema suave y reconfortante',
-    servings: 4, time: '25 min', difficulty: 'Fácil',
+    description: 'Suave crema de verduras casera, ideal para cenar',
+    servings: 4, time: '30 min', difficulty: 'Fácil',
     image: 'https://prod-mercadona.imgix.net/images/crema.jpg',
     ingredients: [
-      { product_id: '69066', name: 'Patatas', quantity: '300g', product_data: { id: '69066', display_name: 'Patata', price_instructions: { unit_price: 0.42 }, thumbnail: 'https://prod-mercadona.imgix.net/images/patata.jpg' }},
-      { product_id: '35221', name: 'Pimientos', quantity: '200g', product_data: { id: '35221', display_name: 'Pimiento rojo y verde ultracongelado', price_instructions: { unit_price: 1.20 }, thumbnail: 'https://prod-mercadona.imgix.net/images/pimiento.jpg' }},
-      { product_id: '13568', name: 'Cebolla', quantity: '100g', product_data: { id: '13568', display_name: 'Cebolla troceada ultracongelada', price_instructions: { unit_price: 0.95 }, thumbnail: 'https://prod-mercadona.imgix.net/images/cebolla.jpg' }},
+      { product_id: '69066', name: 'Patatas', quantity: '300g', product_data: { id: '69066', display_name: 'Patata', price_instructions: { unit_price: 1.20 }, thumbnail: 'https://prod-mercadona.imgix.net/images/patata.jpg' }},
+      { product_id: '35221', name: 'Pimientos', quantity: '150g', product_data: { id: '35221', display_name: 'Pimiento rojo y verde ultracongelado', price_instructions: { unit_price: 1.20 }, thumbnail: 'https://prod-mercadona.imgix.net/images/pimiento.jpg' }},
+      { product_id: '13568', name: 'Cebolla', quantity: '150g', product_data: { id: '13568', display_name: 'Cebolla troceada ultracongelada', price_instructions: { unit_price: 0.95 }, thumbnail: 'https://prod-mercadona.imgix.net/images/cebolla.jpg' }},
+      { product_id: '61200', name: 'Guisantes', quantity: '100g', product_data: { id: '61200', display_name: 'Guisante muy tierno ultracongelado', price_instructions: { unit_price: 1.05 }, thumbnail: 'https://prod-mercadona.imgix.net/images/guisante.jpg' }},
+      { product_id: '51203', name: 'Queso untar', quantity: '50g', product_data: { id: '51203', display_name: 'Queso untar suave de vaca Hacendado', price_instructions: { unit_price: 1.45 }, thumbnail: 'https://prod-mercadona.imgix.net/images/queso.jpg' }},
     ],
-    instructions: ['Cocer todas las verduras', 'Triturar con batidora', 'Añadir sal y aceite', 'Servir caliente']
+    instructions: [
+      'Pelar y trocear las patatas, poner a cocer en agua con sal',
+      'Añadir el resto de verduras y cocer todo junto 20 minutos',
+      'Escurrir reservando parte del caldo de cocción',
+      'Triturar las verduras con batidora, añadiendo caldo hasta lograr la textura deseada',
+      'Incorporar el queso de untar y mezclar bien',
+      'Rectificar de sal y servir caliente con un chorrito de aceite de oliva'
+    ]
   },
   {
     id: 'patatas-bravas',
     name: 'Patatas Bravas',
-    description: 'Tapa clásica española',
-    servings: 4, time: '30 min', difficulty: 'Media',
+    description: 'Clásica tapa española con salsa brava casera',
+    servings: 4, time: '35 min', difficulty: 'Media',
     image: 'https://prod-mercadona.imgix.net/images/bravas.jpg',
     ingredients: [
-      { product_id: '69066', name: 'Patatas', quantity: '600g', product_data: { id: '69066', display_name: 'Patata', price_instructions: { unit_price: 0.42 }, thumbnail: 'https://prod-mercadona.imgix.net/images/patata.jpg' }},
-      { product_id: '16044', name: 'Tomate triturado', quantity: '200g', product_data: { id: '16044', display_name: 'Tomate triturado Hacendado', price_instructions: { unit_price: 0.65 }, thumbnail: 'https://prod-mercadona.imgix.net/images/tomate.jpg' }},
+      { product_id: '69066', name: 'Patatas', quantity: '700g', product_data: { id: '69066', display_name: 'Patata', price_instructions: { unit_price: 1.20 }, thumbnail: 'https://prod-mercadona.imgix.net/images/patata.jpg' }},
+      { product_id: '17151', name: 'Tomate frito', quantity: '200g', product_data: { id: '17151', display_name: 'Tomate frito Hacendado', price_instructions: { unit_price: 0.95 }, thumbnail: 'https://prod-mercadona.imgix.net/images/tomate.jpg' }},
+      { product_id: '61251', name: 'Ajo', quantity: '15g', product_data: { id: '61251', display_name: 'Ajo troceado ultracongelado', price_instructions: { unit_price: 0.95 }, thumbnail: 'https://prod-mercadona.imgix.net/images/ajo.jpg' }},
+      { product_id: '4740', name: 'Aceite de oliva', quantity: 'para freír', product_data: { id: '4740', display_name: 'Aceite de oliva virgen extra Hacendado', price_instructions: { unit_price: 4.95 }, thumbnail: 'https://prod-mercadona.imgix.net/images/aceite.jpg' }},
     ],
-    instructions: ['Cortar patatas en dados', 'Freír hasta dorar', 'Preparar salsa brava', 'Servir con salsa']
+    instructions: [
+      'Pelar y cortar las patatas en dados grandes (3cm)',
+      'Freír en abundante aceite caliente hasta que estén doradas y crujientes',
+      'Para la salsa brava: sofreír ajo, añadir tomate y pimentón picante',
+      'Cocinar la salsa 5 minutos, puede triturarse si se desea más fina',
+      'Escurrir las patatas y salar',
+      'Servir las patatas calientes con la salsa brava por encima'
+    ]
+  },
+
+  // === PLATOS COMPLETOS (6 recetas) ===
+  {
+    id: 'pollo-tomate',
+    name: 'Pollo en Salsa de Tomate',
+    description: 'Jugoso pollo guisado en salsa de tomate con verduras',
+    servings: 4, time: '40 min', difficulty: 'Fácil',
+    image: 'https://prod-mercadona.imgix.net/images/pollo.jpg',
+    ingredients: [
+      { product_id: '14485', name: 'Pollo', quantity: '600g', product_data: { id: '14485', display_name: 'Churrasco de pollo', price_instructions: { unit_price: 2.80 }, thumbnail: 'https://prod-mercadona.imgix.net/images/pollo.jpg' }},
+      { product_id: '17151', name: 'Tomate frito', quantity: '400g', product_data: { id: '17151', display_name: 'Tomate frito Hacendado', price_instructions: { unit_price: 0.95 }, thumbnail: 'https://prod-mercadona.imgix.net/images/tomate.jpg' }},
+      { product_id: '13568', name: 'Cebolla', quantity: '150g', product_data: { id: '13568', display_name: 'Cebolla troceada ultracongelada', price_instructions: { unit_price: 0.95 }, thumbnail: 'https://prod-mercadona.imgix.net/images/cebolla.jpg' }},
+      { product_id: '35221', name: 'Pimientos', quantity: '150g', product_data: { id: '35221', display_name: 'Pimiento rojo y verde ultracongelado', price_instructions: { unit_price: 1.20 }, thumbnail: 'https://prod-mercadona.imgix.net/images/pimiento.jpg' }},
+      { product_id: '61251', name: 'Ajo', quantity: '20g', product_data: { id: '61251', display_name: 'Ajo troceado ultracongelado', price_instructions: { unit_price: 0.95 }, thumbnail: 'https://prod-mercadona.imgix.net/images/ajo.jpg' }},
+    ],
+    instructions: [
+      'Salpimentar el pollo y dorarlo en una cazuela con aceite',
+      'Retirar el pollo y en el mismo aceite sofreír cebolla, ajo y pimientos',
+      'Añadir el tomate y cocinar 5 minutos',
+      'Incorporar el pollo de nuevo, cubrir parcialmente con agua o caldo',
+      'Cocinar a fuego medio 25-30 minutos hasta que el pollo esté tierno',
+      'Rectificar de sal y servir con arroz o patatas'
+    ]
+  },
+  {
+    id: 'albondigas-tomate',
+    name: 'Albóndigas en Salsa',
+    description: 'Jugosas albóndigas caseras en salsa de tomate',
+    servings: 4, time: '45 min', difficulty: 'Media',
+    image: 'https://prod-mercadona.imgix.net/images/albondigas.jpg',
+    ingredients: [
+      { product_id: '2871', name: 'Albóndigas', quantity: '500g', product_data: { id: '2871', display_name: 'Albóndigas de cerdo', price_instructions: { unit_price: 4.55 }, thumbnail: 'https://prod-mercadona.imgix.net/images/albondigas.jpg' }},
+      { product_id: '17151', name: 'Tomate frito', quantity: '400g', product_data: { id: '17151', display_name: 'Tomate frito Hacendado', price_instructions: { unit_price: 0.95 }, thumbnail: 'https://prod-mercadona.imgix.net/images/tomate.jpg' }},
+      { product_id: '13568', name: 'Cebolla', quantity: '150g', product_data: { id: '13568', display_name: 'Cebolla troceada ultracongelada', price_instructions: { unit_price: 0.95 }, thumbnail: 'https://prod-mercadona.imgix.net/images/cebolla.jpg' }},
+      { product_id: '61251', name: 'Ajo', quantity: '20g', product_data: { id: '61251', display_name: 'Ajo troceado ultracongelado', price_instructions: { unit_price: 0.95 }, thumbnail: 'https://prod-mercadona.imgix.net/images/ajo.jpg' }},
+      { product_id: '4740', name: 'Aceite de oliva', quantity: 'para freír', product_data: { id: '4740', display_name: 'Aceite de oliva virgen extra Hacendado', price_instructions: { unit_price: 4.95 }, thumbnail: 'https://prod-mercadona.imgix.net/images/aceite.jpg' }},
+    ],
+    instructions: [
+      'Dorar las albóndigas en aceite caliente por todos lados, reservar',
+      'En el mismo aceite, sofreír la cebolla y el ajo picados',
+      'Añadir el tomate frito, sal, pimienta y una pizca de azúcar',
+      'Cocinar la salsa 10 minutos a fuego medio',
+      'Incorporar las albóndigas y cocinar 15-20 minutos a fuego lento',
+      'Servir con patatas fritas o arroz blanco'
+    ]
+  },
+  {
+    id: 'hamburguesa-completa',
+    name: 'Hamburguesa Completa Casera',
+    description: 'Hamburguesa con todos los ingredientes y salsa especial',
+    servings: 4, time: '25 min', difficulty: 'Fácil',
+    image: 'https://prod-mercadona.imgix.net/images/burger.jpg',
+    ingredients: [
+      { product_id: '2872', name: 'Burger de carne', quantity: '4 unidades', product_data: { id: '2872', display_name: 'Burger de vacuno y cerdo', price_instructions: { unit_price: 4.20 }, thumbnail: 'https://prod-mercadona.imgix.net/images/burger.jpg' }},
+      { product_id: '51050', name: 'Mozzarella/Queso', quantity: '4 lonchas', product_data: { id: '51050', display_name: 'Mozzarella fresca de vaca Hacendado', price_instructions: { unit_price: 0.90 }, thumbnail: 'https://prod-mercadona.imgix.net/images/mozzarella.jpg' }},
+      { product_id: '16252', name: 'Bacon', quantity: '100g', product_data: { id: '16252', display_name: 'Bacón Hacendado cintas', price_instructions: { unit_price: 2.30 }, thumbnail: 'https://prod-mercadona.imgix.net/images/bacon.jpg' }},
+      { product_id: '13568', name: 'Cebolla', quantity: '100g', product_data: { id: '13568', display_name: 'Cebolla troceada ultracongelada', price_instructions: { unit_price: 0.95 }, thumbnail: 'https://prod-mercadona.imgix.net/images/cebolla.jpg' }},
+      { product_id: '17151', name: 'Tomate/Ketchup', quantity: '100g', product_data: { id: '17151', display_name: 'Tomate frito Hacendado', price_instructions: { unit_price: 0.95 }, thumbnail: 'https://prod-mercadona.imgix.net/images/tomate.jpg' }},
+    ],
+    instructions: [
+      'Caramelizar la cebolla a fuego lento con un poco de azúcar',
+      'Freír el bacon hasta que esté crujiente',
+      'Cocinar las hamburguesas a la plancha 3-4 minutos por lado',
+      'Poner el queso encima al final para que se funda',
+      'Tostar los panes ligeramente',
+      'Montar: pan, salsa, hamburguesa con queso, bacon, cebolla, pan'
+    ]
+  },
+  {
+    id: 'croquetas-jamon',
+    name: 'Croquetas de Jamón Caseras',
+    description: 'Cremosas croquetas de jamón con bechamel casera',
+    servings: 6, time: '60 min', difficulty: 'Media',
+    image: 'https://prod-mercadona.imgix.net/images/croquetas.jpg',
+    ingredients: [
+      { product_id: '16252', name: 'Jamón/Bacon', quantity: '200g', product_data: { id: '16252', display_name: 'Bacón Hacendado cintas', price_instructions: { unit_price: 2.30 }, thumbnail: 'https://prod-mercadona.imgix.net/images/bacon.jpg' }},
+      { product_id: '10117', name: 'Nata para cocinar', quantity: '200ml', product_data: { id: '10117', display_name: 'Nata fresca para cocinar', price_instructions: { unit_price: 1.30 }, thumbnail: 'https://prod-mercadona.imgix.net/images/nata.jpg' }},
+      { product_id: '13568', name: 'Cebolla', quantity: '100g', product_data: { id: '13568', display_name: 'Cebolla troceada ultracongelada', price_instructions: { unit_price: 0.95 }, thumbnail: 'https://prod-mercadona.imgix.net/images/cebolla.jpg' }},
+      { product_id: '51203', name: 'Queso untar', quantity: '100g', product_data: { id: '51203', display_name: 'Queso untar suave de vaca Hacendado', price_instructions: { unit_price: 1.45 }, thumbnail: 'https://prod-mercadona.imgix.net/images/queso.jpg' }},
+    ],
+    instructions: [
+      'Picar muy fino el jamón/bacon y la cebolla',
+      'Sofreír la cebolla, añadir harina (60g) y hacer un roux',
+      'Añadir leche (500ml) poco a poco, removiendo para evitar grumos',
+      'Incorporar la nata, el queso y el jamón, cocinar hasta que espese',
+      'Dejar enfriar la masa en la nevera mínimo 2 horas',
+      'Formar las croquetas, pasar por huevo batido y pan rallado, freír'
+    ]
+  },
+  {
+    id: 'san-jacobo',
+    name: 'San Jacobos Caseros',
+    description: 'Filetes empanados rellenos de jamón y queso',
+    servings: 4, time: '30 min', difficulty: 'Media',
+    image: 'https://prod-mercadona.imgix.net/images/sanjacobo.jpg',
+    ingredients: [
+      { product_id: '14485', name: 'Filetes de pollo', quantity: '4 grandes', product_data: { id: '14485', display_name: 'Churrasco de pollo', price_instructions: { unit_price: 2.80 }, thumbnail: 'https://prod-mercadona.imgix.net/images/pollo.jpg' }},
+      { product_id: '16252', name: 'Jamón/Bacon', quantity: '8 lonchas', product_data: { id: '16252', display_name: 'Bacón Hacendado cintas', price_instructions: { unit_price: 2.30 }, thumbnail: 'https://prod-mercadona.imgix.net/images/bacon.jpg' }},
+      { product_id: '51050', name: 'Queso', quantity: '8 lonchas', product_data: { id: '51050', display_name: 'Mozzarella fresca de vaca Hacendado', price_instructions: { unit_price: 0.90 }, thumbnail: 'https://prod-mercadona.imgix.net/images/mozzarella.jpg' }},
+    ],
+    instructions: [
+      'Abrir los filetes en libro o aplanarlos con un mazo',
+      'Colocar jamón y queso encima, doblar y cerrar con palillos',
+      'Pasar por harina, huevo batido y pan rallado',
+      'Freír en abundante aceite caliente hasta que estén dorados',
+      'Escurrir sobre papel absorbente',
+      'Servir calientes con ensalada o patatas fritas'
+    ]
   },
 ];
 
