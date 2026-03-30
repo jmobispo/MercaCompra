@@ -202,19 +202,25 @@ async def get_product_details(product_id: str, postal_code: str = Query(default=
 
 @api_router.get("/mercadona/search")
 async def search_products(query: str = Query(..., min_length=2), postal_code: str = Query(default="28001")):
-    """Search products across categories - optimized for speed"""
+    """Search products across ALL categories"""
     warehouse = get_warehouse_from_postal(postal_code)
     all_products = []
     
-    # IDs de categorías principales más importantes (reducido para evitar rate limiting)
-    # Priorizamos las categorías más comunes: lácteos, carnes, verduras, pasta, etc.
-    main_category_ids = [72, 53, 54, 37, 38, 40, 120, 121, 122, 98, 132, 78, 77, 59, 112, 115]
+    # TODAS las categorías válidas de Mercadona organizadas por prioridad
+    # Prioridad 1: Categorías más comunes
+    priority_1 = [72, 53, 54, 37, 38, 40, 120, 121, 122, 98, 132, 78, 77, 59, 112, 115]
+    # Prioridad 2: Más categorías de alimentos
+    priority_2 = [31, 32, 34, 36, 42, 47, 51, 56, 58, 60, 64, 65, 66, 68, 69, 79, 81, 88, 90, 92]
+    # Prioridad 3: Resto de categorías
+    priority_3 = [95, 97, 99, 100, 103, 104, 105, 106, 107, 108, 109, 110, 111, 116, 117, 118, 123, 126, 127, 129, 130, 133, 135, 138, 140, 142, 143, 145, 147, 148, 149, 150]
+    
+    all_categories = priority_1 + priority_2 + priority_3
     
     try:
-        async with httpx.AsyncClient(timeout=15.0) as client:
+        async with httpx.AsyncClient(timeout=20.0) as client:
             query_lower = query.lower()
             
-            for cat_id in main_category_ids:
+            for cat_id in all_categories:
                 if len(all_products) >= 30:
                     break
                     
@@ -235,11 +241,22 @@ async def search_products(query: str = Query(..., min_length=2), postal_code: st
                             products = subcat.get("products", [])
                             for product in products:
                                 name = (product.get("display_name") or product.get("name") or "").lower()
-                                if query_lower in name:
+                                # Buscar de forma más flexible:
+                                # - Si el query tiene múltiples palabras, buscar todas (AND)
+                                # - Si no encuentra, buscar cualquier palabra (OR)
+                                query_words = query_lower.split()
+                                
+                                # Primero intentar match exacto de todas las palabras
+                                if all(word in name for word in query_words):
                                     all_products.append(product)
                                     if len(all_products) >= 30:
                                         return {"products": all_products}
-                except:
+                                # Si solo hay una palabra o si alguna palabra coincide parcialmente
+                                elif len(query_words) == 1 and query_lower in name:
+                                    all_products.append(product)
+                                    if len(all_products) >= 30:
+                                        return {"products": all_products}
+                except Exception as e:
                     continue
                     
         return {"products": all_products}
