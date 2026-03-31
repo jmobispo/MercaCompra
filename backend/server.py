@@ -207,8 +207,8 @@ async def search_products(query: str = Query(..., min_length=2), postal_code: st
     all_products = []
     
     # TODAS las categorías válidas de Mercadona organizadas por prioridad
-    # Prioridad 1: Categorías más comunes
-    priority_1 = [72, 53, 54, 37, 38, 40, 120, 121, 122, 98, 132, 78, 77, 59, 112, 115]
+    # Prioridad 1: Categorías más comunes (incluyendo pan tostado/rallado)
+    priority_1 = [72, 53, 54, 37, 38, 40, 120, 121, 122, 98, 132, 78, 77, 59, 62, 112, 115]
     # Prioridad 2: Más categorías de alimentos
     priority_2 = [31, 32, 34, 36, 42, 47, 51, 56, 58, 60, 64, 65, 66, 68, 69, 79, 81, 88, 90, 92]
     # Prioridad 3: Resto de categorías
