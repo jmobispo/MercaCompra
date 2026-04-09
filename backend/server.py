@@ -10,6 +10,8 @@ from typing import List, Optional, Dict, Any
 import uuid
 from datetime import datetime
 import httpx
+import asyncio
+import time
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
@@ -27,6 +29,54 @@ api_router = APIRouter(prefix="/api")
 
 # Mercadona API base URL
 MERCADONA_API = "https://tienda.mercadona.es/api"
+
+# ============== CACHÉ DE PRODUCTOS ==============
+# Caché en memoria para búsquedas rápidas
+product_cache: Dict[str, List[Dict]] = {}  # warehouse -> lista de productos
+cache_timestamp: Dict[str, float] = {}  # warehouse -> timestamp
+CACHE_DURATION = 3600  # 1 hora de caché
+
+async def get_all_products_cached(warehouse: str) -> List[Dict]:
+    """Obtiene todos los productos del caché o los carga si es necesario"""
+    current_time = time.time()
+    
+    # Si el caché existe y no ha expirado, usarlo
+    if warehouse in product_cache and warehouse in cache_timestamp:
+        if current_time - cache_timestamp[warehouse] < CACHE_DURATION:
+            return product_cache[warehouse]
+    
+    # Si no hay caché, cargar productos en background (no bloquear)
+    # Retornar lista vacía para que use búsqueda directa
+    return []
+
+async def load_products_to_cache(warehouse: str):
+    """Carga todos los productos al caché (ejecutar en background)"""
+    all_products = []
+    all_category_ids = [
+        31, 32, 34, 36, 37, 38, 40, 42, 47, 51, 53, 54, 56, 58, 59, 60, 62, 64, 65, 66, 68, 69,
+        72, 75, 77, 78, 79, 81, 88, 90, 92, 95, 97, 98, 99, 100, 103, 104, 105, 106, 107,
+        108, 109, 110, 111, 112, 115, 116, 117, 118, 120, 121, 122, 123, 126, 127, 129, 130,
+        132, 133, 135, 138, 140, 142, 143, 145, 147, 148, 149, 150
+    ]
+    
+    async with httpx.AsyncClient(timeout=10.0) as client:
+        for cat_id in all_category_ids:
+            try:
+                response = await client.get(
+                    f"{MERCADONA_API}/categories/{cat_id}/",
+                    params={"lang": "es", "wh": warehouse},
+                    headers={"User-Agent": "Mozilla/5.0", "Accept": "application/json"}
+                )
+                if response.status_code == 200:
+                    data = response.json()
+                    for subcat in data.get("categories", []):
+                        all_products.extend(subcat.get("products", []))
+            except:
+                continue
+    
+    product_cache[warehouse] = all_products
+    cache_timestamp[warehouse] = time.time()
+    logging.info(f"Cache loaded: {len(all_products)} products for {warehouse}")
 
 # Default warehouses by region
 WAREHOUSES = {
@@ -202,67 +252,67 @@ async def get_product_details(product_id: str, postal_code: str = Query(default=
 
 @api_router.get("/mercadona/search")
 async def search_products(query: str = Query(..., min_length=2), postal_code: str = Query(default="28001")):
-    """Search products across ALL categories"""
+    """Search products - FAST with parallel requests"""
     warehouse = get_warehouse_from_postal(postal_code)
+    query_lower = query.lower()
+    query_words = query_lower.split()
+    
+    # Primero intentar buscar en caché
+    cached_products = await get_all_products_cached(warehouse)
+    if cached_products:
+        # Búsqueda instantánea en caché
+        results = []
+        for product in cached_products:
+            name = (product.get("display_name") or product.get("name") or "").lower()
+            if all(word in name for word in query_words):
+                results.append(product)
+                if len(results) >= 30:
+                    break
+        return {"products": results}
+    
+    # Si no hay caché, búsqueda en paralelo (mucho más rápida)
+    # Solo buscar en las categorías más importantes
+    priority_categories = [72, 53, 54, 37, 38, 40, 62, 59, 60, 64, 69, 78, 77, 112, 115, 120, 121, 122, 98, 132]
+    
     all_products = []
     
-    # TODAS las categorías válidas de Mercadona organizadas por prioridad
-    # Prioridad 1: Categorías más comunes (incluyendo pan tostado/rallado)
-    priority_1 = [72, 53, 54, 37, 38, 40, 120, 121, 122, 98, 132, 78, 77, 59, 62, 112, 115]
-    # Prioridad 2: Más categorías de alimentos
-    priority_2 = [31, 32, 34, 36, 42, 47, 51, 56, 58, 60, 64, 65, 66, 68, 69, 79, 81, 88, 90, 92]
-    # Prioridad 3: Resto de categorías
-    priority_3 = [95, 97, 99, 100, 103, 104, 105, 106, 107, 108, 109, 110, 111, 116, 117, 118, 123, 126, 127, 129, 130, 133, 135, 138, 140, 142, 143, 145, 147, 148, 149, 150]
+    async def fetch_category(cat_id: int) -> List[Dict]:
+        """Fetch products from a single category"""
+        try:
+            async with httpx.AsyncClient(timeout=5.0) as client:
+                response = await client.get(
+                    f"{MERCADONA_API}/categories/{cat_id}/",
+                    params={"lang": "es", "wh": warehouse},
+                    headers={"User-Agent": "Mozilla/5.0", "Accept": "application/json"}
+                )
+                if response.status_code == 200:
+                    data = response.json()
+                    products = []
+                    for subcat in data.get("categories", []):
+                        for product in subcat.get("products", []):
+                            name = (product.get("display_name") or product.get("name") or "").lower()
+                            if all(word in name for word in query_words):
+                                products.append(product)
+                    return products
+        except:
+            pass
+        return []
     
-    all_categories = priority_1 + priority_2 + priority_3
+    # Ejecutar búsquedas en paralelo (5 a la vez para no saturar)
+    for i in range(0, len(priority_categories), 5):
+        batch = priority_categories[i:i+5]
+        tasks = [fetch_category(cat_id) for cat_id in batch]
+        results = await asyncio.gather(*tasks)
+        
+        for products in results:
+            all_products.extend(products)
+            if len(all_products) >= 30:
+                return {"products": all_products[:30]}
     
-    try:
-        async with httpx.AsyncClient(timeout=20.0) as client:
-            query_lower = query.lower()
-            
-            for cat_id in all_categories:
-                if len(all_products) >= 30:
-                    break
-                    
-                try:
-                    cat_detail = await client.get(
-                        f"{MERCADONA_API}/categories/{cat_id}/",
-                        params={"lang": "es", "wh": warehouse},
-                        headers={
-                            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
-                            "Accept": "application/json"
-                        }
-                    )
-                    if cat_detail.status_code == 200:
-                        cat_data = cat_detail.json()
-                        subcats = cat_data.get("categories", [])
-                        
-                        for subcat in subcats:
-                            products = subcat.get("products", [])
-                            for product in products:
-                                name = (product.get("display_name") or product.get("name") or "").lower()
-                                # Buscar de forma más flexible:
-                                # - Si el query tiene múltiples palabras, buscar todas (AND)
-                                # - Si no encuentra, buscar cualquier palabra (OR)
-                                query_words = query_lower.split()
-                                
-                                # Primero intentar match exacto de todas las palabras
-                                if all(word in name for word in query_words):
-                                    all_products.append(product)
-                                    if len(all_products) >= 30:
-                                        return {"products": all_products}
-                                # Si solo hay una palabra o si alguna palabra coincide parcialmente
-                                elif len(query_words) == 1 and query_lower in name:
-                                    all_products.append(product)
-                                    if len(all_products) >= 30:
-                                        return {"products": all_products}
-                except Exception as e:
-                    continue
-                    
-        return {"products": all_products}
-    except httpx.HTTPError as e:
-        logging.error(f"Error searching products: {e}")
-        raise HTTPException(status_code=502, detail=f"Error connecting to Mercadona: {str(e)}")
+    # Iniciar carga de caché en background para próximas búsquedas
+    asyncio.create_task(load_products_to_cache(warehouse))
+    
+    return {"products": all_products[:30]}
 
 # ============== User Settings ==============
 
