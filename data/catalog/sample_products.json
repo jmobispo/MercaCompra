@@ -1,0 +1,122 @@
+[
+  {
+    "id": "100",
+    "external_id": "100",
+    "name": "Leche entera",
+    "display_name": "Leche entera",
+    "price": 0.95,
+    "category": "Lácteos",
+    "subcategory": "Leche",
+    "unit_size": "1 L",
+    "thumbnail": null,
+    "source": "local_json"
+  },
+  {
+    "id": "101",
+    "external_id": "101",
+    "name": "Leche semidesnatada",
+    "display_name": "Leche semidesnatada",
+    "price": 0.92,
+    "category": "Lácteos",
+    "subcategory": "Leche",
+    "unit_size": "1 L",
+    "thumbnail": null,
+    "source": "local_json"
+  },
+  {
+    "id": "200",
+    "external_id": "200",
+    "name": "Pan de molde",
+    "display_name": "Pan de molde blanco",
+    "price": 1.15,
+    "category": "Panadería",
+    "subcategory": "Pan de molde",
+    "unit_size": "500 g",
+    "thumbnail": null,
+    "source": "local_json"
+  },
+  {
+    "id": "300",
+    "external_id": "300",
+    "name": "Aceite de oliva virgen extra",
+    "display_name": "Aceite de oliva virgen extra",
+    "price": 4.99,
+    "category": "Aceites y vinagres",
+    "subcategory": "Aceite de oliva",
+    "unit_size": "1 L",
+    "thumbnail": null,
+    "source": "local_json"
+  },
+  {
+    "id": "400",
+    "external_id": "400",
+    "name": "Huevos L",
+    "display_name": "Huevos L",
+    "price": 2.49,
+    "category": "Huevos y derivados",
+    "subcategory": "Huevos",
+    "unit_size": "12 uds",
+    "thumbnail": null,
+    "source": "local_json"
+  },
+  {
+    "id": "500",
+    "external_id": "500",
+    "name": "Tomate frito",
+    "display_name": "Tomate frito",
+    "price": 0.99,
+    "category": "Conservas",
+    "subcategory": "Conservas de tomate",
+    "unit_size": "400 g",
+    "thumbnail": null,
+    "source": "local_json"
+  },
+  {
+    "id": "600",
+    "external_id": "600",
+    "name": "Pasta espaguetis",
+    "display_name": "Espaguetis",
+    "price": 0.85,
+    "category": "Pasta, arroz y legumbres",
+    "subcategory": "Pasta",
+    "unit_size": "500 g",
+    "thumbnail": null,
+    "source": "local_json"
+  },
+  {
+    "id": "700",
+    "external_id": "700",
+    "name": "Arroz redondo",
+    "display_name": "Arroz redondo",
+    "price": 1.10,
+    "category": "Pasta, arroz y legumbres",
+    "subcategory": "Arroz",
+    "unit_size": "1 kg",
+    "thumbnail": null,
+    "source": "local_json"
+  },
+  {
+    "id": "800",
+    "external_id": "800",
+    "name": "Pollo entero",
+    "display_name": "Pollo entero",
+    "price": 5.99,
+    "category": "Carne y aves",
+    "subcategory": "Pollo",
+    "unit_size": "1,5-2 kg",
+    "thumbnail": null,
+    "source": "local_json"
+  },
+  {
+    "id": "900",
+    "external_id": "900",
+    "name": "Manzana Golden",
+    "display_name": "Manzana Golden",
+    "price": 1.89,
+    "category": "Frutas y verduras",
+    "subcategory": "Frutas",
+    "unit_size": "1 kg",
+    "thumbnail": null,
+    "source": "local_json"
+  }
+]

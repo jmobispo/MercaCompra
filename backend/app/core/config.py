@@ -1,0 +1,53 @@
+from pydantic_settings import BaseSettings
+from functools import lru_cache
+from typing import Optional
+import os
+
+
+class Settings(BaseSettings):
+    # App
+    APP_NAME: str = "MercaCompra"
+    APP_VERSION: str = "1.0.0"
+    DEBUG: bool = False
+
+    # Security
+    SECRET_KEY: str = "change-me-in-production-use-openssl-rand-hex-32"
+    ALGORITHM: str = "HS256"
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 7  # 7 days
+
+    # Database
+    DATABASE_URL: str = "sqlite+aiosqlite:///./mercacompra.db"
+
+    # CORS
+    CORS_ORIGINS: str = "http://localhost:5173,http://localhost:3000"
+
+    # Mercadona API
+    MERCADONA_API: str = "https://tienda.mercadona.es/api"
+    MERCADONA_DEFAULT_POSTAL: str = "28001"
+
+    # AI mode: heuristics | local_free | claude_optional
+    AI_MODE: str = "heuristics"
+
+    # Claude (optional, only used if AI_MODE=claude_optional)
+    ANTHROPIC_API_KEY: Optional[str] = None
+    CLAUDE_MODEL: str = "claude-opus-4-6"
+
+    # Bot
+    BOT_API_URL: str = "http://localhost:8001"
+    BOT_TIMEOUT: int = 300  # seconds
+
+    # Logging
+    LOG_LEVEL: str = "INFO"
+
+    class Config:
+        env_file = ".env"
+        extra = "ignore"
+
+    @property
+    def cors_origins_list(self) -> list[str]:
+        return [o.strip() for o in self.CORS_ORIGINS.split(",")]
+
+
+@lru_cache()
+def get_settings() -> Settings:
+    return Settings()
