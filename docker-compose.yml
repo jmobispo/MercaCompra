@@ -1,0 +1,59 @@
+version: "3.9"
+
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: mercacompra-backend
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend:/app
+      - db_data:/data
+    environment:
+      - DATABASE_URL=sqlite+aiosqlite:////data/mercacompra.db
+      - DEBUG=false
+      - SECRET_KEY=${SECRET_KEY:-change-me-in-production}
+      - CORS_ORIGINS=http://localhost:5173,http://localhost:3000
+      - AI_MODE=${AI_MODE:-heuristics}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: mercacompra-frontend
+    ports:
+      - "5173:80"
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+  bot:
+    build:
+      context: ./bot
+      dockerfile: Dockerfile
+    container_name: mercacompra-bot
+    environment:
+      - MERCADONA_EMAIL=${MERCADONA_EMAIL:-}
+      - MERCADONA_PASSWORD=${MERCADONA_PASSWORD:-}
+      - HEADLESS=true
+      - SCREENSHOT_ON_ERROR=true
+      - SCREENSHOTS_DIR=/screenshots
+    volumes:
+      - ./bot:/app/bot
+      - bot_screenshots:/screenshots
+    profiles:
+      - bot  # Only starts when explicitly requested: docker compose --profile bot up
+    restart: "no"
+
+volumes:
+  db_data:
+  bot_screenshots:
