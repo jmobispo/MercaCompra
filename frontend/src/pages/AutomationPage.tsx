@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { getRuns, getRun } from '../api/automation';
 import AutomationResults from '../components/automation/AutomationResults';
 import type { AutomationRun } from '../types';
@@ -11,8 +11,14 @@ export default function AutomationPage() {
   const [error, setError] = useState('');
   const [expandedId, setExpandedId] = useState<number | null>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const runsRef = useRef<AutomationRun[]>([]);
 
-  const fetchRuns = async (silent = false) => {
+  // Keep ref in sync for polling closure
+  useEffect(() => {
+    runsRef.current = runs;
+  }, [runs]);
+
+  const fetchRuns = useCallback(async (silent = false) => {
     if (!silent) setLoading(true);
     try {
       const data = await getRuns();
@@ -22,11 +28,10 @@ export default function AutomationPage() {
     } finally {
       if (!silent) setLoading(false);
     }
-  };
+  }, []);
 
-  // Poll active runs
-  const pollActiveRuns = async () => {
-    const activeRuns = runs.filter((r) => ACTIVE_STATUSES.has(r.status));
+  const pollActiveRuns = useCallback(async () => {
+    const activeRuns = runsRef.current.filter((r) => ACTIVE_STATUSES.has(r.status));
     if (activeRuns.length === 0) return;
 
     const updated = await Promise.all(
@@ -35,17 +40,17 @@ export default function AutomationPage() {
 
     setRuns((prev) =>
       prev.map((r) => {
-        const u = updated.find((u) => u.id === r.id);
+        const u = updated.find((up) => up.id === r.id);
         return u ?? r;
       })
     );
-  };
+  }, []);
 
   useEffect(() => {
     fetchRuns();
-  }, []);
+  }, [fetchRuns]);
 
-  // Set up polling whenever runs change
+  // Set up polling when there are active runs
   useEffect(() => {
     const hasActive = runs.some((r) => ACTIVE_STATUSES.has(r.status));
 
@@ -64,7 +69,7 @@ export default function AutomationPage() {
         pollRef.current = null;
       }
     };
-  }, [runs]);
+  }, [runs, pollActiveRuns]);
 
   const formatDate = (iso: string | null) => {
     if (!iso) return '—';
@@ -105,6 +110,8 @@ export default function AutomationPage() {
     );
   }
 
+  const hasActive = runs.some((r) => ACTIVE_STATUSES.has(r.status));
+
   return (
     <div>
       <div className="page-header">
@@ -129,9 +136,9 @@ export default function AutomationPage() {
         </div>
       )}
 
-      {runs.some((r) => ACTIVE_STATUSES.has(r.status)) && (
-        <div className="alert alert-info" style={{ marginBottom: 16 }}>
-          <span className="loading-spinner" style={{ width: 14, height: 14, marginRight: 8 }} />
+      {hasActive && (
+        <div className="alert alert-info" style={{ marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
+          <span className="loading-spinner" style={{ width: 14, height: 14, flexShrink: 0 }} />
           Hay ejecuciones en curso. Actualizando automáticamente cada 3 segundos…
         </div>
       )}

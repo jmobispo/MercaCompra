@@ -187,5 +187,3 @@ export default function ListsPage() {
   );
 }
 
-// Prevent linting error for unused variable
-declare const _: unknown;
