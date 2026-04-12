@@ -1,21 +1,28 @@
 """
-Automation service: bridges backend and bot.
-Launches automation run, stores result.
+Automation service: calls the bot HTTP service, stores result in DB.
+
+Architecture: backend → POST http://bot:8001/run → Playwright bot
+The bot runs as a separate container/process with its own Python environment
+that has Playwright installed. The backend does NOT need Playwright.
 """
 import logging
 import asyncio
 from datetime import datetime, timezone
 from typing import Optional
+
+import httpx
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
+from sqlalchemy.orm import selectinload
 from fastapi import HTTPException
 
+from app.core.config import get_settings
 from app.models.automation import AutomationRun
 from app.models.shopping_list import ShoppingList
-from sqlalchemy.orm import selectinload
 from app.schemas.automation import AutomationRunCreate, AutomationRunRead
 
 logger = logging.getLogger(__name__)
+settings = get_settings()
 
 
 class AutomationService:
@@ -34,7 +41,7 @@ class AutomationService:
         return sl
 
     async def create_run(self, user_id: int, data: AutomationRunCreate) -> AutomationRunRead:
-        """Create a new automation run record and launch bot asynchronously."""
+        """Create a pending run record and kick off the bot call in the background."""
         sl = await self._get_list(data.shopping_list_id, user_id)
 
         if not sl.items:
@@ -50,7 +57,6 @@ class AutomationService:
         await self.db.flush()
         await self.db.refresh(run)
 
-        # Prepare items payload for bot
         items_payload = [
             {
                 "product_id": item.product_id,
@@ -61,9 +67,9 @@ class AutomationService:
             for item in sl.items
         ]
 
-        # Launch bot in background (non-blocking for the HTTP response)
+        # Fire and forget — HTTP response returns immediately
         asyncio.create_task(
-            self._run_bot(
+            self._call_bot(
                 run_id=run.id,
                 items=items_payload,
                 headless=data.headless,
@@ -74,7 +80,7 @@ class AutomationService:
 
         return AutomationRunRead.model_validate(run)
 
-    async def _run_bot(
+    async def _call_bot(
         self,
         run_id: int,
         items: list,
@@ -83,18 +89,15 @@ class AutomationService:
         mercadona_password: Optional[str],
     ) -> None:
         """
-        Execute the Playwright bot in a subprocess.
-        Updates AutomationRun with results.
+        POST to the bot HTTP service, wait for the result (up to BOT_TIMEOUT seconds),
+        and persist outcomes in the AutomationRun row.
         """
         from app.db.session import AsyncSessionLocal
-        import json, os, sys
-        from pathlib import Path
-
-        # Project root: backend/app/services/ -> up 4 levels
-        project_root = Path(__file__).parent.parent.parent.parent
 
         async with AsyncSessionLocal() as db:
-            result = await db.execute(select(AutomationRun).where(AutomationRun.id == run_id))
+            result = await db.execute(
+                select(AutomationRun).where(AutomationRun.id == run_id)
+            )
             run = result.scalar_one_or_none()
             if not run:
                 return
@@ -104,31 +107,32 @@ class AutomationService:
             await db.commit()
 
             try:
-                env_vars = {"HEADLESS": "true" if headless else "false"}
-                if mercadona_email:
-                    env_vars["MERCADONA_EMAIL"] = mercadona_email
-                if mercadona_password:
-                    env_vars["MERCADONA_PASSWORD"] = mercadona_password
+                payload = {
+                    "items": items,
+                    "headless": headless,
+                    "mercadona_email": mercadona_email,
+                    "mercadona_password": mercadona_password,
+                }
 
-                proc = await asyncio.create_subprocess_exec(
-                    sys.executable, "-m", "bot.src.bot",
-                    stdin=asyncio.subprocess.PIPE,
-                    stdout=asyncio.subprocess.PIPE,
-                    stderr=asyncio.subprocess.PIPE,
-                    cwd=str(project_root),
-                    env={**os.environ, **env_vars},
-                )
+                # Timeout = BOT_TIMEOUT + 10s grace
+                timeout = httpx.Timeout(settings.BOT_TIMEOUT + 10.0)
 
-                input_data = json.dumps({"items": items}).encode()
-                stdout, stderr = await asyncio.wait_for(
-                    proc.communicate(input=input_data),
-                    timeout=300,
-                )
+                async with httpx.AsyncClient(timeout=timeout) as client:
+                    response = await client.post(
+                        f"{settings.BOT_API_URL}/run",
+                        json=payload,
+                    )
 
-                if proc.returncode != 0:
-                    raise RuntimeError(f"Bot exited with code {proc.returncode}: {stderr.decode()[:500]}")
+                if response.status_code == 409:
+                    raise RuntimeError(
+                        "El bot está ocupado procesando otra ejecución. Inténtalo más tarde."
+                    )
+                if response.status_code != 200:
+                    raise RuntimeError(
+                        f"Bot service error {response.status_code}: {response.text[:300]}"
+                    )
 
-                bot_result = json.loads(stdout.decode())
+                bot_result = response.json()
                 item_results = bot_result.get("item_results", [])
 
                 run.status = "completed"
@@ -141,14 +145,25 @@ class AutomationService:
                 run.estimated_cost = bot_result.get("estimated_cost")
                 run.duration_seconds = bot_result.get("duration_seconds")
 
-            except asyncio.TimeoutError:
+            except httpx.ConnectError:
                 run.status = "failed"
-                run.error_message = "Bot timeout (>300s)"
-                logger.error(f"Automation run {run_id} timed out")
+                run.error_message = (
+                    "No se pudo conectar con el servicio bot. "
+                    "Asegúrate de que el bot está en marcha (BOT_API_URL=%s)."
+                    % settings.BOT_API_URL
+                )
+                logger.error(f"Run {run_id}: bot service unreachable at {settings.BOT_API_URL}")
+
+            except httpx.TimeoutException:
+                run.status = "failed"
+                run.error_message = f"Bot timeout (>{settings.BOT_TIMEOUT}s)"
+                logger.error(f"Run {run_id}: bot timed out after {settings.BOT_TIMEOUT}s")
+
             except Exception as e:
                 run.status = "failed"
                 run.error_message = str(e)[:500]
-                logger.error(f"Automation run {run_id} failed: {e}")
+                logger.error(f"Run {run_id} failed: {e}", exc_info=True)
+
             finally:
                 run.finished_at = datetime.now(timezone.utc)
                 await db.commit()

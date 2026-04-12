@@ -1,83 +1,79 @@
 #!/usr/bin/env bash
-# ================================================
-# MercaCompra — Development startup script
-# Usage: ./scripts/start-dev.sh
-# ================================================
-set -e
+# MercaCompra — Development start script
+# Usage:
+#   ./scripts/start-dev.sh          # backend + frontend
+#   ./scripts/start-dev.sh --bot    # + bot HTTP service
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-ROOT_DIR="$(dirname "$SCRIPT_DIR")"
+set -euo pipefail
 
-echo "╔══════════════════════════════════════════╗"
-echo "║        MercaCompra — Dev Start           ║"
-echo "╚══════════════════════════════════════════╝"
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+START_BOT=false
 
-# ── Check Python ───────────────────────────────
-if ! command -v python3 &>/dev/null; then
-    echo "ERROR: python3 not found. Install Python 3.11+."
-    exit 1
+for arg in "$@"; do
+  case $arg in
+    --bot) START_BOT=true ;;
+    *) echo "Unknown argument: $arg"; exit 1 ;;
+  esac
+done
+
+detect_ip() {
+  if command -v ip &>/dev/null; then
+    ip route get 1.1.1.1 2>/dev/null | awk '/src/{print $7; exit}'
+  elif command -v ifconfig &>/dev/null; then
+    ifconfig | awk '/inet /{print $2}' | grep -v 127.0.0.1 | head -1
+  else
+    echo "unknown"
+  fi
+}
+
+LOCAL_IP=$(detect_ip)
+
+echo ""
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo "  MercaCompra — Dev environment starting"
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo ""
+echo "  Backend:  http://localhost:8000"
+echo "  Frontend: http://localhost:5173"
+if [ "$LOCAL_IP" != "unknown" ] && [ -n "$LOCAL_IP" ]; then
+  echo ""
+  echo "  From iPad/iPhone/Android on the same WiFi:"
+  echo "    http://$LOCAL_IP:5173"
+fi
+echo ""
+
+if [ ! -f "$ROOT/backend/.env" ]; then
+  echo "No backend/.env found — copying from .env.example"
+  cp "$ROOT/backend/.env.example" "$ROOT/backend/.env"
 fi
 
-# ── Check Node ─────────────────────────────────
-if ! command -v node &>/dev/null; then
-    echo "ERROR: node not found. Install Node.js 18+."
-    exit 1
+echo "Running database migrations..."
+cd "$ROOT/backend"
+python -m alembic upgrade head
+echo "Done."
+echo ""
+
+if [ "$START_BOT" = true ]; then
+  echo "Starting bot service on :8001..."
+  cd "$ROOT"
+  uvicorn bot.app.main:app --host 0.0.0.0 --port 8001 --reload &
+  BOT_PID=$!
 fi
 
-# ── Backend setup ──────────────────────────────
-BACKEND_DIR="$ROOT_DIR/backend"
-cd "$BACKEND_DIR"
-
-if [ ! -f ".env" ]; then
-    echo "Creating backend .env from .env.example..."
-    cp .env.example .env
-    echo "  → Edit backend/.env with your settings"
-fi
-
-if [ ! -d ".venv" ]; then
-    echo "Creating Python virtual environment..."
-    python3 -m venv .venv
-fi
-
-echo "Activating venv and installing dependencies..."
-source .venv/bin/activate
-pip install -q -r requirements.txt
-
-echo "Running Alembic migrations..."
-alembic upgrade head
-
-echo "Starting backend on http://localhost:8000 ..."
-uvicorn app.main:app --reload --host 0.0.0.0 --port 8000 &
+echo "Starting backend on :8000..."
+cd "$ROOT/backend"
+uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload &
 BACKEND_PID=$!
-echo "  Backend PID: $BACKEND_PID"
 
-# ── Frontend setup ─────────────────────────────
-FRONTEND_DIR="$ROOT_DIR/frontend"
-cd "$FRONTEND_DIR"
-
-if [ ! -f ".env" ]; then
-    echo "Creating frontend .env from .env.example..."
-    cp .env.example .env
-fi
-
-if [ ! -d "node_modules" ]; then
-    echo "Installing frontend dependencies..."
-    npm install
-fi
-
-echo "Starting frontend on http://localhost:5173 ..."
+echo "Starting frontend on :5173..."
+cd "$ROOT/frontend"
 npm run dev &
 FRONTEND_PID=$!
-echo "  Frontend PID: $FRONTEND_PID"
 
-# ── Summary ────────────────────────────────────
 echo ""
-echo "✅ Services started:"
-echo "   Backend:  http://localhost:8000"
-echo "   API docs: http://localhost:8000/docs"
-echo "   Frontend: http://localhost:5173"
+echo "All services running. Press Ctrl+C to stop all."
 echo ""
-echo "Press Ctrl+C to stop all services"
 
-trap "kill $BACKEND_PID $FRONTEND_PID 2>/dev/null; exit 0" SIGINT SIGTERM
+trap 'echo "Stopping..."; kill $BACKEND_PID $FRONTEND_PID ${BOT_PID:-} 2>/dev/null; exit 0' INT TERM
+
 wait

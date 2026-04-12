@@ -1,6 +1,52 @@
 version: "3.9"
 
+# ─────────────────────────────────────────────────────────────────────────────
+# MercaCompra — Docker Compose
+#
+# Services:
+#   backend   FastAPI on :8000  (SQLite / optional PostgreSQL)
+#   bot       Playwright HTTP service on :8001
+#   frontend  nginx + React SPA on :80 (mapped to host :5173)
+#
+# Quick start:
+#   cp .env.example .env          # fill SECRET_KEY at minimum
+#   docker compose up -d
+#   docker compose exec backend alembic upgrade head
+#
+# Access from any device on your LAN:
+#   http://<your-pc-ip>:5173
+# ─────────────────────────────────────────────────────────────────────────────
+
 services:
+
+  # ── Bot Playwright service ────────────────────────────────────────────────
+  bot:
+    build:
+      context: ./bot
+      dockerfile: Dockerfile
+    container_name: mercacompra-bot
+    ports:
+      - "8001:8001"
+    environment:
+      - HEADLESS=${HEADLESS:-true}
+      - SCREENSHOT_ON_ERROR=${SCREENSHOT_ON_ERROR:-true}
+      - SCREENSHOTS_DIR=/screenshots
+      - SLOW_MO=${SLOW_MO:-200}
+      - BOT_TIMEOUT=${BOT_TIMEOUT:-15000}
+      # Credentials — optional (bot works without login for search)
+      - MERCADONA_EMAIL=${MERCADONA_EMAIL:-}
+      - MERCADONA_PASSWORD=${MERCADONA_PASSWORD:-}
+    volumes:
+      - bot_screenshots:/screenshots
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+    restart: unless-stopped
+
+  # ── Backend FastAPI ───────────────────────────────────────────────────────
   backend:
     build:
       context: ./backend
@@ -9,22 +55,34 @@ services:
     ports:
       - "8000:8000"
     volumes:
-      - ./backend:/app
       - db_data:/data
     environment:
       - DATABASE_URL=sqlite+aiosqlite:////data/mercacompra.db
-      - DEBUG=false
-      - SECRET_KEY=${SECRET_KEY:-change-me-in-production}
-      - CORS_ORIGINS=http://localhost:5173,http://localhost:3000
+      - DEBUG=${DEBUG:-false}
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+      - SECRET_KEY=${SECRET_KEY:-change-me-in-production-use-openssl-rand-hex-32}
+      - ACCESS_TOKEN_EXPIRE_MINUTES=${ACCESS_TOKEN_EXPIRE_MINUTES:-10080}
+      # CORS — * allows all origins including LAN devices (iPad, iPhone, Android).
+      # Restrict in production: CORS_ORIGINS=https://yourdomain.com
+      - CORS_ORIGINS=${CORS_ORIGINS:-*}
+      # Bot service URL — resolved via Docker internal DNS
+      - BOT_API_URL=http://bot:8001
+      - BOT_TIMEOUT=${BOT_TIMEOUT:-300}
+      # AI
       - AI_MODE=${AI_MODE:-heuristics}
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
-    restart: unless-stopped
+    depends_on:
+      bot:
+        condition: service_healthy
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
       interval: 30s
       timeout: 10s
       retries: 3
+      start_period: 10s
+    restart: unless-stopped
 
+  # ── Frontend nginx + React SPA ────────────────────────────────────────────
   frontend:
     build:
       context: ./frontend
@@ -33,26 +91,14 @@ services:
     ports:
       - "5173:80"
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:80"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
     restart: unless-stopped
-
-  bot:
-    build:
-      context: ./bot
-      dockerfile: Dockerfile
-    container_name: mercacompra-bot
-    environment:
-      - MERCADONA_EMAIL=${MERCADONA_EMAIL:-}
-      - MERCADONA_PASSWORD=${MERCADONA_PASSWORD:-}
-      - HEADLESS=true
-      - SCREENSHOT_ON_ERROR=true
-      - SCREENSHOTS_DIR=/screenshots
-    volumes:
-      - ./bot:/app/bot
-      - bot_screenshots:/screenshots
-    profiles:
-      - bot  # Only starts when explicitly requested: docker compose --profile bot up
-    restart: "no"
 
 volumes:
   db_data:
