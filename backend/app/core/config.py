@@ -25,6 +25,10 @@ class Settings(BaseSettings):
     MERCADONA_API: str = "https://tienda.mercadona.es/api"
     MERCADONA_DEFAULT_POSTAL: str = "28001"
 
+    # Product search mode: mercadona | fallback | hybrid
+    # hybrid = tries Mercadona first; falls back to local catalog if API returns nothing
+    PRODUCT_SEARCH_MODE: str = "hybrid"
+
     # AI mode: heuristics | local_free | claude_optional
     AI_MODE: str = "heuristics"
 

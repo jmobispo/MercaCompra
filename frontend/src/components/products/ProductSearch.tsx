@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { searchProducts } from '../../api/products';
-import type { Product } from '../../types';
+import type { Product, ProductSearchResult } from '../../types';
 
 interface ProductSearchProps {
   onAddProduct: (product: Product) => void;
@@ -11,6 +11,7 @@ interface ProductSearchProps {
 export default function ProductSearch({ onAddProduct, postalCode, disabled }: ProductSearchProps) {
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<Product[]>([]);
+  const [searchMeta, setSearchMeta] = useState<Pick<ProductSearchResult, 'source' | 'error'> | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [showResults, setShowResults] = useState(false);
@@ -29,10 +30,15 @@ export default function ProductSearch({ onAddProduct, postalCode, disabled }: Pr
       try {
         const data = await searchProducts(q.trim(), postalCode);
         setResults(data.products);
+        setSearchMeta({ source: data.source, error: data.error });
         setShowResults(true);
+        if (data.error) {
+          setError(`Búsqueda limitada: ${data.error}`);
+        }
       } catch {
         setError('Error al buscar productos');
         setResults([]);
+        setSearchMeta(null);
       } finally {
         setLoading(false);
       }
@@ -66,6 +72,7 @@ export default function ProductSearch({ onAddProduct, postalCode, disabled }: Pr
     setQuery('');
     setResults([]);
     setShowResults(false);
+    setSearchMeta(null);
   };
 
   const formatPrice = (price: number | null) =>
@@ -87,7 +94,21 @@ export default function ProductSearch({ onAddProduct, postalCode, disabled }: Pr
         </span>
       </div>
 
-      {error && <div className="alert alert-error" style={{ marginTop: 6, padding: '6px 10px' }}>{error}</div>}
+      {searchMeta?.source === 'fallback' && (
+        <div style={{ fontSize: 11, color: 'var(--color-text-muted)', marginTop: 4, display: 'flex', alignItems: 'center', gap: 4 }}>
+          <span style={{ background: 'var(--color-warning, #f59e0b)', color: '#fff', borderRadius: 4, padding: '1px 5px', fontSize: 10 }}>
+            OFFLINE
+          </span>
+          Usando catálogo local (Mercadona no disponible)
+        </div>
+      )}
+
+      {error && !searchMeta?.error && (
+        <div className="alert alert-error" style={{ marginTop: 6, padding: '6px 10px' }}>{error}</div>
+      )}
+      {searchMeta?.error && results.length === 0 && (
+        <div className="alert alert-error" style={{ marginTop: 6, padding: '6px 10px' }}>{error}</div>
+      )}
 
       {showResults && results.length > 0 && (
         <div className="search-results">

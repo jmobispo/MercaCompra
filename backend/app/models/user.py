@@ -18,3 +18,4 @@ class User(Base):
 
     shopping_lists = relationship("ShoppingList", back_populates="user", cascade="all, delete-orphan")
     automation_runs = relationship("AutomationRun", back_populates="user", cascade="all, delete-orphan")
+    recipes = relationship("Recipe", back_populates="user", cascade="all, delete-orphan")

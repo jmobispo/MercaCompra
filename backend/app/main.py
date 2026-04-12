@@ -9,7 +9,7 @@ from app.db.session import engine
 # Import all models so Alembic sees them
 import app.models  # noqa: F401
 
-from app.api import auth, lists, products, automation
+from app.api import auth, lists, products, automation, recipes
 
 settings = get_settings()
 
@@ -43,6 +43,7 @@ app.include_router(auth.router, prefix=API_PREFIX)
 app.include_router(lists.router, prefix=API_PREFIX)
 app.include_router(products.router, prefix=API_PREFIX)
 app.include_router(automation.router, prefix=API_PREFIX)
+app.include_router(recipes.router, prefix=API_PREFIX)
 
 
 @app.get("/")

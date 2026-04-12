@@ -5,6 +5,7 @@ import { useAuth } from '../../hooks/useAuth';
 const navItems = [
   { to: '/dashboard', label: 'Inicio', icon: '🏠' },
   { to: '/lists', label: 'Mis listas', icon: '📋' },
+  { to: '/recipes', label: 'Recetas', icon: '🍳' },
   { to: '/automation', label: 'Automatización', icon: '🤖' },
 ];
 
@@ -17,6 +18,8 @@ export default function Layout() {
     if (location.pathname === '/lists') return 'Mis listas';
     if (location.pathname.startsWith('/lists/')) return 'Detalle de lista';
     if (location.pathname === '/automation') return 'Automatización';
+    if (location.pathname === '/recipes') return 'Recetas';
+    if (location.pathname.startsWith('/recipes/')) return 'Detalle de receta';
     return 'MercaCompra';
   };
 

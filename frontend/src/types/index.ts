@@ -57,6 +57,8 @@ export interface ProductSearchResult {
   products: Product[];
   total: number;
   query: string;
+  source: 'mercadona_api' | 'fallback' | 'none';
+  error: string | null;
 }
 
 export interface AutomationRun {
@@ -132,4 +134,92 @@ export interface Category {
   id: string;
   name: string;
   children?: Category[];
+}
+
+// ── Recipes ──────────────────────────────────────────────────────────────────
+
+export interface RecipeIngredient {
+  id: number;
+  recipe_id: number;
+  name: string;
+  quantity: number | null;
+  unit: string | null;
+  notes: string | null;
+  product_query: string | null;
+  position: number;
+}
+
+export interface Recipe {
+  id: number;
+  user_id: number | null;
+  title: string;
+  description: string | null;
+  servings: number;
+  estimated_minutes: number | null;
+  estimated_cost: number | null;
+  tags: string[] | null;
+  image_url: string | null;
+  is_public: boolean;
+  ingredients: RecipeIngredient[];
+  created_at: string;
+  updated_at: string;
+}
+
+export interface RecipeSummary {
+  id: number;
+  user_id: number | null;
+  title: string;
+  description: string | null;
+  servings: number;
+  estimated_minutes: number | null;
+  estimated_cost: number | null;
+  tags: string[] | null;
+  image_url: string | null;
+  is_public: boolean;
+  ingredient_count: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface RecipeIngredientPayload {
+  name: string;
+  quantity?: number | null;
+  unit?: string | null;
+  notes?: string | null;
+  product_query?: string | null;
+  position?: number;
+}
+
+export interface CreateRecipePayload {
+  title: string;
+  description?: string | null;
+  servings?: number;
+  estimated_minutes?: number | null;
+  estimated_cost?: number | null;
+  tags?: string[] | null;
+  ingredients: RecipeIngredientPayload[];
+}
+
+export interface UpdateRecipePayload {
+  title?: string;
+  description?: string | null;
+  servings?: number;
+  estimated_minutes?: number | null;
+  estimated_cost?: number | null;
+  tags?: string[] | null;
+  ingredients?: RecipeIngredientPayload[];
+}
+
+export interface AddToListPayload {
+  list_id?: number | null;
+  new_list_name?: string | null;
+  servings_multiplier?: number;
+}
+
+export interface AddToListResult {
+  list_id: number;
+  list_name: string;
+  added: number;
+  skipped: number;
+  items: { name: string; quantity: number }[];
 }

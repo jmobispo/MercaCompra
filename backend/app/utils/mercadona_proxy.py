@@ -1,11 +1,17 @@
 """
 Proxy hacia la API no oficial de Mercadona.
-Reutiliza la lógica del server.py original (warehouse mapping, caching, search).
 AVISO: Mercadona puede cambiar su API en cualquier momento.
+
+PRODUCT_SEARCH_MODE:
+  mercadona  — solo API remota de Mercadona
+  fallback   — solo catálogo local JSON
+  hybrid     — intenta Mercadona; si devuelve 0 resultados o falla, usa catálogo local
 """
 import asyncio
 import logging
+import re
 import time
+from pathlib import Path
 from typing import Dict, List, Optional, Any
 
 import httpx
@@ -16,41 +22,94 @@ settings = get_settings()
 
 MERCADONA_API = settings.MERCADONA_API
 
-# Warehouse mapping by postal code prefix (from original server.py)
+# Warehouse mapping by postal code prefix
 WAREHOUSES: Dict[str, str] = {
-    "28": "mad1",
-    "08": "bcn1",
-    "41": "svq1",
-    "46": "vlc1",
-    "29": "mlg1",
-    "48": "bil1",
-    "50": "zar1",
-    "15": "cor1",
-    "33": "ovi1",
-    "03": "alc1",
-    "30": "mur1",
-    "07": "pal1",  # Palma de Mallorca
-    "18": "grx1",  # Granada
-    "23": "jae1",  # Jaén
-    "14": "cor2",  # Córdoba
+    "28": "mad1", "08": "bcn1", "41": "svq1", "46": "vlc1",
+    "29": "mlg1", "48": "bil1", "50": "zar1", "15": "cor1",
+    "33": "ovi1", "03": "alc1", "30": "mur1", "07": "pal1",
+    "18": "grx1", "23": "jae1", "14": "cor2",
 }
-
-# In-memory product cache
-_product_cache: Dict[str, List[Dict]] = {}
-_cache_timestamp: Dict[str, float] = {}
-CACHE_DURATION = 3600  # 1 hour
 
 BASE_HEADERS = {
-    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36",
-    "Accept": "application/json",
-    "Accept-Language": "es-ES,es;q=0.9",
+    "User-Agent": (
+        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
+        "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0 Safari/537.36"
+    ),
+    "Accept": "application/json, text/plain, */*",
+    "Accept-Language": "es-ES,es;q=0.9,en;q=0.8",
+    "Referer": "https://tienda.mercadona.es/",
+    "Origin": "https://tienda.mercadona.es",
 }
 
-# Priority categories for search (most common product categories)
+# Priority categories for fallback category search
 PRIORITY_CATEGORIES = [
     72, 53, 54, 37, 38, 40, 62, 59, 60, 64, 69, 78, 77,
     112, 115, 120, 121, 122, 98, 132, 31, 32, 34, 36, 47, 51,
 ]
+
+# ─── Fallback catalog (loaded once) ──────────────────────────────────────────
+_FALLBACK_CATALOG: Optional[List[Dict]] = None
+_FALLBACK_CATALOG_PATH = Path(__file__).parent.parent.parent.parent.parent / "data" / "catalog" / "fallback.json"
+
+
+def _load_fallback_catalog() -> List[Dict]:
+    global _FALLBACK_CATALOG
+    if _FALLBACK_CATALOG is not None:
+        return _FALLBACK_CATALOG
+
+    import json
+    paths_to_try = [
+        _FALLBACK_CATALOG_PATH,
+        Path("/app/data/catalog/fallback.json"),   # Docker path
+        Path(__file__).parent.parent.parent.parent / "data" / "catalog" / "fallback.json",
+    ]
+    for path in paths_to_try:
+        if path.exists():
+            try:
+                with open(path, "r", encoding="utf-8") as f:
+                    _FALLBACK_CATALOG = json.load(f)
+                logger.info(f"Loaded fallback catalog: {len(_FALLBACK_CATALOG)} products from {path}")
+                return _FALLBACK_CATALOG
+            except Exception as e:
+                logger.warning(f"Could not load fallback catalog from {path}: {e}")
+
+    logger.warning("No fallback catalog found; searches may return empty when Mercadona API is unavailable")
+    _FALLBACK_CATALOG = []
+    return _FALLBACK_CATALOG
+
+
+def search_fallback_catalog(query: str, limit: int = 30) -> List[Dict]:
+    """Search the local fallback catalog with simple word-based matching."""
+    catalog = _load_fallback_catalog()
+    if not catalog:
+        return []
+
+    query_words = _tokenize_query(query)
+    if not query_words:
+        return []
+
+    scored = []
+    for product in catalog:
+        name = (product.get("display_name") or product.get("name") or "").lower()
+        category = (product.get("category") or "").lower()
+        combined = f"{name} {category}"
+
+        # Score: how many query words appear in the product
+        matches = sum(1 for w in query_words if w in combined)
+        if matches > 0:
+            score = matches / len(query_words)
+            scored.append((score, product))
+
+    scored.sort(key=lambda x: -x[0])
+    return [p for _, p in scored[:limit]]
+
+
+def _tokenize_query(query: str) -> List[str]:
+    """Split query into lowercase tokens, remove accents for better matching."""
+    import unicodedata
+    normalized = unicodedata.normalize("NFKD", query.lower())
+    normalized = "".join(c for c in normalized if not unicodedata.combining(c))
+    return [w for w in re.split(r"\W+", normalized) if len(w) >= 2]
 
 
 def get_warehouse(postal_code: str) -> str:
@@ -59,13 +118,12 @@ def get_warehouse(postal_code: str) -> str:
 
 
 def _normalize_product(raw: Dict[str, Any], category: Optional[str] = None) -> Dict[str, Any]:
-    """Normalize a raw Mercadona product to a consistent shape."""
     price_info = raw.get("price_instructions") or {}
     return {
         "id": str(raw.get("id", "")),
         "name": raw.get("display_name") or raw.get("name") or "",
         "display_name": raw.get("display_name"),
-        "price": price_info.get("unit_price") or raw.get("price"),
+        "price": price_info.get("unit_price") or price_info.get("bulk_price") or raw.get("price"),
         "unit_size": price_info.get("unit_size") or raw.get("format"),
         "category": category,
         "thumbnail": raw.get("thumbnail"),
@@ -74,6 +132,180 @@ def _normalize_product(raw: Dict[str, Any], category: Optional[str] = None) -> D
         "source": "mercadona_api",
     }
 
+
+# ─── Remote Mercadona API ─────────────────────────────────────────────────────
+
+async def _search_direct(client: httpx.AsyncClient, query: str, warehouse: str) -> List[Dict]:
+    """
+    Try Mercadona's product search endpoint.
+    Returns normalised products, or empty list if endpoint is unavailable.
+    """
+    try:
+        resp = await client.get(
+            f"{MERCADONA_API}/products/",
+            params={"q": query, "lang": "es", "wh": warehouse},
+            headers=BASE_HEADERS,
+        )
+        if resp.status_code != 200:
+            logger.debug(f"Direct search returned {resp.status_code} for '{query}'")
+            return []
+
+        data = resp.json()
+
+        # The search endpoint returns {"items": [...]} or a direct list
+        items = data if isinstance(data, list) else data.get("items") or data.get("results") or []
+
+        products = []
+        for item in items:
+            if isinstance(item, dict):
+                products.append(_normalize_product(item))
+        return products
+
+    except Exception as e:
+        logger.debug(f"Direct product search failed for '{query}': {e}")
+        return []
+
+
+async def _fetch_category_products(
+    client: httpx.AsyncClient, cat_id: int, warehouse: str, query_words: List[str]
+) -> List[Dict]:
+    """Fetch products from one category and filter by any query word (partial match)."""
+    try:
+        resp = await client.get(
+            f"{MERCADONA_API}/categories/{cat_id}/",
+            params={"lang": "es", "wh": warehouse},
+            headers=BASE_HEADERS,
+        )
+        if resp.status_code != 200:
+            logger.debug(f"Category {cat_id} returned HTTP {resp.status_code}")
+            return []
+
+        data = resp.json()
+
+        # Handle both "categories" and "results" top-level keys
+        subcats = data.get("categories") or data.get("results") or []
+        if not subcats and isinstance(data, list):
+            subcats = data
+
+        results = []
+        for subcat in subcats:
+            if not isinstance(subcat, dict):
+                continue
+            cat_name = subcat.get("name")
+            products = subcat.get("products") or []
+            for product in products:
+                name = (product.get("display_name") or product.get("name") or "").lower()
+                # Use ANY word match (more results, better recall)
+                if any(w in name for w in query_words):
+                    results.append(_normalize_product(product, category=cat_name))
+
+        return results
+
+    except Exception as e:
+        logger.warning(f"Error fetching category {cat_id}: {type(e).__name__}: {e}")
+        return []
+
+
+async def search_mercadona(query: str, postal_code: str = "28001", limit: int = 30) -> List[Dict]:
+    """
+    Search Mercadona products:
+    1. Try direct search endpoint first (fast)
+    2. Fall back to category scan if direct search returns nothing
+
+    Returns empty list (not raises) if API is unreachable.
+    """
+    warehouse = get_warehouse(postal_code)
+    query_words = _tokenize_query(query)
+
+    async with httpx.AsyncClient(timeout=10.0) as client:
+        # ── Attempt 1: direct product search ──────────────────────────────
+        direct = await _search_direct(client, query, warehouse)
+        if direct:
+            logger.info(f"Direct search: {len(direct)} results for '{query}'")
+            return _deduplicate(direct)[:limit]
+
+        logger.debug(f"Direct search empty for '{query}'; trying category scan")
+
+        # ── Attempt 2: parallel category scan ─────────────────────────────
+        all_results: List[Dict] = []
+        for i in range(0, len(PRIORITY_CATEGORIES), 5):
+            batch = PRIORITY_CATEGORIES[i: i + 5]
+            tasks = [
+                _fetch_category_products(client, cat_id, warehouse, query_words)
+                for cat_id in batch
+            ]
+            batch_results = await asyncio.gather(*tasks, return_exceptions=True)
+
+            for r in batch_results:
+                if isinstance(r, list):
+                    all_results.extend(r)
+
+            if len(all_results) >= limit:
+                break
+
+        if all_results:
+            logger.info(f"Category scan: {len(all_results)} raw results for '{query}'")
+
+        return _deduplicate(all_results)[:limit]
+
+
+def _deduplicate(products: List[Dict]) -> List[Dict]:
+    seen: set = set()
+    unique = []
+    for p in products:
+        pid = p.get("id") or p.get("name") or ""
+        if pid not in seen:
+            seen.add(pid)
+            unique.append(p)
+    return unique
+
+
+async def search_products(
+    query: str,
+    postal_code: str = "28001",
+    limit: int = 30,
+    mode: Optional[str] = None,
+) -> List[Dict]:
+    """
+    Unified search respecting PRODUCT_SEARCH_MODE:
+      mercadona  → remote API only
+      fallback   → local catalog only
+      hybrid     → remote first, fall back to local if no results
+    """
+    effective_mode = mode or getattr(settings, "PRODUCT_SEARCH_MODE", "hybrid")
+
+    if effective_mode == "fallback":
+        results = search_fallback_catalog(query, limit=limit)
+        logger.info(f"Fallback catalog: {len(results)} results for '{query}'")
+        for p in results:
+            p["source"] = "fallback"
+        return results
+
+    if effective_mode == "mercadona":
+        try:
+            return await search_mercadona(query, postal_code, limit)
+        except Exception as e:
+            logger.error(f"Mercadona search failed for '{query}': {e}", exc_info=True)
+            return []
+
+    # hybrid (default)
+    try:
+        remote = await search_mercadona(query, postal_code, limit)
+    except Exception as e:
+        logger.warning(f"Mercadona API error for '{query}': {type(e).__name__}: {e}")
+        remote = []
+
+    if remote:
+        return remote
+
+    logger.info(f"Mercadona returned 0 results for '{query}'; using fallback catalog")
+    fallback = search_fallback_catalog(query, limit=limit)
+    for p in fallback:
+        p["source"] = "fallback"
+    return fallback
+
+
+# ─── Category / product helpers ───────────────────────────────────────────────
 
 async def get_categories(postal_code: str = "28001") -> Dict:
     warehouse = get_warehouse(postal_code)
@@ -109,63 +341,3 @@ async def get_product(product_id: str, postal_code: str = "28001") -> Dict:
         )
         resp.raise_for_status()
         return resp.json()
-
-
-async def _fetch_category_products(
-    client: httpx.AsyncClient, cat_id: int, warehouse: str, query_words: List[str]
-) -> List[Dict]:
-    """Fetch products from one category and filter by query words."""
-    try:
-        resp = await client.get(
-            f"{MERCADONA_API}/categories/{cat_id}/",
-            params={"lang": "es", "wh": warehouse},
-            headers=BASE_HEADERS,
-        )
-        if resp.status_code != 200:
-            return []
-        data = resp.json()
-        results = []
-        for subcat in data.get("categories", []):
-            cat_name = subcat.get("name")
-            for product in subcat.get("products", []):
-                name = (product.get("display_name") or product.get("name") or "").lower()
-                if all(w in name for w in query_words):
-                    results.append(_normalize_product(product, category=cat_name))
-        return results
-    except Exception as e:
-        logger.debug(f"Error fetching category {cat_id}: {e}")
-        return []
-
-
-async def search_products(query: str, postal_code: str = "28001", limit: int = 30) -> List[Dict]:
-    """
-    Search products using parallel requests to Mercadona categories.
-    Falls back gracefully if API is unreachable.
-    """
-    warehouse = get_warehouse(postal_code)
-    query_words = query.lower().split()
-    all_results: List[Dict] = []
-
-    async with httpx.AsyncClient(timeout=8.0) as client:
-        # Process categories in batches of 5 to avoid overwhelming the API
-        for i in range(0, len(PRIORITY_CATEGORIES), 5):
-            batch = PRIORITY_CATEGORIES[i : i + 5]
-            tasks = [_fetch_category_products(client, cat_id, warehouse, query_words) for cat_id in batch]
-            batch_results = await asyncio.gather(*tasks, return_exceptions=True)
-
-            for result in batch_results:
-                if isinstance(result, list):
-                    all_results.extend(result)
-
-            if len(all_results) >= limit:
-                break
-
-    # Deduplicate by product id
-    seen = set()
-    unique = []
-    for p in all_results:
-        if p["id"] not in seen:
-            seen.add(p["id"])
-            unique.append(p)
-
-    return unique[:limit]
