@@ -81,9 +81,9 @@ export interface AutomationRun {
 
 export interface ItemResult {
   product_name: string;
-  status: 'added' | 'not_found' | 'dubious_match' | 'substituted' | 'error';
-  matched_product?: string;
-  price?: number;
+  status: 'ok' | 'not_found' | 'dubious' | 'substituted' | 'error';
+  matched_name?: string;
+  matched_price?: number;
   quantity?: number;
   note?: string;
 }

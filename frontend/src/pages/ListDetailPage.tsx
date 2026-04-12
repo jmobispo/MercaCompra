@@ -58,7 +58,7 @@ export default function ListDetailPage() {
     if (!list) return;
     setAddingItem(true);
     try {
-      const newItem = await addItem(list.id, {
+      const updatedList = await addItem(list.id, {
         product_id: product.id,
         product_name: product.display_name ?? product.name,
         product_price: product.price,
@@ -67,9 +67,7 @@ export default function ListDetailPage() {
         product_category: product.category,
         quantity: 1,
       });
-      setList((prev) =>
-        prev ? { ...prev, items: [...prev.items, newItem] } : prev
-      );
+      setList(updatedList);
     } catch {
       setError('Error al añadir el producto');
     } finally {
@@ -80,17 +78,10 @@ export default function ListDetailPage() {
   const handleToggleCheck = async (item: ShoppingListItem) => {
     if (!list) return;
     try {
-      const updated = await updateItem(list.id, item.id, {
+      const updatedList = await updateItem(list.id, item.id, {
         is_checked: !item.is_checked,
       });
-      setList((prev) =>
-        prev
-          ? {
-              ...prev,
-              items: prev.items.map((i) => (i.id === updated.id ? updated : i)),
-            }
-          : prev
-      );
+      setList(updatedList);
     } catch {
       setError('Error al actualizar el artículo');
     }
@@ -101,15 +92,8 @@ export default function ListDetailPage() {
     const newQty = Math.max(1, item.quantity + delta);
     if (newQty === item.quantity) return;
     try {
-      const updated = await updateItem(list.id, item.id, { quantity: newQty });
-      setList((prev) =>
-        prev
-          ? {
-              ...prev,
-              items: prev.items.map((i) => (i.id === updated.id ? updated : i)),
-            }
-          : prev
-      );
+      const updatedList = await updateItem(list.id, item.id, { quantity: newQty });
+      setList(updatedList);
     } catch {
       setError('Error al actualizar la cantidad');
     }

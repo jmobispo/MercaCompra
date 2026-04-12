@@ -5,9 +5,9 @@ interface AutomationResultsProps {
 }
 
 const STATUS_LABELS: Record<string, string> = {
-  added: 'Añadido',
+  ok: 'Añadido',
   not_found: 'No encontrado',
-  dubious_match: 'Coincidencia dudosa',
+  dubious: 'Coincidencia dudosa',
   substituted: 'Sustituido',
   error: 'Error',
 };
@@ -131,11 +131,11 @@ export default function AutomationResults({ run }: AutomationResultsProps) {
                     </span>
                   </td>
                   <td style={{ color: 'var(--color-text-muted)' }}>
-                    {item.matched_product ?? '—'}
+                    {item.matched_name ?? '—'}
                   </td>
                   <td>
-                    {item.price != null
-                      ? `${item.price.toFixed(2)} €`
+                    {item.matched_price != null
+                      ? `${item.matched_price.toFixed(2)} €`
                       : '—'}
                   </td>
                   <td>{item.quantity ?? '—'}</td>

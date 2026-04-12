@@ -6,7 +6,6 @@ import type {
   UpdateListPayload,
   AddItemPayload,
   UpdateItemPayload,
-  ShoppingListItem,
 } from '../types';
 
 export const getLists = async (): Promise<ShoppingListSummary[]> => {
@@ -38,8 +37,8 @@ export const duplicateList = async (id: number): Promise<ShoppingList> => {
   return response.data;
 };
 
-export const addItem = async (listId: number, payload: AddItemPayload): Promise<ShoppingListItem> => {
-  const response = await apiClient.post<ShoppingListItem>(`/lists/${listId}/items`, payload);
+export const addItem = async (listId: number, payload: AddItemPayload): Promise<ShoppingList> => {
+  const response = await apiClient.post<ShoppingList>(`/lists/${listId}/items`, payload);
   return response.data;
 };
 
@@ -47,8 +46,8 @@ export const updateItem = async (
   listId: number,
   itemId: number,
   payload: UpdateItemPayload
-): Promise<ShoppingListItem> => {
-  const response = await apiClient.patch<ShoppingListItem>(`/lists/${listId}/items/${itemId}`, payload);
+): Promise<ShoppingList> => {
+  const response = await apiClient.patch<ShoppingList>(`/lists/${listId}/items/${itemId}`, payload);
   return response.data;
 };
 

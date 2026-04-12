@@ -87,10 +87,11 @@ class AutomationService:
         Updates AutomationRun with results.
         """
         from app.db.session import AsyncSessionLocal
-        import json, subprocess, sys
+        import json, os, sys
         from pathlib import Path
 
-        bot_script = Path(__file__).parent.parent.parent.parent / "bot" / "src" / "bot.py"
+        # Project root: backend/app/services/ -> up 4 levels
+        project_root = Path(__file__).parent.parent.parent.parent
 
         async with AsyncSessionLocal() as db:
             result = await db.execute(select(AutomationRun).where(AutomationRun.id == run_id))
@@ -110,11 +111,12 @@ class AutomationService:
                     env_vars["MERCADONA_PASSWORD"] = mercadona_password
 
                 proc = await asyncio.create_subprocess_exec(
-                    sys.executable, str(bot_script),
+                    sys.executable, "-m", "bot.src.bot",
                     stdin=asyncio.subprocess.PIPE,
                     stdout=asyncio.subprocess.PIPE,
                     stderr=asyncio.subprocess.PIPE,
-                    env={**__import__("os").environ, **env_vars},
+                    cwd=str(project_root),
+                    env={**os.environ, **env_vars},
                 )
 
                 input_data = json.dumps({"items": items}).encode()

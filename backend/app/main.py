@@ -5,7 +5,6 @@ from contextlib import asynccontextmanager
 from app.core.config import get_settings
 from app.core.logging import setup_logging
 from app.db.session import engine
-from app.db.base import Base
 
 # Import all models so Alembic sees them
 import app.models  # noqa: F401
@@ -18,15 +17,8 @@ settings = get_settings()
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     setup_logging()
-
-    # In development, create tables if not using Alembic migrations yet.
-    # In production: use `alembic upgrade head` instead.
-    if settings.DEBUG:
-        async with engine.begin() as conn:
-            await conn.run_sync(Base.metadata.create_all)
-
+    # Schema is managed exclusively by Alembic — run `alembic upgrade head` before starting.
     yield
-
     await engine.dispose()
 
 
@@ -40,7 +32,7 @@ app = FastAPI(
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_origins_list,
-    allow_credentials=True,
+    allow_credentials=settings.cors_allow_credentials,
     allow_methods=["*"],
     allow_headers=["*"],
 )

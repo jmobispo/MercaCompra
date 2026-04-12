@@ -18,8 +18,8 @@ class Settings(BaseSettings):
     # Database
     DATABASE_URL: str = "sqlite+aiosqlite:///./mercacompra.db"
 
-    # CORS
-    CORS_ORIGINS: str = "http://localhost:5173,http://localhost:3000"
+    # CORS — set to "*" (or comma-separated URLs) to allow all origins (useful for local network / iPad)
+    CORS_ORIGINS: str = "*"
 
     # Mercadona API
     MERCADONA_API: str = "https://tienda.mercadona.es/api"
@@ -45,7 +45,14 @@ class Settings(BaseSettings):
 
     @property
     def cors_origins_list(self) -> list[str]:
-        return [o.strip() for o in self.CORS_ORIGINS.split(",")]
+        origins = [o.strip() for o in self.CORS_ORIGINS.split(",")]
+        return origins
+
+    @property
+    def cors_allow_credentials(self) -> bool:
+        # Wildcard origins cannot be combined with credentials=True
+        origins = self.cors_origins_list
+        return not ("*" in origins)
 
 
 @lru_cache()
