@@ -21,6 +21,8 @@ logger = logging.getLogger(__name__)
 settings = get_settings()
 
 MERCADONA_API = settings.MERCADONA_API
+MERCADONA_ALGOLIA_APP_ID = settings.MERCADONA_ALGOLIA_APP_ID
+MERCADONA_ALGOLIA_API_KEY = settings.MERCADONA_ALGOLIA_API_KEY
 
 # Warehouse mapping by postal code prefix
 WAREHOUSES: Dict[str, str] = {
@@ -166,6 +168,54 @@ async def _search_direct(client: httpx.AsyncClient, query: str, warehouse: str) 
         return []
 
 
+async def _search_algolia(client: httpx.AsyncClient, query: str, warehouse: str, limit: int) -> List[Dict]:
+    """
+    Try Mercadona's Algolia-backed search endpoint.
+    This is often more reliable than /products when Mercadona changes their API.
+    """
+    if not MERCADONA_ALGOLIA_APP_ID or not MERCADONA_ALGOLIA_API_KEY:
+        return []
+
+    index_name = f"products_prod_{warehouse}_es"
+    url = (
+        f"https://{MERCADONA_ALGOLIA_APP_ID.lower()}-dsn.algolia.net/"
+        f"1/indexes/{index_name}/query"
+    )
+    headers = {
+        **BASE_HEADERS,
+        "Content-Type": "application/json",
+        "x-algolia-application-id": MERCADONA_ALGOLIA_APP_ID,
+        "x-algolia-api-key": MERCADONA_ALGOLIA_API_KEY,
+    }
+    payload = {
+        "query": query,
+        "hitsPerPage": max(1, min(limit, 50)),
+    }
+
+    try:
+        resp = await client.post(url, json=payload, headers=headers)
+        if resp.status_code != 200:
+            logger.debug(f"Algolia search returned {resp.status_code} for '{query}'")
+            return []
+
+        data = resp.json()
+        hits = data.get("hits") or []
+        products = []
+        for item in hits:
+            if not isinstance(item, dict):
+                continue
+            normalized = _normalize_product(item, category=item.get("category_name"))
+            if normalized.get("name"):
+                products.append(normalized)
+
+        if products:
+            logger.info(f"Algolia search: {len(products)} results for '{query}'")
+        return products
+    except Exception as e:
+        logger.debug(f"Algolia search failed for '{query}': {e}")
+        return []
+
+
 async def _fetch_category_products(
     client: httpx.AsyncClient, cat_id: int, warehouse: str, query_words: List[str]
 ) -> List[Dict]:
@@ -224,7 +274,11 @@ async def search_mercadona(query: str, postal_code: str = "28001", limit: int = 
             logger.info(f"Direct search: {len(direct)} results for '{query}'")
             return _deduplicate(direct)[:limit]
 
-        logger.debug(f"Direct search empty for '{query}'; trying category scan")
+        algolia = await _search_algolia(client, query, warehouse, limit=limit)
+        if algolia:
+            return _deduplicate(algolia)[:limit]
+
+        logger.debug(f"Direct/Algolia search empty for '{query}'; trying category scan")
 
         # ── Attempt 2: parallel category scan ─────────────────────────────
         all_results: List[Dict] = []
