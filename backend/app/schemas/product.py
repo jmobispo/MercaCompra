@@ -21,6 +21,8 @@ class ProductSearchResult(BaseModel):
     products: List[ProductRead]
     total: int
     query: str
+    source: str = "mercadona_api"   # mercadona_api | fallback | none
+    error: Optional[str] = None     # non-None when search had a technical error
 
 
 class SuggestionRequest(BaseModel):

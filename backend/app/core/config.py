@@ -24,6 +24,12 @@ class Settings(BaseSettings):
     # Mercadona API
     MERCADONA_API: str = "https://tienda.mercadona.es/api"
     MERCADONA_DEFAULT_POSTAL: str = "28001"
+    MERCADONA_ALGOLIA_APP_ID: str = "7UZJKL1DJ0"
+    MERCADONA_ALGOLIA_API_KEY: str = "9d8f2e39e90df472b4f2e559a116fe17"
+
+    # Product search mode: mercadona | fallback | hybrid
+    # hybrid = tries Mercadona first; falls back to local catalog if API returns nothing
+    PRODUCT_SEARCH_MODE: str = "hybrid"
 
     # AI mode: heuristics | local_free | claude_optional
     AI_MODE: str = "heuristics"
