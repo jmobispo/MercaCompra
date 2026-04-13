@@ -16,6 +16,7 @@ type CategoryGroup = {
   id: string;
   name: string;
   children: CategoryNode[];
+  selectableSelf?: boolean;
 };
 
 const formatPrice = (price: number | null) =>
@@ -72,16 +73,40 @@ const normalizeCategoryTree = (payload: CategoryTreeResponse | Record<string, un
     return {
       id: String(node.id),
       name: node.name,
-      children: children.map((child) => ({
-        id: String(child.id),
-        name: child.name,
-        children: child.children,
-      })),
+      children:
+        children.length > 0
+          ? children.map((child) => ({
+              id: String(child.id),
+              name: child.name,
+              children: child.children,
+            }))
+          : [
+              {
+                id: String(node.id),
+                name: node.name,
+                children: [],
+              },
+            ],
+      selectableSelf: children.length === 0,
     };
   });
 };
 
 const normalizeCategoryProducts = (payload: CategoryProductsResponse | Record<string, unknown>): Product[] => {
+  const normalizedPayloadProducts = (payload as CategoryProductsResponse).products;
+  const normalizedCategoryName =
+    typeof (payload as CategoryProductsResponse).category_name === 'string'
+      ? (payload as CategoryProductsResponse).category_name
+      : null;
+
+  if (Array.isArray(normalizedPayloadProducts) && normalizedPayloadProducts.length > 0) {
+    return normalizedPayloadProducts.map((product) => ({
+      ...product,
+      category: product.category || normalizedCategoryName || null,
+      thumbnail: product.thumbnail || product.image || null,
+    }));
+  }
+
   const normalized: Product[] = [];
   const source =
     typeof (payload as CategoryProductsResponse).source === 'string'
@@ -212,8 +237,10 @@ export default function ProductsPage() {
       setProducts(result.products);
       setTitle(`Resultados para "${nextQuery}"`);
       setSource(result.source);
-      if (result.error) {
+      if (result.error && result.products.length === 0) {
         setError('No se pudo completar la búsqueda');
+      } else {
+        setError('');
       }
     } catch {
       setProducts([]);
@@ -237,11 +264,14 @@ export default function ProductsPage() {
     setActiveCategoryId(categoryId);
     try {
       const response = await getProductsByCategory(categoryId, postalCode);
-      setProducts(normalizeCategoryProducts(response));
+      const normalizedProducts = normalizeCategoryProducts(response);
+      setProducts(normalizedProducts);
       setTitle(categoryName);
       setSource(typeof response.source === 'string' ? response.source : 'mercadona_api');
-      if (response.error) {
+      if (response.error && normalizedProducts.length === 0) {
         setError('No se pudo cargar esa categoría');
+      } else {
+        setError('');
       }
     } catch {
       setProducts([]);
@@ -290,7 +320,7 @@ export default function ProductsPage() {
           ) : (
             groups.map((group) => (
               <div key={group.id} className="catalog-group">
-                <div className="catalog-group-title">{group.name}</div>
+                {!group.selectableSelf && <div className="catalog-group-title">{group.name}</div>}
                 {group.children.map((child) => (
                   <button
                     key={child.id}

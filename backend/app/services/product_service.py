@@ -14,6 +14,7 @@ from app.schemas.product import (
 )
 from app.services.ai.factory import get_ai_service
 from app.utils.mercadona_proxy import (
+    _build_placeholder_thumbnail,
     get_fallback_categories,
     get_fallback_category_products,
     get_categories,
@@ -72,6 +73,12 @@ def _to_product_read(raw: dict, postal_code: str, warehouse: str) -> ProductRead
         or price_info.get("bulk_price")
         or price_info.get("reference_price")
     )
+    thumbnail = raw.get("thumbnail") or raw.get("image")
+    if not thumbnail:
+        thumbnail = _build_placeholder_thumbnail(
+            raw.get("display_name") or raw.get("name") or "Producto",
+            raw.get("category") or raw.get("subcategory") or "Mercadona",
+        )
     return ProductRead(
         id=str(raw.get("id", "")),
         external_id=str(raw.get("external_id") or raw.get("id", "")),
@@ -81,8 +88,8 @@ def _to_product_read(raw: dict, postal_code: str, warehouse: str) -> ProductRead
         unit_size=_coerce_unit_size(raw),
         category=raw.get("category"),
         subcategory=raw.get("subcategory"),
-        thumbnail=raw.get("thumbnail"),
-        image=raw.get("image") or raw.get("thumbnail"),
+        thumbnail=thumbnail,
+        image=raw.get("image") or thumbnail,
         source=raw.get("source", "mercadona_api"),
         postal_code=postal_code,
         warehouse=warehouse,

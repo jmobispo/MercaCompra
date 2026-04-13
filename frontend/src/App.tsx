@@ -1,19 +1,22 @@
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
-import Layout from './components/layout/Layout';
+
 import DemoBanner from './components/DemoBanner';
-import LoginPage from './pages/LoginPage';
-import RegisterPage from './pages/RegisterPage';
-import DashboardPage from './pages/DashboardPage';
-import ListsPage from './pages/ListsPage';
-import ListDetailPage from './pages/ListDetailPage';
+import Layout from './components/layout/Layout';
 import AutomationPage from './pages/AutomationPage';
-import RecipesPage from './pages/RecipesPage';
-import RecipeDetailPage from './pages/RecipeDetailPage';
-import ProductsPage from './pages/ProductsPage';
+import DashboardPage from './pages/DashboardPage';
 import FavoritesPage from './pages/FavoritesPage';
-import SupermarketModePage from './pages/SupermarketModePage';
-import SpendingPage from './pages/SpendingPage';
+import ListDetailPage from './pages/ListDetailPage';
+import ListsPage from './pages/ListsPage';
+import LoginPage from './pages/LoginPage';
 import PantryPage from './pages/PantryPage';
+import ProductsPage from './pages/ProductsPage';
+import RecipeDetailPage from './pages/RecipeDetailPage';
+import RecipesPage from './pages/RecipesPage';
+import RegisterPage from './pages/RegisterPage';
+import SpendingPage from './pages/SpendingPage';
+import SupermarketModePage from './pages/SupermarketModePage';
+import WeeklyPlanDetailPage from './pages/WeeklyPlanDetailPage';
+import WeeklyPlansPage from './pages/WeeklyPlansPage';
 import { useAuthStore } from './store/authStore';
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
@@ -65,12 +68,14 @@ export default function App() {
           <Route path="dashboard" element={<DashboardPage />} />
           <Route path="products" element={<ProductsPage />} />
           <Route path="favorites" element={<FavoritesPage />} />
+          <Route path="weekly-plans" element={<WeeklyPlansPage />} />
+          <Route path="weekly-plans/:id" element={<WeeklyPlanDetailPage />} />
           <Route path="lists" element={<ListsPage />} />
           <Route path="lists/:id" element={<ListDetailPage />} />
+          <Route path="lists/:id/supermarket" element={<SupermarketModePage />} />
           <Route path="automation" element={<AutomationPage />} />
           <Route path="recipes" element={<RecipesPage />} />
           <Route path="recipes/:id" element={<RecipeDetailPage />} />
-          <Route path="lists/:id/supermarket" element={<SupermarketModePage />} />
           <Route path="spending" element={<SpendingPage />} />
           <Route path="pantry" element={<PantryPage />} />
         </Route>

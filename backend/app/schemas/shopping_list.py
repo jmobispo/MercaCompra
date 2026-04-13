@@ -85,3 +85,29 @@ class ShoppingListSummary(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+class ListOptimizationSuggestion(BaseModel):
+    id: str
+    reason: str
+    item_ids: List[int]
+    item_names: List[str]
+    merged_product_name: str
+    combined_quantity: int
+    product_price: Optional[float] = None
+    product_unit: Optional[str] = None
+    product_thumbnail: Optional[str] = None
+    product_category: Optional[str] = None
+    merged_note: Optional[str] = None
+
+
+class ListOptimizationPreview(BaseModel):
+    list_id: int
+    list_name: str
+    total_items: int
+    total_suggestions: int
+    suggestions: List[ListOptimizationSuggestion]
+
+
+class ListOptimizationApplyPayload(BaseModel):
+    suggestion_ids: List[str] = []

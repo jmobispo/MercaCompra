@@ -43,6 +43,28 @@ export interface ShoppingList {
   updated_at: string;
 }
 
+export interface ListOptimizationSuggestion {
+  id: string;
+  reason: string;
+  item_ids: number[];
+  item_names: string[];
+  merged_product_name: string;
+  combined_quantity: number;
+  product_price?: number | null;
+  product_unit?: string | null;
+  product_thumbnail?: string | null;
+  product_category?: string | null;
+  merged_note?: string | null;
+}
+
+export interface ListOptimizationPreview {
+  list_id: number;
+  list_name: string;
+  total_items: number;
+  total_suggestions: number;
+  suggestions: ListOptimizationSuggestion[];
+}
+
 export interface Product {
   id: string;
   external_id?: string | null;
@@ -57,6 +79,19 @@ export interface Product {
   source: string;
   postal_code?: string | null;
   warehouse?: string | null;
+}
+
+export interface FrequentProduct {
+  product_id: string;
+  product_name: string;
+  product_price: number | null;
+  product_unit: string | null;
+  product_thumbnail: string | null;
+  product_category: string | null;
+  source: string;
+  times_added: number;
+  last_added_at: string;
+  average_quantity: number;
 }
 
 export interface ProductSearchResult {
@@ -167,6 +202,12 @@ export interface AddItemPayload {
   note?: string | null;
 }
 
+export interface AddFrequentProductsPayload {
+  list_id?: number | null;
+  new_list_name?: string | null;
+  limit?: number;
+}
+
 export interface UpdateItemPayload {
   quantity?: number;
   is_checked?: boolean;
@@ -268,6 +309,26 @@ export interface AddToListResult {
   resolved_fallback?: number;
   unresolved?: number;
   items: { name: string; quantity: number; price?: number | null; source?: string; resolved?: boolean }[];
+}
+
+export interface WeeklyPlanDay {
+  id: number;
+  day_index: number;
+  meal_slot: 'desayuno' | 'comida' | 'cena';
+  recipe_id: number | null;
+  recipe_title?: string | null;
+  meal_type: string | null;
+}
+
+export interface WeeklyPlanSummary {
+  id: number;
+  title: string;
+  people_count: number;
+  days_count: number;
+  budget_target: number | null;
+  assigned_days: number;
+  created_at: string;
+  updated_at: string;
 }
 
 // --- Spending / Purchase History ---
@@ -399,4 +460,50 @@ export interface DemoSeedResult {
   pantry_items_created: number;
   purchase_history_created: number;
   message: string;
+}
+
+export interface WeeklyPlan {
+  id: number;
+  user_id: number;
+  title: string;
+  people_count: number;
+  days_count: number;
+  start_date: string;
+  budget_target: number | null;
+  preferences?: Record<string, unknown> | null;
+  created_at: string;
+  updated_at: string;
+  days: WeeklyPlanDay[];
+}
+
+export interface WeeklyPlanDayPayload {
+  day_index: number;
+  meal_slot: 'desayuno' | 'comida' | 'cena';
+  recipe_id?: number | null;
+  meal_type?: string | null;
+}
+
+export interface CreateWeeklyPlanPayload {
+  title: string;
+  people_count: number;
+  days_count: number;
+  start_date?: string;
+  budget_target?: number | null;
+  preferences?: Record<string, unknown> | null;
+  days?: WeeklyPlanDayPayload[];
+}
+
+export interface UpdateWeeklyPlanPayload {
+  title?: string;
+  people_count?: number;
+  days_count?: number;
+  start_date?: string;
+  budget_target?: number | null;
+  preferences?: Record<string, unknown> | null;
+  days?: WeeklyPlanDayPayload[];
+}
+
+export interface GenerateWeeklyPlanListPayload {
+  list_id?: number | null;
+  new_list_name?: string | null;
 }

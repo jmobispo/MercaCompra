@@ -16,6 +16,14 @@ from playwright.async_api import Page, TimeoutError as PlaywrightTimeout
 from bot.src.config import BotConfig
 from bot.src.selectors import (
     COOKIE_ACCEPT,
+    LOGIN_EMAIL_CONTINUE,
+    LOGIN_EMAIL_INPUT,
+    LOGIN_ENTRY_LINK,
+    LOGIN_ERROR_MESSAGE,
+    LOGIN_GUEST_LABEL,
+    LOGIN_MENU_BUTTON,
+    LOGIN_PASSWORD_INPUT,
+    LOGIN_PASSWORD_SUBMIT,
     SEARCH_INPUT,
     PRODUCT_CARD,
     PRODUCT_NAME,
@@ -23,6 +31,9 @@ from bot.src.selectors import (
     ADD_TO_CART_BUTTON,
     NO_RESULTS_TEXT,
     QUANTITY_INCREASE,
+    POSTAL_CODE_INPUT,
+    POSTAL_CODE_CONTINUE,
+    POSTAL_CODE_OVERLAY,
 )
 
 logger = logging.getLogger(__name__)
@@ -60,11 +71,28 @@ async def search_product(page: Page, query: str, config: BotConfig) -> bool:
     Type a product name in the search box and wait for results.
     Returns True if at least one product was found.
     """
+    cards = page.locator(PRODUCT_CARD)
+    no_results = page.locator(NO_RESULTS_TEXT).first
+
+    try:
+        await cards.first.wait_for(state="visible", timeout=2500)
+        if await cards.count() > 0:
+            return True
+    except Exception:
+        pass
+
+    try:
+        if await no_results.is_visible(timeout=2000):
+            logger.info(f"No results for '{query}'")
+            return False
+    except Exception:
+        pass
+
     for attempt in range(config.max_retries):
         try:
             # Find search box
             search_box = page.locator(SEARCH_INPUT).first
-            await search_box.wait_for(state="visible", timeout=config.timeout)
+            await search_box.wait_for(state="visible", timeout=min(config.timeout, 4000))
 
             # Clear and type
             await search_box.click(click_count=3)
@@ -72,12 +100,11 @@ async def search_product(page: Page, query: str, config: BotConfig) -> bool:
             await search_box.type(query, delay=50)
 
             # Wait for results to load
-            await asyncio.sleep(1.5)
+            await asyncio.sleep(1.0)
 
             # Check for no-results indicator
-            no_results = page.locator(NO_RESULTS_TEXT).first
             try:
-                is_no_results = await no_results.is_visible(timeout=2000)
+                is_no_results = await no_results.is_visible(timeout=1500)
                 if is_no_results:
                     logger.info(f"No results for '{query}'")
                     return False
@@ -85,7 +112,6 @@ async def search_product(page: Page, query: str, config: BotConfig) -> bool:
                 pass
 
             # Check for product cards
-            cards = page.locator(PRODUCT_CARD)
             count = await cards.count()
             return count > 0
 
@@ -99,6 +125,129 @@ async def search_product(page: Page, query: str, config: BotConfig) -> bool:
                 await asyncio.sleep(config.retry_delay)
 
     return False
+
+
+async def ensure_postal_code(page: Page, postal_code: str, config: BotConfig) -> None:
+    """Fill Mercadona's postal code gate if it is visible."""
+    if not postal_code:
+        return
+
+    try:
+        search_box = page.locator(SEARCH_INPUT).first
+        if await search_box.is_visible(timeout=1500):
+            return
+    except Exception:
+        pass
+
+    try:
+        postal_input = page.locator(POSTAL_CODE_INPUT).first
+        if not await postal_input.is_visible(timeout=2500):
+            return
+
+        await postal_input.fill("")
+        await postal_input.type(postal_code, delay=20)
+        try:
+            await postal_input.press("Enter")
+        except Exception:
+            pass
+
+        continue_button = page.locator(POSTAL_CODE_CONTINUE).first
+        if await continue_button.is_visible(timeout=2000):
+            try:
+                await continue_button.click(timeout=2000)
+            except Exception:
+                await continue_button.click(force=True, timeout=2000)
+
+        await asyncio.sleep(2.0)
+        try:
+            await search_box.wait_for(state="visible", timeout=5000)
+        except Exception:
+            logger.warning("Postal code gate did not expose the search box yet")
+        try:
+            await page.locator(POSTAL_CODE_OVERLAY).first.click(force=True, timeout=1000)
+        except Exception:
+            pass
+        await page.evaluate(
+            """
+            (selector) => {
+              document.querySelectorAll(selector).forEach((el) => el.remove());
+            }
+            """,
+            POSTAL_CODE_OVERLAY,
+        )
+        logger.info("Postal code gate resolved with %s", postal_code)
+    except Exception as exc:
+        logger.warning("Could not resolve postal code gate: %s", exc)
+
+
+async def login_mercadona(page: Page, config: BotConfig) -> bool:
+    """Authenticate with Mercadona if credentials were provided."""
+    if not config.mercadona_email or not config.mercadona_password:
+        logger.info("Skipping Mercadona login: no credentials provided")
+        return False
+
+    try:
+        await page.evaluate(
+            """
+            (selector) => {
+              document.querySelectorAll(selector).forEach((el) => el.remove());
+            }
+            """,
+            POSTAL_CODE_OVERLAY,
+        )
+    except Exception:
+        pass
+
+    try:
+        menu_button = page.locator(LOGIN_MENU_BUTTON).first
+        await menu_button.click(force=True, timeout=3000)
+        await asyncio.sleep(0.7)
+
+        entry_link = page.locator(LOGIN_ENTRY_LINK).first
+        await entry_link.click(force=True, timeout=3000)
+        await asyncio.sleep(1.0)
+
+        email_input = page.locator(LOGIN_EMAIL_INPUT).first
+        await email_input.wait_for(state="visible", timeout=5000)
+        await email_input.fill("")
+        await email_input.type(config.mercadona_email, delay=20)
+
+        continue_button = page.locator(LOGIN_EMAIL_CONTINUE).first
+        await continue_button.click(force=True, timeout=3000)
+        await asyncio.sleep(1.0)
+
+        password_input = page.locator(LOGIN_PASSWORD_INPUT).first
+        await password_input.wait_for(state="visible", timeout=5000)
+        await password_input.fill("")
+        await password_input.type(config.mercadona_password, delay=20)
+
+        submit_button = page.locator(LOGIN_PASSWORD_SUBMIT).first
+        await submit_button.click(force=True, timeout=3000)
+        await asyncio.sleep(3.0)
+
+        error_box = page.locator(LOGIN_ERROR_MESSAGE).first
+        try:
+            if await error_box.is_visible(timeout=1500):
+                logger.error("Mercadona login error visible: %s", await error_box.inner_text())
+                return False
+        except Exception:
+            pass
+
+        if await page.locator(LOGIN_GUEST_LABEL).count() > 0:
+            guest_label = page.locator(LOGIN_GUEST_LABEL).first
+            try:
+                if await guest_label.is_visible(timeout=1000):
+                    logger.warning("Mercadona login appears to still be in guest mode")
+                    return False
+            except Exception:
+                pass
+
+        logger.info("Mercadona login completed")
+        return True
+    except Exception as exc:
+        logger.error("Mercadona login failed: %s", exc)
+        await take_screenshot(page, "login_error", config)
+        return False
 
 
 def _text_similarity(a: str, b: str) -> float:
@@ -164,10 +313,26 @@ async def add_product_to_cart(
             cards = page.locator(PRODUCT_CARD)
             card = cards.nth(card_index)
 
-            # Click the add button
-            add_btn = card.locator(ADD_TO_CART_BUTTON).first
-            await add_btn.wait_for(state="visible", timeout=config.timeout)
-            await add_btn.click()
+            add_buttons = card.locator(ADD_TO_CART_BUTTON)
+            add_btn = None
+            count = await add_buttons.count()
+            for idx in range(count):
+                candidate = add_buttons.nth(idx)
+                try:
+                    if await candidate.is_visible(timeout=1000):
+                        add_btn = candidate
+                        break
+                except Exception:
+                    continue
+
+            if add_btn is None:
+                logger.error("No visible add-to-cart button found")
+                return False
+
+            try:
+                await add_btn.click(timeout=min(config.timeout, 3000))
+            except Exception:
+                await add_btn.click(force=True, timeout=min(config.timeout, 3000))
             await asyncio.sleep(0.8)
 
             # Increase quantity if > 1

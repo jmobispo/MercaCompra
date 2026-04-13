@@ -48,6 +48,7 @@ class RunPayload(BaseModel):
     headless: bool = True
     mercadona_email: Optional[str] = None
     mercadona_password: Optional[str] = None
+    postal_code: Optional[str] = None
 
 
 @app.get("/health")
@@ -67,6 +68,7 @@ async def run_endpoint(payload: RunPayload):
         headless=payload.headless,
         mercadona_email=payload.mercadona_email or "",
         mercadona_password=payload.mercadona_password or "",
+        postal_code=payload.postal_code or "",
     )
 
     items = [
@@ -81,7 +83,17 @@ async def run_endpoint(payload: RunPayload):
 
     async with _lock:
         logger.info(f"Starting bot run: {len(items)} items, headless={config.headless}")
-        result = await run_bot(items, config)
+        try:
+            result = await asyncio.wait_for(run_bot(items, config), timeout=config.max_run_seconds)
+        except asyncio.TimeoutError:
+            logger.error("Bot run exceeded max_run_seconds=%s", config.max_run_seconds)
+            raise HTTPException(
+                status_code=504,
+                detail=(
+                    "La automatizacion excedio el tiempo maximo permitido "
+                    f"({config.max_run_seconds}s)."
+                ),
+            )
         logger.info(
             f"Bot run finished: {result.added_ok} ok, {result.not_found} not found, "
             f"{result.errors} errors, {result.duration_seconds:.1f}s"

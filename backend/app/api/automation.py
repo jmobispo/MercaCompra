@@ -21,7 +21,7 @@ async def launch_automation(
     Returns immediately with status=pending; poll GET /runs/{id} for updates.
     """
     svc = AutomationService(db)
-    return await svc.create_run(current_user.id, data)
+    return await svc.create_run(current_user.id, data, postal_code=current_user.postal_code)
 
 
 @router.get("/runs", response_model=List[AutomationRunRead])

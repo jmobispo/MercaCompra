@@ -1,12 +1,13 @@
 import apiClient from './client';
 import type {
+  AddItemPayload,
+  CreateListPayload,
+  ListOptimizationPreview,
   ShoppingList,
   ShoppingListSummary,
-  CreateListPayload,
-  UpdateListPayload,
-  AddItemPayload,
-  UpdateItemPayload,
   SupermarketView,
+  UpdateItemPayload,
+  UpdateListPayload,
 } from '../types';
 
 export const getLists = async (): Promise<ShoppingListSummary[]> => {
@@ -58,5 +59,20 @@ export const deleteItem = async (listId: number, itemId: number): Promise<void> 
 
 export const getSupermarketView = async (listId: number): Promise<SupermarketView> => {
   const response = await apiClient.get<SupermarketView>(`/lists/${listId}/supermarket`);
+  return response.data;
+};
+
+export const optimizeList = async (listId: number): Promise<ListOptimizationPreview> => {
+  const response = await apiClient.post<ListOptimizationPreview>(`/lists/${listId}/optimize`);
+  return response.data;
+};
+
+export const applyListOptimization = async (
+  listId: number,
+  suggestionIds: string[]
+): Promise<ShoppingList> => {
+  const response = await apiClient.post<ShoppingList>(`/lists/${listId}/optimize/apply`, {
+    suggestion_ids: suggestionIds,
+  });
   return response.data;
 };

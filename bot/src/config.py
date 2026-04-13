@@ -11,11 +11,14 @@ class BotConfig:
     # Mercadona login (optional — required only for adding to cart)
     mercadona_email: str = field(default_factory=lambda: os.getenv("MERCADONA_EMAIL", ""))
     mercadona_password: str = field(default_factory=lambda: os.getenv("MERCADONA_PASSWORD", ""))
+    postal_code: str = field(default_factory=lambda: os.getenv("MERCADONA_POSTAL_CODE", ""))
 
     # Browser settings
     headless: bool = field(default_factory=lambda: os.getenv("HEADLESS", "true").lower() == "true")
-    slow_mo: int = field(default_factory=lambda: int(os.getenv("SLOW_MO", "200")))  # ms between actions
+    slow_mo: int = field(default_factory=lambda: int(os.getenv("SLOW_MO", "0")))  # ms between actions
     timeout: int = field(default_factory=lambda: int(os.getenv("BOT_TIMEOUT", "15000")))  # ms per action
+    max_run_seconds: int = field(default_factory=lambda: int(os.getenv("BOT_MAX_RUN_SECONDS", "180")))
+    max_item_seconds: int = field(default_factory=lambda: int(os.getenv("BOT_MAX_ITEM_SECONDS", "20")))
     viewport_width: int = 1280
     viewport_height: int = 900
 

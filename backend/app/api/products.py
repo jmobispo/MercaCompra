@@ -13,6 +13,8 @@ from app.schemas.product import (
     SuggestionRequest,
     SuggestionResult,
 )
+from app.schemas.habit import AddFrequentProductsPayload, FrequentProductRead
+from app.services.habit_service import HabitService
 from app.services.product_service import ProductService
 
 router = APIRouter(prefix="/products", tags=["products"])
@@ -86,3 +88,31 @@ async def compose_list_suggestions(
     svc = ProductService(db)
     suggestions = await svc.compose_suggestions(list_name, items)
     return {"suggestions": suggestions}
+
+
+@router.get("/frequent", response_model=list[FrequentProductRead])
+async def get_frequent_products(
+    limit: int = Query(default=12, ge=1, le=24),
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    return await HabitService(db).get_frequent_products(current_user.id, limit=limit)
+
+
+@router.post("/frequent/add-to-list")
+async def add_frequent_products_to_list(
+    payload: AddFrequentProductsPayload,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    shopping_list = await HabitService(db).add_frequent_products_to_list(
+        current_user.id,
+        limit=payload.limit,
+        list_id=payload.list_id,
+        new_list_name=payload.new_list_name,
+    )
+    return {
+        "list_id": shopping_list.id,
+        "list_name": shopping_list.name,
+        "added": len(shopping_list.items),
+    }

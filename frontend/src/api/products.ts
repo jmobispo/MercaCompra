@@ -1,7 +1,9 @@
 import apiClient from './client';
 import type {
+  AddFrequentProductsPayload,
   CategoryProductsResponse,
   CategoryTreeResponse,
+  FrequentProduct,
   ProductSearchResult,
 } from '../types';
 
@@ -43,5 +45,22 @@ export const suggestProducts = async (
     product_name,
     list_context,
   });
+  return response.data;
+};
+
+export const getFrequentProducts = async (limit = 12): Promise<FrequentProduct[]> => {
+  const response = await apiClient.get<FrequentProduct[]>('/products/frequent', {
+    params: { limit },
+  });
+  return response.data;
+};
+
+export const addFrequentProductsToList = async (
+  payload: AddFrequentProductsPayload
+): Promise<{ list_id: number; list_name: string; added: number }> => {
+  const response = await apiClient.post<{ list_id: number; list_name: string; added: number }>(
+    '/products/frequent/add-to-list',
+    payload
+  );
   return response.data;
 };

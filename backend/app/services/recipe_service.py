@@ -19,6 +19,7 @@ from app.schemas.recipe import (
     RecipeCreate, RecipeUpdate, RecipeRead, RecipeSummary,
     AddToListPayload, AddToListResult, PantryRecipeSuggestion,
 )
+from app.services.habit_service import HabitService
 from app.services.product_service import ProductService
 
 logger = logging.getLogger(__name__)
@@ -497,6 +498,7 @@ class RecipeService:
             await self.db.flush()
 
         added_items = []
+        habit_entries = []
         skipped = 0
         resolved_real = 0
         resolved_fallback = 0
@@ -558,6 +560,18 @@ class RecipeService:
                         "resolved": bool(product),
                     }
                 )
+                habit_entries.append(
+                    {
+                        "product_id": item.product_id,
+                        "product_name": item.product_name,
+                        "product_price": item.product_price,
+                        "product_unit": item.product_unit,
+                        "product_thumbnail": item.product_thumbnail,
+                        "product_category": item.product_category,
+                        "quantity": adjusted_qty,
+                        "source": getattr(product, "source", "manual") if product else "manual",
+                    }
+                )
                 if product:
                     if product.source == "fallback":
                         resolved_fallback += 1
@@ -570,6 +584,7 @@ class RecipeService:
                 skipped += 1
                 unresolved += 1
 
+        await HabitService(self.db).record_additions(user_id, habit_entries)
         await self.db.commit()
 
         return AddToListResult(
@@ -647,6 +662,7 @@ def _ingredient_in_pantry(ingredient_name: str, pantry_names: list[str]) -> bool
         if ing_tokens & pan_tokens:
             return True
     return False
+
 
 
 def _infer_cart_quantity(ing: RecipeIngredient, servings_multiplier: float) -> int:

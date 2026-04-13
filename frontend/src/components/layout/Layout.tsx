@@ -6,6 +6,7 @@ const basicNavItems = [
   { to: '/dashboard', label: 'Inicio', icon: '\u{1F3E0}' },
   { to: '/products', label: 'Catálogo', icon: '\u{1F96C}' },
   { to: '/favorites', label: 'Favoritos', icon: '\u2B50' },
+  { to: '/weekly-plans', label: 'Planes', icon: '\u{1F4C5}' },
   { to: '/lists', label: 'Mis listas', icon: '\u{1F4CB}' },
   { to: '/recipes', label: 'Recetas', icon: '\u{1F37D}' },
 ];
@@ -36,6 +37,8 @@ export default function Layout() {
     if (location.pathname === '/dashboard') return 'Inicio';
     if (location.pathname === '/products') return 'Catálogo';
     if (location.pathname === '/favorites') return 'Favoritos';
+    if (location.pathname === '/weekly-plans') return 'Planes semanales';
+    if (location.pathname.startsWith('/weekly-plans/')) return 'Detalle del plan';
     if (location.pathname === '/lists') return 'Mis listas';
     if (location.pathname.startsWith('/lists/')) return 'Detalle de lista';
     if (location.pathname === '/automation') return 'Automatización';

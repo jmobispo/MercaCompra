@@ -27,6 +27,8 @@ from bot.src.config import get_config, BotConfig
 from bot.src.result import ItemResult, RunResult, ItemStatus
 from bot.src.actions import (
     dismiss_cookies,
+    ensure_postal_code,
+    login_mercadona,
     search_product,
     find_best_match,
     add_product_to_cart,
@@ -47,6 +49,33 @@ logger = logging.getLogger("mercacompra.bot")
 
 
 async def process_item(
+    page: Page,
+    item: Dict[str, Any],
+    config: BotConfig,
+) -> ItemResult:
+    """Process a single shopping list item."""
+    product_name = item["product_name"]
+    product_id = item.get("product_id", "")
+    quantity = max(1, int(item.get("quantity", 1)))
+
+    try:
+        return await asyncio.wait_for(
+            _process_item_inner(page, item, config),
+            timeout=config.max_item_seconds,
+        )
+    except asyncio.TimeoutError:
+        logger.error(f"Timeout processing {product_name}")
+        await take_screenshot(page, f"timeout_{product_id}", config)
+        return ItemResult(
+            product_id=product_id,
+            product_name=product_name,
+            quantity=quantity,
+            status=ItemStatus.ERROR,
+            error_detail=f"Timeout por item (>{config.max_item_seconds}s)",
+        )
+
+
+async def _process_item_inner(
     page: Page,
     item: Dict[str, Any],
     config: BotConfig,
@@ -152,6 +181,9 @@ async def run_bot(items: List[Dict[str, Any]], config: BotConfig) -> RunResult:
             logger.info("Navigating to Mercadona...")
             await page.goto(config.base_url, wait_until="domcontentloaded")
             await dismiss_cookies(page)
+            await ensure_postal_code(page, config.postal_code, config)
+            if config.mercadona_email and config.mercadona_password:
+                await login_mercadona(page, config)
 
             # Process each item
             for item in items:

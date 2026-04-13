@@ -1,16 +1,24 @@
-from fastapi import APIRouter, Depends
-from sqlalchemy.ext.asyncio import AsyncSession
 from typing import List
-from app.db.session import get_db
-from app.api.deps import get_current_user
-from app.models.user import User
-from app.services.list_service import ListService
-from app.schemas.shopping_list import (
-    ShoppingListCreate, ShoppingListUpdate, ShoppingListRead,
-    ShoppingListSummary, ShoppingListItemCreate, ShoppingListItemUpdate,
-    ShoppingListItemRead,
-)
+
+from fastapi import APIRouter, Depends
 from pydantic import BaseModel
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.api.deps import get_current_user
+from app.db.session import get_db
+from app.models.user import User
+from app.schemas.shopping_list import (
+    ListOptimizationApplyPayload,
+    ListOptimizationPreview,
+    ShoppingListCreate,
+    ShoppingListItemCreate,
+    ShoppingListItemRead,
+    ShoppingListItemUpdate,
+    ShoppingListRead,
+    ShoppingListSummary,
+    ShoppingListUpdate,
+)
+from app.services.list_service import ListService
 
 
 class SupermarketGroup(BaseModel):
@@ -24,6 +32,7 @@ class SupermarketView(BaseModel):
     groups: List[SupermarketGroup]
     total_items: int
     checked_items: int
+
 
 router = APIRouter(prefix="/lists", tags=["lists"])
 
@@ -88,8 +97,6 @@ async def duplicate_list(
     return await svc.duplicate_list(list_id, current_user.id)
 
 
-# --- Items ---
-
 @router.post("/{list_id}/items", response_model=ShoppingListRead)
 async def add_item(
     list_id: int,
@@ -133,7 +140,6 @@ async def get_supermarket_view(
     svc = ListService(db)
     sl = await svc.get_list(list_id, current_user.id)
 
-    # Group items by category, preserving insertion order within each group
     groups: dict[str, list[ShoppingListItemRead]] = {}
     for item in sl.items:
         cat = item.product_category or "Sin categoría"
@@ -151,3 +157,25 @@ async def get_supermarket_view(
         total_items=len(sl.items),
         checked_items=sum(1 for i in sl.items if i.is_checked),
     )
+
+
+@router.post("/{list_id}/optimize", response_model=ListOptimizationPreview)
+async def optimize_list_preview(
+    list_id: int,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    svc = ListService(db)
+    preview = await svc.optimize_list_preview(list_id, current_user.id)
+    return ListOptimizationPreview.model_validate(preview)
+
+
+@router.post("/{list_id}/optimize/apply", response_model=ShoppingListRead)
+async def apply_list_optimization(
+    list_id: int,
+    payload: ListOptimizationApplyPayload,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    svc = ListService(db)
+    return await svc.apply_optimization(list_id, current_user.id, payload.suggestion_ids)
