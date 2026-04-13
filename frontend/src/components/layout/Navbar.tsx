@@ -1,6 +1,6 @@
-import type { User } from '../../types';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useAuth } from '../../hooks/useAuth';
+import type { User } from '../../types';
 
 interface NavbarProps {
   title: string;
@@ -9,18 +9,20 @@ interface NavbarProps {
 
 export default function Navbar({ title, user }: NavbarProps) {
   const { update } = useAuth();
-  const initials = user
-    ? (user.username || user.email).slice(0, 2).toUpperCase()
-    : '??';
-  const [postalCode, setPostalCode] = useState(user?.postal_code ?? '28001');
+  const initials = user ? (user.username || user.email).slice(0, 2).toUpperCase() : '??';
+  const [postalCode, setPostalCode] = useState(user?.postal_code ?? '');
   const [saving, setSaving] = useState(false);
 
-  const handlePostalSave = async () => {
-    const normalized = postalCode.trim();
-    if (!/^\d{5}$/.test(normalized) || normalized === user?.postal_code) return;
+  useEffect(() => {
+    setPostalCode(user?.postal_code ?? '');
+  }, [user?.postal_code]);
+
+  const submitPostalCode = async () => {
+    const next = postalCode.trim();
+    if (!user || !next || next === user.postal_code || next.length < 5) return;
     setSaving(true);
     try {
-      await update({ postal_code: normalized });
+      await update({ postal_code: next });
     } finally {
       setSaving(false);
     }
@@ -32,15 +34,20 @@ export default function Navbar({ title, user }: NavbarProps) {
       <div className="topbar-user">
         {user && (
           <>
-            <div className="topbar-postal">
-              <label htmlFor="postal-code-topbar">CP</label>
+            <div className="postal-inline">
+              <span className="postal-label">CP</span>
               <input
-                id="postal-code-topbar"
                 value={postalCode}
+                onChange={(event) => setPostalCode(event.target.value)}
+                onBlur={submitPostalCode}
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter') {
+                    event.preventDefault();
+                    void submitPostalCode();
+                  }
+                }}
                 maxLength={5}
-                onChange={(e) => setPostalCode(e.target.value)}
-                onBlur={handlePostalSave}
-                onKeyDown={(e) => e.key === 'Enter' && handlePostalSave()}
+                inputMode="numeric"
                 disabled={saving}
               />
             </div>

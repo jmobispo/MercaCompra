@@ -1,55 +1,76 @@
 import { useEffect, useState } from 'react';
-
-import { deleteFavorite, getFavorites } from '../api/favorites';
+import { getFavorites, removeFavorite } from '../api/favorites';
 import { addItem, createList, getLists } from '../api/lists';
 import type { FavoriteProduct, ShoppingListSummary } from '../types';
 
+async function ensureQuickList(): Promise<ShoppingListSummary> {
+  const lists = await getLists();
+  const active = lists.find((list) => !list.is_archived);
+  if (active) return active;
+  const created = await createList({ name: 'Compra rápida' });
+  return {
+    id: created.id,
+    name: created.name,
+    budget: created.budget,
+    is_archived: created.is_archived,
+    item_count: created.items.length,
+    total: created.items.reduce(
+      (sum, item) => sum + (item.product_price ?? 0) * item.quantity,
+      0
+    ),
+    updated_at: created.updated_at,
+  };
+}
+
+const formatPrice = (price: number | null) =>
+  typeof price === 'number' ? `${price.toFixed(2)} EUR` : 'Precio no disponible';
+
 export default function FavoritesPage() {
   const [favorites, setFavorites] = useState<FavoriteProduct[]>([]);
-  const [lists, setLists] = useState<ShoppingListSummary[]>([]);
-  const [selectedListId, setSelectedListId] = useState<number | null>(null);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
-  useEffect(() => {
-    void loadData();
-  }, []);
-
-  async function loadData() {
+  const loadFavorites = async () => {
+    setLoading(true);
     try {
-      const [favoriteData, listData] = await Promise.all([getFavorites(), getLists()]);
-      setFavorites(favoriteData);
-      const activeLists = listData.filter((item) => !item.is_archived);
-      setLists(activeLists);
-      if (activeLists.length > 0) setSelectedListId(activeLists[0].id);
+      const items = await getFavorites();
+      setFavorites(items);
     } catch {
       setError('No se pudieron cargar los favoritos');
+    } finally {
+      setLoading(false);
     }
-  }
+  };
 
-  async function ensureTargetList(): Promise<number> {
-    if (selectedListId) return selectedListId;
-    const created = await createList({ name: 'Favoritos' });
-    setLists((prev) => [{ id: created.id, name: created.name, budget: created.budget, is_archived: created.is_archived, item_count: created.items.length, total: 0, updated_at: created.updated_at }, ...prev]);
-    setSelectedListId(created.id);
-    return created.id;
-  }
+  useEffect(() => {
+    void loadFavorites();
+  }, []);
 
-  async function handleAddToList(item: FavoriteProduct) {
-    const listId = await ensureTargetList();
-    await addItem(listId, {
-      product_id: item.product_id,
-      product_name: item.product_name,
-      product_price: item.product_price,
-      product_unit: item.product_unit,
-      product_thumbnail: item.product_thumbnail,
-      product_category: item.product_category,
+  const handleAddToList = async (product: FavoriteProduct) => {
+    const list = await ensureQuickList();
+    await addItem(list.id, {
+      product_id: product.id,
+      product_name: product.display_name || product.name,
+      product_price: product.price,
+      product_unit: product.unit_size,
+      product_thumbnail: product.thumbnail,
+      product_category: product.category,
       quantity: 1,
     });
-  }
+  };
 
-  async function handleRemove(productId: string) {
-    await deleteFavorite(productId);
-    setFavorites((prev) => prev.filter((item) => item.product_id !== productId));
+  const handleRemove = async (productId: string) => {
+    const next = await removeFavorite(productId);
+    setFavorites(next);
+  };
+
+  if (loading) {
+    return (
+      <div className="loading-overlay">
+        <span className="loading-spinner" />
+        <span>Cargando favoritos...</span>
+      </div>
+    );
   }
 
   return (
@@ -57,58 +78,56 @@ export default function FavoritesPage() {
       <div className="page-header">
         <div>
           <h1>Favoritos</h1>
-          <p>Productos guardados para reutilizar rápido</p>
+          <p>{favorites.length} producto(s) guardado(s)</p>
         </div>
-        <select
-          value={selectedListId ?? ''}
-          onChange={(e) => setSelectedListId(e.target.value ? Number(e.target.value) : null)}
-        >
-          <option value="">Lista rápida</option>
-          {lists.map((list) => (
-            <option key={list.id} value={list.id}>{list.name}</option>
+      </div>
+
+      {error && <div className="alert alert-error">{error}</div>}
+
+      {favorites.length === 0 ? (
+        <div className="empty-state">
+          <div className="empty-icon">*</div>
+          <p>Todavía no tienes productos favoritos.</p>
+        </div>
+      ) : (
+        <div className="catalog-grid">
+          {favorites.map((product) => (
+            <article key={product.id} className="product-card">
+              <div className="product-card-media">
+                {product.thumbnail ? (
+                  <img src={product.thumbnail} alt={product.name} />
+                ) : (
+                  <div className="product-card-placeholder">IMG</div>
+                )}
+              </div>
+              <div className="product-card-body">
+                <h3>{product.display_name || product.name}</h3>
+                <p className="product-card-meta">
+                  {product.category || 'Sin categoría'}
+                  {product.unit_size ? ` · ${product.unit_size}` : ''}
+                </p>
+                <div className="product-card-price">{formatPrice(product.price)}</div>
+              </div>
+              <div className="product-card-actions">
+                <button
+                  type="button"
+                  className="btn btn-secondary btn-sm"
+                  onClick={() => void handleRemove(product.id)}
+                >
+                  Quitar
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-primary btn-sm"
+                  onClick={() => void handleAddToList(product)}
+                >
+                  Añadir a lista
+                </button>
+              </div>
+            </article>
           ))}
-        </select>
-      </div>
-
-      {error ? <div className="alert alert-error">{error}</div> : null}
-
-      <div className="catalog-grid">
-        {favorites.map((item) => (
-          <article key={item.id} className="catalog-card">
-            <img
-              src={item.product_image ?? item.product_thumbnail ?? ''}
-              alt={item.product_name}
-              className="catalog-card-image"
-            />
-            <div className="catalog-card-body">
-              <div className="catalog-card-title">{item.product_name}</div>
-              <div className="catalog-card-meta">
-                <span>{item.product_category ?? 'Sin categoría'}</span>
-                {item.product_unit ? <span>· {item.product_unit}</span> : null}
-              </div>
-              <div className="catalog-card-price">
-                {item.product_price != null
-                  ? item.product_price.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })
-                  : 'Precio no disponible'}
-              </div>
-            </div>
-            <div className="catalog-card-actions">
-              <button className="btn btn-secondary btn-sm" onClick={() => void handleAddToList(item)}>
-                Añadir a lista
-              </button>
-              <button className="btn btn-ghost btn-sm" onClick={() => void handleRemove(item.product_id)}>
-                Quitar
-              </button>
-            </div>
-          </article>
-        ))}
-        {!favorites.length ? (
-          <div className="empty-state">
-            <div className="empty-icon">⭐</div>
-            <p>Aún no tienes favoritos guardados.</p>
-          </div>
-        ) : null}
-      </div>
+        </div>
+      )}
     </div>
   );
 }

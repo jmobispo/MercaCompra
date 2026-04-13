@@ -1,279 +1,394 @@
-import { useEffect, useMemo, useState } from 'react';
-
-import { addFavorite, deleteFavorite, getFavorites } from '../api/favorites';
-import { createList, getLists, addItem } from '../api/lists';
+import { FormEvent, useEffect, useMemo, useState } from 'react';
+import { isFavorite, toggleFavorite } from '../api/favorites';
+import { addItem, createList, getLists } from '../api/lists';
 import { getCategories, getProductsByCategory, searchProducts } from '../api/products';
-import { useAuthStore } from '../store/authStore';
+import { useAuth } from '../hooks/useAuth';
 import type {
-  Category,
+  CategoryNode,
+  CategoryProductsResponse,
   CategoryTreeResponse,
-  FavoriteProduct,
   Product,
+  ProductSearchResult,
   ShoppingListSummary,
 } from '../types';
 
-function categoryHasChildren(category: Category) {
-  return !!category.children && category.children.length > 0;
+type CategoryGroup = {
+  id: string;
+  name: string;
+  children: CategoryNode[];
+};
+
+const formatPrice = (price: number | null) =>
+  typeof price === 'number' ? `${price.toFixed(2)} EUR` : 'Precio no disponible';
+
+const getImage = (raw: Record<string, unknown>) => {
+  const thumbnail = raw.thumbnail;
+  if (typeof thumbnail === 'string' && thumbnail) return thumbnail;
+
+  const photos = raw.photos;
+  if (Array.isArray(photos)) {
+    const first = photos[0];
+    if (typeof first === 'string' && first) return first;
+    if (first && typeof first === 'object') {
+      const candidate = (first as Record<string, unknown>).regular;
+      if (typeof candidate === 'string' && candidate) return candidate;
+    }
+  }
+
+  return null;
+};
+
+const normalizePrice = (raw: Record<string, unknown>) => {
+  const priceInstructions = raw.price_instructions;
+  if (priceInstructions && typeof priceInstructions === 'object') {
+    const info = priceInstructions as Record<string, unknown>;
+    const value = info.unit_price ?? info.bulk_price;
+    if (typeof value === 'number') return value;
+  }
+  return typeof raw.price === 'number' ? raw.price : null;
+};
+
+const normalizeUnitSize = (raw: Record<string, unknown>) => {
+  const priceInstructions = raw.price_instructions;
+  if (priceInstructions && typeof priceInstructions === 'object') {
+    const value = (priceInstructions as Record<string, unknown>).unit_size;
+    if (typeof value === 'string' && value) return value;
+  }
+  return typeof raw.format === 'string' ? raw.format : null;
+};
+
+const normalizeCategoryTree = (payload: CategoryTreeResponse | Record<string, unknown>): CategoryGroup[] => {
+  const root =
+    (Array.isArray((payload as CategoryTreeResponse).results) && (payload as CategoryTreeResponse).results) ||
+    (Array.isArray((payload as { categories?: CategoryNode[] }).categories) &&
+      (payload as { categories?: CategoryNode[] }).categories) ||
+    [];
+
+  return root.map((node) => {
+    const children =
+      (Array.isArray(node.children) && node.children) ||
+      ((node as unknown as { categories?: CategoryNode[] }).categories ?? []);
+
+    return {
+      id: String(node.id),
+      name: node.name,
+      children: children.map((child) => ({
+        id: String(child.id),
+        name: child.name,
+        children: child.children,
+      })),
+    };
+  });
+};
+
+const normalizeCategoryProducts = (payload: CategoryProductsResponse | Record<string, unknown>): Product[] => {
+  const normalized: Product[] = [];
+  const source =
+    typeof (payload as CategoryProductsResponse).source === 'string'
+      ? ((payload as CategoryProductsResponse).source as Product['source'])
+      : 'mercadona_api';
+
+  const visitNode = (node: Record<string, unknown>, inheritedCategory?: string | null) => {
+    const nodeName = typeof node.name === 'string' ? node.name : inheritedCategory ?? null;
+
+    const directProducts = Array.isArray(node.products) ? node.products : [];
+    directProducts.forEach((raw) => {
+      const item = raw as Record<string, unknown>;
+      normalized.push({
+        id: String(item.id ?? ''),
+        name:
+          (typeof item.display_name === 'string' && item.display_name) ||
+          (typeof item.name === 'string' && item.name) ||
+          'Producto',
+        display_name: typeof item.display_name === 'string' ? item.display_name : null,
+        price: normalizePrice(item),
+        unit_size: normalizeUnitSize(item),
+        category: nodeName,
+        thumbnail: getImage(item),
+        source,
+      });
+    });
+
+    const children = Array.isArray(node.categories)
+      ? node.categories
+      : Array.isArray(node.results)
+        ? node.results
+        : [];
+
+    children.forEach((child) => {
+      if (child && typeof child === 'object') {
+        visitNode(child as Record<string, unknown>, nodeName);
+      }
+    });
+  };
+
+  const categoryGroups = (payload as CategoryProductsResponse).categories;
+  if (Array.isArray(categoryGroups)) {
+    categoryGroups.forEach((group) => {
+      visitNode(group as Record<string, unknown>);
+    });
+  } else if (payload && typeof payload === 'object') {
+    visitNode(payload as Record<string, unknown>);
+  }
+
+  return normalized;
+};
+
+async function ensureQuickList(): Promise<ShoppingListSummary> {
+  const lists = await getLists();
+  const active = lists.find((list) => !list.is_archived);
+  if (active) return active;
+  const created = await createList({ name: 'Compra rápida' });
+  return {
+    id: created.id,
+    name: created.name,
+    budget: created.budget,
+    is_archived: created.is_archived,
+    item_count: created.items.length,
+    total: created.items.reduce(
+      (sum, item) => sum + (item.product_price ?? 0) * item.quantity,
+      0
+    ),
+    updated_at: created.updated_at,
+  };
 }
 
 export default function ProductsPage() {
-  const user = useAuthStore((s) => s.user);
-  const postalCode = user?.postal_code ?? '28001';
-
-  const [categories, setCategories] = useState<Category[]>([]);
-  const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
-  const [selectedCategoryName, setSelectedCategoryName] = useState<string>('Catálogo');
+  const { user } = useAuth();
+  const [groups, setGroups] = useState<CategoryGroup[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
-  const [favorites, setFavorites] = useState<FavoriteProduct[]>([]);
-  const [lists, setLists] = useState<ShoppingListSummary[]>([]);
-  const [selectedListId, setSelectedListId] = useState<number | null>(null);
   const [query, setQuery] = useState('');
+  const [title, setTitle] = useState('Selecciona una categoría o busca');
   const [source, setSource] = useState<'mercadona_api' | 'fallback' | 'none'>('none');
   const [error, setError] = useState('');
   const [loadingCategories, setLoadingCategories] = useState(true);
   const [loadingProducts, setLoadingProducts] = useState(false);
+  const [activeCategoryId, setActiveCategoryId] = useState<string | null>(null);
+  const [favoriteIds, setFavoriteIds] = useState<Record<string, boolean>>({});
+  const postalCode = user?.postal_code;
 
   useEffect(() => {
-    void Promise.all([loadCategories(), loadFavorites(), loadLists()]);
+    const loadCategories = async () => {
+      setLoadingCategories(true);
+      setError('');
+      try {
+        const response = await getCategories(postalCode);
+        setGroups(normalizeCategoryTree(response));
+      } catch {
+        setError('No se pudo cargar el catálogo');
+      } finally {
+        setLoadingCategories(false);
+      }
+    };
+
+    void loadCategories();
   }, [postalCode]);
 
-  async function loadCategories() {
-    setLoadingCategories(true);
-    try {
-      const data: CategoryTreeResponse = await getCategories(postalCode);
-      setCategories(data.categories);
-      setSource(data.source);
-      setError(data.error ?? '');
-    } catch {
-      setError('No se pudieron cargar las categorías');
-    } finally {
-      setLoadingCategories(false);
-    }
-  }
+  const allChildren = useMemo(
+    () => groups.flatMap((group) => group.children.map((child) => ({ ...child, parentName: group.name }))),
+    [groups]
+  );
 
-  async function loadFavorites() {
-    try {
-      setFavorites(await getFavorites());
-    } catch {
-      // non-blocking
-    }
-  }
+  useEffect(() => {
+    const loadFavoriteState = async () => {
+      const state: Record<string, boolean> = {};
+      await Promise.all(
+        products.map(async (product) => {
+          state[product.id] = await isFavorite(product.id);
+        })
+      );
+      setFavoriteIds(state);
+    };
 
-  async function loadLists() {
+    void loadFavoriteState();
+  }, [products]);
+
+  const runSearch = async (nextQuery: string) => {
+    setLoadingProducts(true);
+    setError('');
+    setActiveCategoryId(null);
     try {
-      const data = (await getLists()).filter((item) => !item.is_archived);
-      setLists(data);
-      if (data.length > 0) {
-        setSelectedListId(data[0].id);
+      const result: ProductSearchResult = await searchProducts(nextQuery, postalCode);
+      setProducts(result.products);
+      setTitle(`Resultados para "${nextQuery}"`);
+      setSource(result.source);
+      if (result.error) {
+        setError('No se pudo completar la búsqueda');
       }
     } catch {
-      // non-blocking
-    }
-  }
-
-  async function handleCategoryClick(category: Category) {
-    setSelectedCategoryId(category.id);
-    setSelectedCategoryName(category.name);
-    setQuery('');
-    setLoadingProducts(true);
-    try {
-      const data = await getProductsByCategory(category.id, postalCode);
-      setProducts(data.products);
-      setSource(data.source);
-      setError(data.error ?? '');
-    } catch {
-      setError('No se pudieron cargar los productos de la categoría');
       setProducts([]);
-    } finally {
-      setLoadingProducts(false);
-    }
-  }
-
-  async function handleSearch() {
-    if (query.trim().length < 2) {
-      return;
-    }
-    setLoadingProducts(true);
-    setSelectedCategoryId(null);
-    setSelectedCategoryName(`Resultados para "${query.trim()}"`);
-    try {
-      const data = await searchProducts(query.trim(), postalCode);
-      setProducts(data.products);
-      setSource(data.source);
-      setError(data.error ?? '');
-    } catch {
+      setSource('none');
       setError('No se pudo completar la búsqueda');
-      setProducts([]);
     } finally {
       setLoadingProducts(false);
     }
-  }
+  };
 
-  async function handleToggleFavorite(product: Product) {
-    const isFavorite = favorites.some((item) => item.product_id === product.id);
-    if (isFavorite) {
-      await deleteFavorite(product.id);
-      setFavorites((prev) => prev.filter((item) => item.product_id !== product.id));
-      return;
+  const handleSearch = async (event: FormEvent) => {
+    event.preventDefault();
+    const next = query.trim();
+    if (!next) return;
+    await runSearch(next);
+  };
+
+  const handleCategoryClick = async (categoryId: string, categoryName: string) => {
+    setLoadingProducts(true);
+    setError('');
+    setActiveCategoryId(categoryId);
+    try {
+      const response = await getProductsByCategory(categoryId, postalCode);
+      setProducts(normalizeCategoryProducts(response));
+      setTitle(categoryName);
+      setSource(typeof response.source === 'string' ? response.source : 'mercadona_api');
+      if (response.error) {
+        setError('No se pudo cargar esa categoría');
+      }
+    } catch {
+      setProducts([]);
+      setSource('none');
+      setError('No se pudo cargar esa categoría');
+    } finally {
+      setLoadingProducts(false);
     }
+  };
 
-    const created = await addFavorite(product);
-    setFavorites((prev) => [created, ...prev]);
-  }
-
-  async function ensureTargetList(): Promise<number> {
-    if (selectedListId) return selectedListId;
-    const created = await createList({ name: 'Compra rápida' });
-    setLists((prev) => [{ id: created.id, name: created.name, budget: created.budget, is_archived: created.is_archived, item_count: created.items.length, total: 0, updated_at: created.updated_at }, ...prev]);
-    setSelectedListId(created.id);
-    return created.id;
-  }
-
-  async function handleAddToList(product: Product) {
-    const listId = await ensureTargetList();
-    await addItem(listId, {
+  const handleAddToList = async (product: Product) => {
+    const list = await ensureQuickList();
+    await addItem(list.id, {
       product_id: product.id,
-      product_name: product.display_name ?? product.name,
+      product_name: product.display_name || product.name,
       product_price: product.price,
       product_unit: product.unit_size,
       product_thumbnail: product.thumbnail,
       product_category: product.category,
       quantity: 1,
     });
-  }
+  };
 
-  const favoriteIds = useMemo(() => new Set(favorites.map((item) => item.product_id)), [favorites]);
+  const handleToggleFavorite = async (product: Product) => {
+    const items = await toggleFavorite(product);
+    setFavoriteIds(
+      items.reduce<Record<string, boolean>>((acc, item) => {
+        acc[item.id] = true;
+        return acc;
+      }, {})
+    );
+  };
 
   return (
-    <div className="catalog-layout">
-      <section className="catalog-sidebar">
-        <div className="card">
-          <div className="card-header">
-            <h2>Categorías</h2>
-          </div>
-          <div className="card-body catalog-sidebar-body">
-            {loadingCategories ? <p>Cargando categorías…</p> : categories.map((category) => (
-              <div key={category.id} className="category-block">
-                {categoryHasChildren(category) ? (
-                  <div className="category-label">
-                    <span>{category.name}</span>
-                    {category.product_count ? <small>{category.product_count}</small> : null}
-                  </div>
-                ) : (
-                  <button
-                    className={`category-link ${selectedCategoryId === category.id ? 'active' : ''}`}
-                    onClick={() => void handleCategoryClick(category)}
-                  >
-                    <span>{category.name}</span>
-                    {category.product_count ? <small>{category.product_count}</small> : null}
-                  </button>
-                )}
-                {categoryHasChildren(category) && (
-                  <div className="category-children">
-                    {category.children!.map((child) => (
-                      <button
-                        key={child.id}
-                        className={`category-link child ${selectedCategoryId === child.id ? 'active' : ''}`}
-                        onClick={() => void handleCategoryClick(child)}
-                      >
-                        <span>{child.name}</span>
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
+    <div className="catalog-page">
+      <aside className="catalog-sidebar card">
+        <div className="card-header">
+          <h2>Categorías</h2>
         </div>
-      </section>
+        <div className="catalog-tree">
+          {loadingCategories ? (
+            <div className="loading-overlay">
+              <span className="loading-spinner" />
+              <span>Cargando catálogo...</span>
+            </div>
+          ) : (
+            groups.map((group) => (
+              <div key={group.id} className="catalog-group">
+                <div className="catalog-group-title">{group.name}</div>
+                {group.children.map((child) => (
+                  <button
+                    key={child.id}
+                    type="button"
+                    className={`catalog-link ${activeCategoryId === child.id ? 'active' : ''}`}
+                    onClick={() => void handleCategoryClick(child.id, child.name)}
+                  >
+                    {child.name}
+                  </button>
+                ))}
+              </div>
+            ))
+          )}
+        </div>
+      </aside>
 
       <section className="catalog-main">
         <div className="page-header">
           <div>
-            <h1>{selectedCategoryName}</h1>
-            <p>CP {postalCode} · origen {source}</p>
-          </div>
-          <div className="catalog-toolbar">
-            <select
-              value={selectedListId ?? ''}
-              onChange={(e) => setSelectedListId(e.target.value ? Number(e.target.value) : null)}
-            >
-              <option value="">Compra rápida</option>
-              {lists.map((list) => (
-                <option key={list.id} value={list.id}>{list.name}</option>
-              ))}
-            </select>
+            <h1>{title}</h1>
+            <p>
+              CP {postalCode || 'sin definir'} · origen {source}
+            </p>
           </div>
         </div>
 
-        <div className="card" style={{ marginBottom: 16 }}>
+        <div className="card catalog-search-card">
           <div className="card-body">
-            <div className="catalog-search-row">
+            <form className="catalog-search-form" onSubmit={(event) => void handleSearch(event)}>
               <input
                 value={query}
-                onChange={(e) => setQuery(e.target.value)}
+                onChange={(event) => setQuery(event.target.value)}
                 placeholder="Buscar productos reales de Mercadona o fallback"
-                onKeyDown={(e) => e.key === 'Enter' && void handleSearch()}
               />
-              <button className="btn btn-primary" onClick={() => void handleSearch()}>
+              <button type="submit" className="btn btn-primary" disabled={loadingProducts}>
                 Buscar
               </button>
-            </div>
-            {source === 'fallback' ? (
-              <div className="alert alert-info" style={{ marginTop: 12 }}>
+            </form>
+            {error && <div className="alert alert-error">{error}</div>}
+            {source === 'fallback' && !error && (
+              <div className="alert alert-info">
                 Mostrando fallback local porque Mercadona no devolvió resultados útiles.
               </div>
-            ) : null}
-            {error ? (
-              <div className="alert alert-error" style={{ marginTop: 12 }}>
-                {error}
-              </div>
-            ) : null}
+            )}
           </div>
         </div>
 
         {loadingProducts ? (
           <div className="loading-overlay">
             <span className="loading-spinner" />
-            <span>Cargando productos…</span>
+            <span>Cargando productos...</span>
           </div>
-        ) : (
+        ) : products.length > 0 ? (
           <div className="catalog-grid">
             {products.map((product) => (
-              <article key={`${product.source}-${product.id}`} className="catalog-card">
-                <img
-                  src={product.image ?? product.thumbnail ?? ''}
-                  alt={product.display_name ?? product.name}
-                  className="catalog-card-image"
-                />
-                <div className="catalog-card-body">
-                  <div className="catalog-card-title">{product.display_name ?? product.name}</div>
-                  <div className="catalog-card-meta">
-                    <span>{product.category ?? 'Sin categoría'}</span>
-                    {product.unit_size ? <span>· {product.unit_size}</span> : null}
-                  </div>
-                  <div className="catalog-card-price">
-                    {product.price != null
-                      ? product.price.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })
-                      : 'Precio no disponible'}
-                  </div>
+              <article key={product.id} className="product-card">
+                <div className="product-card-media">
+                  {product.thumbnail ? (
+                    <img src={product.thumbnail} alt={product.name} />
+                  ) : (
+                    <div className="product-card-placeholder">IMG</div>
+                  )}
                 </div>
-                <div className="catalog-card-actions">
-                  <button className="btn btn-secondary btn-sm" onClick={() => void handleAddToList(product)}>
-                    Añadir a lista
+                <div className="product-card-body">
+                  <h3>{product.display_name || product.name}</h3>
+                  <p className="product-card-meta">
+                    {product.category || 'Sin categoría'}
+                    {product.unit_size ? ` · ${product.unit_size}` : ''}
+                  </p>
+                  <div className="product-card-price">{formatPrice(product.price)}</div>
+                </div>
+                <div className="product-card-actions">
+                  <button
+                    type="button"
+                    className={`btn btn-secondary btn-sm ${favoriteIds[product.id] ? 'is-active' : ''}`}
+                    onClick={() => void handleToggleFavorite(product)}
+                  >
+                    {favoriteIds[product.id] ? 'Quitar favorito' : 'Favorito'}
                   </button>
-                  <button className="btn btn-ghost btn-sm" onClick={() => void handleToggleFavorite(product)}>
-                    {favoriteIds.has(product.id) ? 'Quitar favorito' : 'Favorito'}
+                  <button
+                    type="button"
+                    className="btn btn-primary btn-sm"
+                    onClick={() => void handleAddToList(product)}
+                  >
+                    Añadir a lista
                   </button>
                 </div>
               </article>
             ))}
-            {!products.length && !loadingProducts ? (
-              <div className="empty-state">
-                <div className="empty-icon">🛒</div>
-                <p>Selecciona una categoría o busca un producto.</p>
-              </div>
-            ) : null}
+          </div>
+        ) : (
+          <div className="empty-state catalog-empty">
+            <div className="empty-icon">[]</div>
+            <p>
+              {allChildren.length === 0
+                ? 'No hay categorías disponibles.'
+                : 'Selecciona una categoría o busca un producto.'}
+            </p>
           </div>
         )}
       </section>

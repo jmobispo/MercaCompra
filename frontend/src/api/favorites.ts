@@ -1,27 +1,51 @@
-import apiClient from './client';
 import type { FavoriteProduct, Product } from '../types';
 
+const STORAGE_KEY = 'mercacompra_favorites';
+
+const readFavorites = (): FavoriteProduct[] => {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    return raw ? (JSON.parse(raw) as FavoriteProduct[]) : [];
+  } catch {
+    return [];
+  }
+};
+
+const writeFavorites = (items: FavoriteProduct[]) => {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
+};
+
 export const getFavorites = async (): Promise<FavoriteProduct[]> => {
-  const response = await apiClient.get<FavoriteProduct[]>('/favorites');
-  return response.data;
+  return readFavorites();
 };
 
-export const addFavorite = async (product: Product): Promise<FavoriteProduct> => {
-  const response = await apiClient.post<FavoriteProduct>('/favorites', {
-    product_id: product.id,
-    external_id: product.external_id ?? product.id,
-    product_name: product.display_name ?? product.name,
-    product_price: product.price,
-    product_unit: product.unit_size,
-    product_thumbnail: product.thumbnail,
-    product_image: product.image ?? product.thumbnail,
-    product_category: product.category,
-    product_subcategory: product.subcategory,
-    source: product.source,
-  });
-  return response.data;
+export const isFavorite = async (productId: string): Promise<boolean> => {
+  return readFavorites().some((item) => item.id === productId);
 };
 
-export const deleteFavorite = async (productId: string): Promise<void> => {
-  await apiClient.delete(`/favorites/${productId}`);
+export const toggleFavorite = async (product: Product): Promise<FavoriteProduct[]> => {
+  const current = readFavorites();
+  const exists = current.some((item) => item.id === product.id);
+
+  if (exists) {
+    const next = current.filter((item) => item.id !== product.id);
+    writeFavorites(next);
+    return next;
+  }
+
+  const next = [
+    {
+      ...product,
+      added_at: new Date().toISOString(),
+    },
+    ...current,
+  ];
+  writeFavorites(next);
+  return next;
+};
+
+export const removeFavorite = async (productId: string): Promise<FavoriteProduct[]> => {
+  const next = readFavorites().filter((item) => item.id !== productId);
+  writeFavorites(next);
+  return next;
 };

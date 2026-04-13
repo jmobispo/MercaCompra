@@ -1,15 +1,14 @@
-import { Outlet, NavLink, useLocation } from 'react-router-dom';
-
+import { NavLink, Outlet, useLocation } from 'react-router-dom';
 import Navbar from './Navbar';
 import { useAuth } from '../../hooks/useAuth';
 
 const navItems = [
-  { to: '/dashboard', label: 'Inicio', icon: '🏠' },
-  { to: '/products', label: 'Catálogo', icon: '🥬' },
-  { to: '/favorites', label: 'Favoritos', icon: '⭐' },
-  { to: '/lists', label: 'Mis listas', icon: '📋' },
-  { to: '/recipes', label: 'Recetas', icon: '🍳' },
-  { to: '/automation', label: 'Automatización', icon: '🤖' },
+  { to: '/dashboard', label: 'Inicio', icon: '\u{1F3E0}' },
+  { to: '/products', label: 'Catálogo', icon: '\u{1F96C}' },
+  { to: '/favorites', label: 'Favoritos', icon: '\u2B50' },
+  { to: '/lists', label: 'Mis listas', icon: '\u{1F4CB}' },
+  { to: '/recipes', label: 'Recetas', icon: '\u{1F37D}' },
+  { to: '/automation', label: 'Automatización', icon: '\u{1F916}' },
 ];
 
 export default function Layout() {
@@ -32,7 +31,9 @@ export default function Layout() {
     <div className="app-layout">
       <aside className="sidebar">
         <div className="sidebar-logo">
-          <h1>Merca<span>Compra</span></h1>
+          <h1>
+            Merca<span>Compra</span>
+          </h1>
           <p>Lista de la compra</p>
         </div>
         <nav className="sidebar-nav">
@@ -49,7 +50,7 @@ export default function Layout() {
         </nav>
         <div className="sidebar-footer">
           <button onClick={logout}>
-            <span>🚪</span>
+            <span>{'\u{1F6AA}'}</span>
             Cerrar sesión
           </button>
         </div>

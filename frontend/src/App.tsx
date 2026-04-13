@@ -1,5 +1,4 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { useAuthStore } from './store/authStore';
+import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import Layout from './components/layout/Layout';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
@@ -11,6 +10,7 @@ import RecipesPage from './pages/RecipesPage';
 import RecipeDetailPage from './pages/RecipeDetailPage';
 import ProductsPage from './pages/ProductsPage';
 import FavoritesPage from './pages/FavoritesPage';
+import { useAuthStore } from './store/authStore';
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
@@ -58,10 +58,10 @@ export default function App() {
         >
           <Route index element={<Navigate to="/dashboard" replace />} />
           <Route path="dashboard" element={<DashboardPage />} />
-          <Route path="lists" element={<ListsPage />} />
-          <Route path="lists/:id" element={<ListDetailPage />} />
           <Route path="products" element={<ProductsPage />} />
           <Route path="favorites" element={<FavoritesPage />} />
+          <Route path="lists" element={<ListsPage />} />
+          <Route path="lists/:id" element={<ListDetailPage />} />
           <Route path="automation" element={<AutomationPage />} />
           <Route path="recipes" element={<RecipesPage />} />
           <Route path="recipes/:id" element={<RecipeDetailPage />} />

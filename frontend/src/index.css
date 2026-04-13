@@ -192,25 +192,25 @@ input, select, textarea {
   color: var(--color-text-muted);
 }
 
-.topbar-postal {
+.postal-inline {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
 }
 
-.topbar-postal label {
-  font-size: 11px;
+.postal-inline input {
+  width: 72px;
+  padding: 7px 10px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  background: var(--color-white);
+}
+
+.postal-label {
+  font-size: 12px;
   text-transform: uppercase;
   color: var(--color-text-muted);
 }
-
-.topbar-postal input {
-  width: 76px;
-  padding: 6px 8px;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius);
-}
-
 .topbar-user .avatar {
   width: 32px;
   height: 32px;
@@ -1606,5 +1606,196 @@ input, select, textarea {
 
   .catalog-layout {
     grid-template-columns: 1fr;
+  }
+}
+
+/* ===== CATALOG ===== */
+.catalog-page {
+  display: grid;
+  grid-template-columns: 280px 1fr;
+  gap: 20px;
+  align-items: start;
+}
+
+.catalog-sidebar {
+  overflow: hidden;
+}
+
+.catalog-tree {
+  max-height: calc(100vh - 220px);
+  overflow-y: auto;
+  padding: 12px;
+}
+
+.catalog-group + .catalog-group {
+  margin-top: 14px;
+}
+
+.catalog-group-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--color-text);
+  padding: 8px 8px 6px;
+}
+
+.catalog-link {
+  width: 100%;
+  text-align: left;
+  background: transparent;
+  color: var(--color-text);
+  border-radius: var(--radius);
+  padding: 8px;
+  font-size: 14px;
+}
+
+.catalog-link:hover {
+  background: var(--color-primary-light);
+}
+
+.catalog-link.active {
+  background: var(--color-primary);
+  color: var(--color-white);
+}
+
+.catalog-main {
+  min-width: 0;
+}
+
+.catalog-search-card {
+  margin-bottom: 20px;
+}
+
+.catalog-search-form {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.catalog-search-form input {
+  flex: 1;
+  min-width: 0;
+  padding: 11px 14px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+}
+
+.catalog-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 16px;
+}
+
+.product-card {
+  background: var(--color-white);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.product-card-media {
+  height: 180px;
+  background: #f9fbf8;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+}
+
+.product-card-media img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+}
+
+.product-card-placeholder {
+  width: 100%;
+  height: 100%;
+  border: 1px dashed var(--color-border);
+  border-radius: var(--radius);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-text-muted);
+  font-size: 12px;
+}
+
+.product-card-body {
+  padding: 14px 16px 10px;
+  flex: 1;
+}
+
+.product-card-body h3 {
+  font-size: 15px;
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+
+.product-card-meta {
+  font-size: 12px;
+  color: var(--color-text-muted);
+  margin-bottom: 10px;
+}
+
+.product-card-price {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--color-primary-dark);
+}
+
+.product-card-actions {
+  display: flex;
+  gap: 8px;
+  padding: 0 16px 16px;
+}
+
+.product-card-actions .btn {
+  flex: 1;
+  justify-content: center;
+}
+
+.product-card-actions .btn.is-active {
+  border-color: var(--color-primary);
+  color: var(--color-primary-dark);
+  background: var(--color-primary-light);
+}
+
+.catalog-empty {
+  margin-top: 40px;
+}
+
+@media (max-width: 980px) {
+  .catalog-page {
+    grid-template-columns: 1fr;
+  }
+
+  .catalog-tree {
+    max-height: 320px;
+  }
+}
+
+@media (max-width: 768px) {
+  .topbar {
+    padding: 0 16px;
+    height: auto;
+    min-height: 56px;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+
+  .topbar-user {
+    width: 100%;
+    justify-content: flex-end;
+    flex-wrap: wrap;
+  }
+
+  .catalog-search-form {
+    flex-direction: column;
+  }
+
+  .product-card-actions {
+    flex-direction: column;
   }
 }

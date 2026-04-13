@@ -1,5 +1,9 @@
 import apiClient from './client';
-import type { ProductSearchResult, CategoryTreeResponse, CategoryProductsResponse } from '../types';
+import type {
+  CategoryProductsResponse,
+  CategoryTreeResponse,
+  ProductSearchResult,
+} from '../types';
 
 export const searchProducts = async (
   q: string,
@@ -11,22 +15,23 @@ export const searchProducts = async (
   return response.data;
 };
 
-export const getCategories = async (
-  postal_code?: string
-): Promise<CategoryTreeResponse> => {
-  const response = await apiClient.get<CategoryTreeResponse>('/products/categories', {
-    params: postal_code ? { postal_code } : undefined,
-  });
+export const getCategories = async (postal_code?: string): Promise<CategoryTreeResponse> => {
+  const params: Record<string, string> = {};
+  if (postal_code) params.postal_code = postal_code;
+  const response = await apiClient.get<CategoryTreeResponse>('/products/categories', { params });
   return response.data;
 };
 
 export const getProductsByCategory = async (
-  categoryId: string,
+  categoryId: string | number,
   postal_code?: string
 ): Promise<CategoryProductsResponse> => {
-  const response = await apiClient.get<CategoryProductsResponse>(`/products/by-category/${categoryId}`, {
-    params: postal_code ? { postal_code } : undefined,
-  });
+  const params: Record<string, string> = {};
+  if (postal_code) params.postal_code = postal_code;
+  const response = await apiClient.get<CategoryProductsResponse>(
+    `/products/categories/${categoryId}`,
+    { params }
+  );
   return response.data;
 };
 
