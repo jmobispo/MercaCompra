@@ -8,6 +8,8 @@ PRODUCT_SEARCH_MODE:
   hybrid     — intenta Mercadona; si devuelve 0 resultados o falla, usa catálogo local
 """
 import asyncio
+import base64
+import json
 import logging
 import re
 import time
@@ -26,10 +28,17 @@ MERCADONA_ALGOLIA_API_KEY = settings.MERCADONA_ALGOLIA_API_KEY
 
 # Warehouse mapping by postal code prefix
 WAREHOUSES: Dict[str, str] = {
-    "28": "mad1", "08": "bcn1", "41": "svq1", "46": "vlc1",
-    "29": "mlg1", "48": "bil1", "50": "zar1", "15": "cor1",
-    "33": "ovi1", "03": "alc1", "30": "mur1", "07": "pal1",
-    "18": "grx1", "23": "jae1", "14": "cor2",
+    "01": "bil1", "02": "mur1", "03": "alc1", "04": "grx1", "05": "mad1",
+    "06": "cor2", "07": "pal1", "08": "bcn1", "09": "bil1", "10": "cor2",
+    "11": "svq1", "12": "vlc1", "13": "mad1", "14": "cor2", "15": "cor1",
+    "16": "mad1", "17": "bcn1", "18": "grx1", "19": "mad1", "20": "bil1",
+    "21": "svq1", "22": "zar1", "23": "jae1", "24": "ovi1", "25": "bcn1",
+    "26": "zar1", "27": "cor1", "28": "mad1", "29": "mlg1", "30": "mur1",
+    "31": "zar1", "32": "cor1", "33": "ovi1", "34": "ovi1", "35": "svq1",
+    "36": "cor1", "37": "mad1", "38": "svq1", "39": "bil1", "40": "mad1",
+    "41": "svq1", "42": "zar1", "43": "bcn1", "44": "zar1", "45": "mad1",
+    "46": "vlc1", "47": "mad1", "48": "bil1", "49": "cor1", "50": "zar1",
+    "51": "svq1", "52": "grx1",
 }
 
 BASE_HEADERS = {
@@ -52,6 +61,12 @@ PRIORITY_CATEGORIES = [
 # ─── Fallback catalog (loaded once) ──────────────────────────────────────────
 _FALLBACK_CATALOG: Optional[List[Dict]] = None
 _FALLBACK_CATALOG_PATH = Path(__file__).parent.parent.parent.parent.parent / "data" / "catalog" / "fallback.json"
+_SEARCH_CACHE: Dict[str, tuple[float, List[Dict]]] = {}
+_SEARCH_CACHE_TTL_SECONDS = 300
+_DIRECT_SEARCH_AVAILABLE: Optional[bool] = None
+_FALLBACK_CATEGORY_INDEX: Optional[Dict[str, Dict[str, Any]]] = None
+_WAREHOUSE_OVERRIDES: Optional[Dict[str, Dict[str, str]]] = None
+_WAREHOUSE_OVERRIDES_PATH = Path(__file__).parent.parent.parent.parent.parent / "data" / "catalog" / "warehouse_map.json"
 
 
 def _load_fallback_catalog() -> List[Dict]:
@@ -78,6 +93,90 @@ def _load_fallback_catalog() -> List[Dict]:
     logger.warning("No fallback catalog found; searches may return empty when Mercadona API is unavailable")
     _FALLBACK_CATALOG = []
     return _FALLBACK_CATALOG
+
+
+def _cache_key(query: str, postal_code: str, limit: int, mode: str) -> str:
+    return f"{mode}|{postal_code}|{limit}|{query.strip().lower()}"
+
+
+def _get_cached_search(cache_key: str) -> Optional[List[Dict]]:
+    cached = _SEARCH_CACHE.get(cache_key)
+    if not cached:
+        return None
+
+    ts, items = cached
+    if time.time() - ts > _SEARCH_CACHE_TTL_SECONDS:
+        _SEARCH_CACHE.pop(cache_key, None)
+        return None
+
+    return [dict(item) for item in items]
+
+
+def _set_cached_search(cache_key: str, items: List[Dict]) -> None:
+    _SEARCH_CACHE[cache_key] = (time.time(), [dict(item) for item in items])
+
+
+def _load_warehouse_overrides() -> Dict[str, Dict[str, str]]:
+    global _WAREHOUSE_OVERRIDES
+    if _WAREHOUSE_OVERRIDES is not None:
+        return _WAREHOUSE_OVERRIDES
+
+    overrides = {"exact": {}, "prefix": {}}
+    if _WAREHOUSE_OVERRIDES_PATH.exists():
+        try:
+            payload = json.loads(_WAREHOUSE_OVERRIDES_PATH.read_text(encoding="utf-8"))
+            if isinstance(payload, dict):
+                exact = payload.get("exact")
+                prefix = payload.get("prefix")
+                if isinstance(exact, dict):
+                    overrides["exact"] = {str(k): str(v) for k, v in exact.items()}
+                if isinstance(prefix, dict):
+                    overrides["prefix"] = {str(k): str(v) for k, v in prefix.items()}
+        except Exception as e:
+            logger.warning(f"Could not load warehouse overrides from {_WAREHOUSE_OVERRIDES_PATH}: {e}")
+
+    _WAREHOUSE_OVERRIDES = overrides
+    return overrides
+
+
+def _slugify_category(name: str) -> str:
+    import unicodedata
+
+    normalized = unicodedata.normalize("NFKD", (name or "").lower())
+    normalized = "".join(c for c in normalized if not unicodedata.combining(c))
+    normalized = re.sub(r"[^a-z0-9]+", "-", normalized).strip("-")
+    return normalized or "sin-categoria"
+
+
+def _ensure_fallback_category_index() -> Dict[str, Dict[str, Any]]:
+    global _FALLBACK_CATEGORY_INDEX
+    if _FALLBACK_CATEGORY_INDEX is not None:
+        return _FALLBACK_CATEGORY_INDEX
+
+    catalog = _load_fallback_catalog()
+    grouped: Dict[str, List[Dict[str, Any]]] = {}
+    for item in catalog:
+        category = (item.get("category") or "Sin categoría").strip()
+        grouped.setdefault(category, []).append(item)
+
+    categories: list[Dict[str, Any]] = []
+    id_map: Dict[str, Dict[str, Any]] = {}
+    for index, category_name in enumerate(sorted(grouped.keys()), start=10000):
+        category_id = str(index)
+        category_node = {
+            "id": category_id,
+            "name": category_name,
+            "slug": _slugify_category(category_name),
+            "products": grouped[category_name],
+        }
+        categories.append(category_node)
+        id_map[category_id] = category_node
+
+    _FALLBACK_CATEGORY_INDEX = {
+        "categories": categories,
+        "id_map": id_map,
+    }
+    return _FALLBACK_CATEGORY_INDEX
 
 
 def search_fallback_catalog(query: str, limit: int = 30) -> List[Dict]:
@@ -115,24 +214,124 @@ def _tokenize_query(query: str) -> List[str]:
 
 
 def get_warehouse(postal_code: str) -> str:
-    prefix = postal_code[:2] if len(postal_code) >= 2 else "28"
-    return WAREHOUSES.get(prefix, "mad1")
+    normalized = (postal_code or "").strip()
+    overrides = _load_warehouse_overrides()
+
+    if re.fullmatch(r"\d{5}", normalized):
+        exact_match = overrides["exact"].get(normalized)
+        if exact_match:
+            return exact_match
+
+        prefix = normalized[:2]
+        override_prefix_match = overrides["prefix"].get(prefix)
+        if override_prefix_match:
+            logger.info(f"Resolved warehouse for postal code {normalized} using configured prefix {prefix}: {override_prefix_match}")
+            return override_prefix_match
+
+        builtin_match = WAREHOUSES.get(prefix)
+        if builtin_match:
+            logger.info(
+                f"Resolved warehouse for postal code {normalized} using builtin prefix {prefix}: {builtin_match}. "
+                "Add an exact override in data/catalog/warehouse_map.json for higher precision."
+            )
+            return builtin_match
+
+        logger.warning(f"No warehouse mapping found for postal code {normalized}; falling back to mad1")
+        return "mad1"
+
+    logger.warning(f"Invalid postal code '{postal_code}' received; falling back to mad1")
+    return "mad1"
+
+
+def _extract_categories(raw: Dict[str, Any]) -> tuple[Optional[str], Optional[str]]:
+    categories = raw.get("categories")
+    if not isinstance(categories, list) or not categories:
+        return raw.get("category"), raw.get("subcategory")
+
+    names: list[str] = []
+    current = categories[0]
+    while isinstance(current, dict):
+        name = current.get("name")
+        if name:
+            names.append(name)
+        children = current.get("categories")
+        if isinstance(children, list) and children:
+            current = children[0]
+            continue
+        break
+
+    category = names[0] if names else raw.get("category")
+    subcategory = names[-1] if len(names) > 1 else raw.get("subcategory")
+    return category, subcategory
 
 
 def _normalize_product(raw: Dict[str, Any], category: Optional[str] = None) -> Dict[str, Any]:
     price_info = raw.get("price_instructions") or {}
+    normalized_category, normalized_subcategory = _extract_categories(raw)
+    thumbnail = _extract_thumbnail(raw)
+    unit_price = price_info.get("unit_price") or price_info.get("bulk_price") or raw.get("price")
     return {
         "id": str(raw.get("id", "")),
+        "external_id": str(raw.get("objectID") or raw.get("id", "")),
         "name": raw.get("display_name") or raw.get("name") or "",
         "display_name": raw.get("display_name"),
-        "price": price_info.get("unit_price") or price_info.get("bulk_price") or raw.get("price"),
+        "price": unit_price,
         "unit_size": price_info.get("unit_size") or raw.get("format"),
-        "category": category,
-        "thumbnail": raw.get("thumbnail"),
+        "category": category or normalized_category,
+        "subcategory": normalized_subcategory,
+        "thumbnail": thumbnail,
+        "image": thumbnail,
         "photos": raw.get("photos"),
         "price_instructions": price_info,
+        "brand": raw.get("brand"),
+        "url": raw.get("share_url"),
         "source": "mercadona_api",
     }
+
+
+def _extract_thumbnail(raw: Dict[str, Any]) -> Optional[str]:
+    thumbnail = raw.get("thumbnail")
+    if thumbnail:
+        return thumbnail
+
+    photos = raw.get("photos")
+    if isinstance(photos, list) and photos:
+        first = photos[0]
+        if isinstance(first, dict):
+            return (
+                first.get("regular")
+                or first.get("zoom")
+                or first.get("perspective")
+                or first.get("url")
+            )
+        if isinstance(first, str):
+            return first
+
+    return _build_placeholder_thumbnail(
+        raw.get("display_name") or raw.get("name") or "Producto",
+        raw.get("category") or "Mercadona",
+    )
+
+
+def _build_placeholder_thumbnail(name: str, category: str) -> str:
+    initials = "".join(part[0] for part in (name or "P").split()[:2]).upper() or "P"
+    safe_category = (category or "Mercadona")[:20]
+    svg = f"""
+<svg xmlns="http://www.w3.org/2000/svg" width="96" height="96" viewBox="0 0 96 96">
+  <defs>
+    <linearGradient id="g" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#e6f7ee"/>
+      <stop offset="100%" stop-color="#ccefdc"/>
+    </linearGradient>
+  </defs>
+  <rect width="96" height="96" rx="16" fill="url(#g)"/>
+  <circle cx="48" cy="34" r="18" fill="#00a650" opacity="0.18"/>
+  <text x="48" y="41" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="20" font-weight="700" fill="#007d3c">{initials}</text>
+  <text x="48" y="72" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="10" fill="#2f4f3d">{safe_category}</text>
+</svg>
+""".strip()
+    encoded = base64.b64encode(svg.encode("utf-8")).decode("ascii")
+    return f"data:image/svg+xml;base64,{encoded}"
 
 
 # ─── Remote Mercadona API ─────────────────────────────────────────────────────
@@ -142,15 +341,25 @@ async def _search_direct(client: httpx.AsyncClient, query: str, warehouse: str) 
     Try Mercadona's product search endpoint.
     Returns normalised products, or empty list if endpoint is unavailable.
     """
+    global _DIRECT_SEARCH_AVAILABLE
+    if _DIRECT_SEARCH_AVAILABLE is False:
+        return []
+
     try:
         resp = await client.get(
             f"{MERCADONA_API}/products/",
             params={"q": query, "lang": "es", "wh": warehouse},
             headers=BASE_HEADERS,
         )
+        if resp.status_code == 404:
+            _DIRECT_SEARCH_AVAILABLE = False
+            logger.info("Mercadona /products devuelve 404; se desactiva la búsqueda directa y se prioriza Algolia")
+            return []
         if resp.status_code != 200:
             logger.debug(f"Direct search returned {resp.status_code} for '{query}'")
             return []
+
+        _DIRECT_SEARCH_AVAILABLE = True
 
         data = resp.json()
 
@@ -303,6 +512,31 @@ async def search_mercadona(query: str, postal_code: str = "28001", limit: int = 
         return _deduplicate(all_results)[:limit]
 
 
+async def _search_mercadona_fast(query: str, postal_code: str = "28001", limit: int = 30) -> List[Dict]:
+    """
+    Faster remote search path for interactive UI.
+    Prefers Algolia because Mercadona's old /products endpoint is now flaky/404.
+    """
+    warehouse = get_warehouse(postal_code)
+
+    async with httpx.AsyncClient(timeout=3.5) as client:
+        algolia = await _search_algolia(client, query, warehouse, limit=limit)
+        algolia_results = algolia if isinstance(algolia, list) else []
+
+        if algolia_results:
+            return _deduplicate(algolia_results)[:limit]
+
+        direct_results: List[Dict] = []
+        if _DIRECT_SEARCH_AVAILABLE is not False:
+            direct = await _search_direct(client, query, warehouse)
+            direct_results = direct if isinstance(direct, list) else []
+
+        if direct_results:
+            return _deduplicate(direct_results)[:limit]
+
+        return []
+
+
 def _deduplicate(products: List[Dict]) -> List[Dict]:
     seen: set = set()
     unique = []
@@ -327,39 +561,69 @@ async def search_products(
       hybrid     → remote first, fall back to local if no results
     """
     effective_mode = mode or getattr(settings, "PRODUCT_SEARCH_MODE", "hybrid")
+    cache_key = _cache_key(query, postal_code, limit, effective_mode)
+    cached = _get_cached_search(cache_key)
+    if cached is not None:
+        return cached
 
     if effective_mode == "fallback":
         results = search_fallback_catalog(query, limit=limit)
         logger.info(f"Fallback catalog: {len(results)} results for '{query}'")
         for p in results:
             p["source"] = "fallback"
+            p["thumbnail"] = p.get("thumbnail") or _build_placeholder_thumbnail(
+                p.get("display_name") or p.get("name") or "Producto",
+                p.get("category") or "Mercadona",
+            )
+        _set_cached_search(cache_key, results)
         return results
 
     if effective_mode == "mercadona":
         try:
-            return await search_mercadona(query, postal_code, limit)
+            results = await _search_mercadona_fast(query, postal_code, limit)
+            _set_cached_search(cache_key, results)
+            return results
         except Exception as e:
             logger.error(f"Mercadona search failed for '{query}': {e}", exc_info=True)
             return []
 
     # hybrid (default)
     try:
-        remote = await search_mercadona(query, postal_code, limit)
+        remote = await _search_mercadona_fast(query, postal_code, limit)
     except Exception as e:
         logger.warning(f"Mercadona API error for '{query}': {type(e).__name__}: {e}")
         remote = []
 
     if remote:
+        _set_cached_search(cache_key, remote)
         return remote
 
     logger.info(f"Mercadona returned 0 results for '{query}'; using fallback catalog")
     fallback = search_fallback_catalog(query, limit=limit)
     for p in fallback:
         p["source"] = "fallback"
+        p["thumbnail"] = p.get("thumbnail") or _build_placeholder_thumbnail(
+            p.get("display_name") or p.get("name") or "Producto",
+            p.get("category") or "Mercadona",
+        )
+    _set_cached_search(cache_key, fallback)
     return fallback
 
 
 # ─── Category / product helpers ───────────────────────────────────────────────
+
+def get_fallback_categories() -> Dict[str, Any]:
+    index = _ensure_fallback_category_index()
+    return {"categories": index["categories"]}
+
+
+def get_fallback_category_products(category_id: int | str) -> Dict[str, Any]:
+    index = _ensure_fallback_category_index()
+    category = index["id_map"].get(str(category_id))
+    if not category:
+        raise KeyError(f"Fallback category not found: {category_id}")
+    return category
+
 
 async def get_categories(postal_code: str = "28001") -> Dict:
     warehouse = get_warehouse(postal_code)

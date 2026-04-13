@@ -67,7 +67,7 @@ async def search_product(page: Page, query: str, config: BotConfig) -> bool:
             await search_box.wait_for(state="visible", timeout=config.timeout)
 
             # Clear and type
-            await search_box.triple_click()
+            await search_box.click(click_count=3)
             await search_box.fill("")
             await search_box.type(query, delay=50)
 

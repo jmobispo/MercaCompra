@@ -3,3 +3,4 @@ from app.models.shopping_list import ShoppingList, ShoppingListItem
 from app.models.product import CatalogProduct
 from app.models.automation import AutomationRun
 from app.models.recipe import Recipe, RecipeIngredient
+from app.models.favorite import FavoriteProduct

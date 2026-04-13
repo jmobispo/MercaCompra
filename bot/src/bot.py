@@ -130,20 +130,24 @@ async def run_bot(items: List[Dict[str, Any]], config: BotConfig) -> RunResult:
     result = RunResult()
     start_time = time.time()
 
-    async with async_playwright() as p:
-        browser: Browser = await p.chromium.launch(
-            headless=config.headless,
-            slow_mo=config.slow_mo,
-            args=["--no-sandbox", "--disable-setuid-sandbox"],
-        )
-        context: BrowserContext = await browser.new_context(
-            viewport={"width": config.viewport_width, "height": config.viewport_height},
-            locale="es-ES",
-        )
-        page: Page = await context.new_page()
-        page.set_default_timeout(config.timeout)
+    browser: Browser | None = None
+    context: BrowserContext | None = None
+    page: Page | None = None
 
-        try:
+    try:
+        async with async_playwright() as p:
+            browser = await p.chromium.launch(
+                headless=config.headless,
+                slow_mo=config.slow_mo,
+                args=["--no-sandbox", "--disable-setuid-sandbox"],
+            )
+            context = await browser.new_context(
+                viewport={"width": config.viewport_width, "height": config.viewport_height},
+                locale="es-ES",
+            )
+            page = await context.new_page()
+            page.set_default_timeout(config.timeout)
+
             # Navigate to Mercadona
             logger.info("Navigating to Mercadona...")
             await page.goto(config.base_url, wait_until="domcontentloaded")
@@ -161,13 +165,29 @@ async def run_bot(items: List[Dict[str, Any]], config: BotConfig) -> RunResult:
                 if r.matched_price is not None
             )
 
-        except Exception as e:
-            logger.error(f"Bot fatal error: {e}", exc_info=True)
-            result.error_message = str(e)[:500]
+    except Exception as e:
+        logger.error(f"Bot fatal error: {e}", exc_info=True)
+        message = str(e)
+        if "Executable doesn't exist" in message:
+            result.error_message = (
+                "Playwright no tiene Chromium instalado. Ejecuta "
+                "'bot\\.venv\\Scripts\\python -m playwright install chromium'."
+            )
+        else:
+            result.error_message = message[:500]
+        if page is not None:
             await take_screenshot(page, "fatal_error", config)
-        finally:
-            await context.close()
-            await browser.close()
+    finally:
+        if context is not None:
+            try:
+                await context.close()
+            except Exception:
+                pass
+        if browser is not None:
+            try:
+                await browser.close()
+            except Exception:
+                pass
 
     result.duration_seconds = round(time.time() - start_time, 2)
     return result

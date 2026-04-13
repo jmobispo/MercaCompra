@@ -2,20 +2,23 @@
 Recipe service — CRUD, add-to-list, and seed data.
 """
 import logging
+import math
 from datetime import datetime, timezone
 from typing import List, Optional
 
 from fastapi import HTTPException
-from sqlalchemy import select, func
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.models.recipe import Recipe, RecipeIngredient
 from app.models.shopping_list import ShoppingList, ShoppingListItem
+from app.models.user import User
 from app.schemas.recipe import (
     RecipeCreate, RecipeUpdate, RecipeRead, RecipeSummary,
     AddToListPayload, AddToListResult,
 )
+from app.services.product_service import ProductService
 
 logger = logging.getLogger(__name__)
 
@@ -174,6 +177,52 @@ SEED_RECIPES = [
 # Service
 # ─────────────────────────────────────────────────────────────────────────────
 
+ADDITIONAL_SEED_RECIPES = [
+    {"title": "Pollo al Curry con Arroz", "description": "Pollo cremoso con curry suave y arroz blanco.", "servings": 4, "estimated_minutes": 35, "estimated_cost": 7.8, "tags": ["pollo", "arroz", "asiática"], "ingredients": [{"name": "Pechuga de pollo", "quantity": 500, "unit": "g", "product_query": "pechuga pollo"}, {"name": "Arroz largo", "quantity": 300, "unit": "g", "product_query": "arroz largo"}, {"name": "Leche de coco", "quantity": 400, "unit": "ml", "product_query": "leche coco"}, {"name": "Cebolla", "quantity": 1, "unit": "ud", "product_query": "cebolla"}, {"name": "Curry en polvo", "quantity": 2, "unit": "cucharaditas", "product_query": "curry"}, {"name": "Aceite de oliva", "quantity": 2, "unit": "cucharadas", "product_query": "aceite oliva"}]},
+    {"title": "Fajitas de Pollo", "description": "Tortillas rellenas de pollo salteado con pimientos.", "servings": 4, "estimated_minutes": 25, "estimated_cost": 8.2, "tags": ["mexicana", "pollo", "rápida"], "ingredients": [{"name": "Tortillas de trigo", "quantity": 8, "unit": "uds", "product_query": "tortillas trigo"}, {"name": "Pechuga de pollo", "quantity": 500, "unit": "g", "product_query": "pechuga pollo"}, {"name": "Pimiento rojo", "quantity": 1, "unit": "ud", "product_query": "pimiento rojo"}, {"name": "Pimiento verde", "quantity": 1, "unit": "ud", "product_query": "pimiento verde"}, {"name": "Cebolla", "quantity": 1, "unit": "ud", "product_query": "cebolla"}, {"name": "Sazonador fajitas", "quantity": 1, "unit": "sobre", "product_query": "sazonador fajitas"}]},
+    {"title": "Chili con Carne", "description": "Guiso tex-mex con carne picada, alubias y tomate.", "servings": 4, "estimated_minutes": 45, "estimated_cost": 7.9, "tags": ["carne", "legumbres", "picante"], "ingredients": [{"name": "Carne picada mixta", "quantity": 400, "unit": "g", "product_query": "carne picada"}, {"name": "Alubias rojas cocidas", "quantity": 400, "unit": "g", "product_query": "alubias rojas"}, {"name": "Tomate triturado", "quantity": 400, "unit": "g", "product_query": "tomate triturado"}, {"name": "Cebolla", "quantity": 1, "unit": "ud", "product_query": "cebolla"}, {"name": "Maíz dulce", "quantity": 150, "unit": "g", "product_query": "maíz dulce"}, {"name": "Comino molido", "quantity": 1, "unit": "cucharadita", "product_query": "comino"}]},
+    {"title": "Lentejas Estofadas", "description": "Lentejas caseras con verduras y chorizo.", "servings": 4, "estimated_minutes": 50, "estimated_cost": 5.9, "tags": ["legumbres", "cuchara", "tradicional"], "ingredients": [{"name": "Lentejas pardinas", "quantity": 350, "unit": "g", "product_query": "lentejas pardinas"}, {"name": "Chorizo", "quantity": 150, "unit": "g", "product_query": "chorizo"}, {"name": "Patatas", "quantity": 2, "unit": "uds", "product_query": "patatas"}, {"name": "Zanahoria", "quantity": 2, "unit": "uds", "product_query": "zanahoria"}, {"name": "Cebolla", "quantity": 1, "unit": "ud", "product_query": "cebolla"}, {"name": "Pimiento verde", "quantity": 1, "unit": "ud", "product_query": "pimiento verde"}]},
+    {"title": "Garbanzos con Espinacas", "description": "Plato de cuchara con garbanzos y espinacas.", "servings": 4, "estimated_minutes": 30, "estimated_cost": 4.8, "tags": ["legumbres", "verduras", "económica"], "ingredients": [{"name": "Garbanzos cocidos", "quantity": 400, "unit": "g", "product_query": "garbanzos cocidos"}, {"name": "Espinacas", "quantity": 400, "unit": "g", "product_query": "espinacas"}, {"name": "Cebolla", "quantity": 1, "unit": "ud", "product_query": "cebolla"}, {"name": "Ajo", "quantity": 2, "unit": "dientes", "product_query": "ajo"}, {"name": "Tomate triturado", "quantity": 200, "unit": "g", "product_query": "tomate triturado"}, {"name": "Comino molido", "quantity": 1, "unit": "cucharadita", "product_query": "comino"}]},
+    {"title": "Merluza al Horno con Patatas", "description": "Pescado al horno con patata, cebolla y limón.", "servings": 4, "estimated_minutes": 40, "estimated_cost": 10.5, "tags": ["pescado", "horno", "saludable"], "ingredients": [{"name": "Filetes de merluza", "quantity": 600, "unit": "g", "product_query": "merluza filetes"}, {"name": "Patatas", "quantity": 500, "unit": "g", "product_query": "patatas"}, {"name": "Cebolla", "quantity": 1, "unit": "ud", "product_query": "cebolla"}, {"name": "Limón", "quantity": 1, "unit": "ud", "product_query": "limón"}, {"name": "Aceite de oliva", "quantity": 3, "unit": "cucharadas", "product_query": "aceite oliva"}, {"name": "Ajo", "quantity": 2, "unit": "dientes", "product_query": "ajo"}]},
+    {"title": "Salmón con Verduras", "description": "Lomos de salmón con salteado de verduras.", "servings": 2, "estimated_minutes": 20, "estimated_cost": 9.8, "tags": ["pescado", "rápida", "saludable"], "ingredients": [{"name": "Lomos de salmón", "quantity": 2, "unit": "uds", "product_query": "salmón lomos"}, {"name": "Calabacín", "quantity": 1, "unit": "ud", "product_query": "calabacín"}, {"name": "Zanahoria", "quantity": 2, "unit": "uds", "product_query": "zanahoria"}, {"name": "Brócoli", "quantity": 250, "unit": "g", "product_query": "brócoli"}, {"name": "Aceite de oliva", "quantity": 2, "unit": "cucharadas", "product_query": "aceite oliva"}, {"name": "Limón", "quantity": 1, "unit": "ud", "product_query": "limón"}]},
+    {"title": "Hamburguesas Caseras con Patatas", "description": "Hamburguesa de ternera con pan, queso y patatas.", "servings": 4, "estimated_minutes": 35, "estimated_cost": 11.0, "tags": ["carne", "rápida", "familiar"], "ingredients": [{"name": "Carne picada de ternera", "quantity": 600, "unit": "g", "product_query": "carne picada ternera"}, {"name": "Pan de hamburguesa", "quantity": 4, "unit": "uds", "product_query": "pan hamburguesa"}, {"name": "Queso cheddar", "quantity": 4, "unit": "lonchas", "product_query": "queso cheddar"}, {"name": "Lechuga", "quantity": 1, "unit": "ud", "product_query": "lechuga"}, {"name": "Tomate", "quantity": 2, "unit": "uds", "product_query": "tomate"}, {"name": "Patatas", "quantity": 600, "unit": "g", "product_query": "patatas"}]},
+    {"title": "Albóndigas en Salsa", "description": "Albóndigas tiernas con salsa de tomate.", "servings": 4, "estimated_minutes": 45, "estimated_cost": 8.6, "tags": ["carne", "tradicional", "salsa"], "ingredients": [{"name": "Albóndigas de carne", "quantity": 600, "unit": "g", "product_query": "albóndigas"}, {"name": "Tomate frito", "quantity": 400, "unit": "g", "product_query": "tomate frito"}, {"name": "Cebolla", "quantity": 1, "unit": "ud", "product_query": "cebolla"}, {"name": "Zanahoria", "quantity": 2, "unit": "uds", "product_query": "zanahoria"}, {"name": "Guisantes", "quantity": 150, "unit": "g", "product_query": "guisantes"}, {"name": "Aceite de oliva", "quantity": 3, "unit": "cucharadas", "product_query": "aceite oliva"}]},
+    {"title": "Pechugas de Pollo al Limón", "description": "Pollo jugoso con salsa ligera de limón y ajo.", "servings": 4, "estimated_minutes": 25, "estimated_cost": 6.7, "tags": ["pollo", "rápida", "plancha"], "ingredients": [{"name": "Pechuga de pollo", "quantity": 600, "unit": "g", "product_query": "pechuga pollo"}, {"name": "Limón", "quantity": 2, "unit": "uds", "product_query": "limón"}, {"name": "Ajo", "quantity": 3, "unit": "dientes", "product_query": "ajo"}, {"name": "Mantequilla", "quantity": 30, "unit": "g", "product_query": "mantequilla"}, {"name": "Aceite de oliva", "quantity": 2, "unit": "cucharadas", "product_query": "aceite oliva"}, {"name": "Perejil", "quantity": 1, "unit": "manojo", "product_query": "perejil"}]},
+    {"title": "Arroz Tres Delicias", "description": "Arroz salteado con huevo, jamón, guisantes y zanahoria.", "servings": 4, "estimated_minutes": 25, "estimated_cost": 5.6, "tags": ["arroz", "rápida", "asiática"], "ingredients": [{"name": "Arroz largo", "quantity": 300, "unit": "g", "product_query": "arroz largo"}, {"name": "Huevos", "quantity": 2, "unit": "uds", "product_query": "huevos"}, {"name": "Jamón cocido", "quantity": 150, "unit": "g", "product_query": "jamón cocido"}, {"name": "Guisantes", "quantity": 100, "unit": "g", "product_query": "guisantes"}, {"name": "Zanahoria", "quantity": 2, "unit": "uds", "product_query": "zanahoria"}, {"name": "Salsa soja", "quantity": 2, "unit": "cucharadas", "product_query": "salsa soja"}]},
+    {"title": "Paella de Verduras", "description": "Paella sencilla con verduras y caldo sabroso.", "servings": 4, "estimated_minutes": 40, "estimated_cost": 6.2, "tags": ["arroz", "verduras", "mediterránea"], "ingredients": [{"name": "Arroz redondo", "quantity": 320, "unit": "g", "product_query": "arroz redondo"}, {"name": "Judías verdes", "quantity": 200, "unit": "g", "product_query": "judías verdes"}, {"name": "Alcachofas", "quantity": 200, "unit": "g", "product_query": "alcachofas"}, {"name": "Pimiento rojo", "quantity": 1, "unit": "ud", "product_query": "pimiento rojo"}, {"name": "Tomate triturado", "quantity": 150, "unit": "g", "product_query": "tomate triturado"}, {"name": "Caldo de verduras", "quantity": 800, "unit": "ml", "product_query": "caldo verduras"}]},
+    {"title": "Risotto de Champiñones", "description": "Arroz cremoso con champiñones y parmesano.", "servings": 4, "estimated_minutes": 35, "estimated_cost": 7.3, "tags": ["arroz", "italiana", "setas"], "ingredients": [{"name": "Arroz risotto", "quantity": 320, "unit": "g", "product_query": "arroz risotto"}, {"name": "Champiñones", "quantity": 300, "unit": "g", "product_query": "champiñones"}, {"name": "Cebolla", "quantity": 1, "unit": "ud", "product_query": "cebolla"}, {"name": "Caldo de verduras", "quantity": 900, "unit": "ml", "product_query": "caldo verduras"}, {"name": "Queso parmesano", "quantity": 80, "unit": "g", "product_query": "queso parmesano"}, {"name": "Mantequilla", "quantity": 40, "unit": "g", "product_query": "mantequilla"}]},
+    {"title": "Quiche de Espinacas y Queso", "description": "Tarta salada con espinacas y queso.", "servings": 6, "estimated_minutes": 45, "estimated_cost": 7.5, "tags": ["horno", "verduras", "vegetariana"], "ingredients": [{"name": "Masa quebrada", "quantity": 1, "unit": "ud", "product_query": "masa quebrada"}, {"name": "Espinacas", "quantity": 300, "unit": "g", "product_query": "espinacas"}, {"name": "Huevos", "quantity": 3, "unit": "uds", "product_query": "huevos"}, {"name": "Nata para cocinar", "quantity": 200, "unit": "ml", "product_query": "nata cocinar"}, {"name": "Queso de cabra", "quantity": 100, "unit": "g", "product_query": "queso cabra"}, {"name": "Cebolla", "quantity": 1, "unit": "ud", "product_query": "cebolla"}]},
+    {"title": "Pizza Casera de Jamón y Queso", "description": "Pizza fácil con tomate, mozzarella y jamón cocido.", "servings": 4, "estimated_minutes": 30, "estimated_cost": 6.8, "tags": ["pizza", "horno", "familiar"], "ingredients": [{"name": "Masa pizza", "quantity": 1, "unit": "ud", "product_query": "masa pizza"}, {"name": "Tomate frito", "quantity": 120, "unit": "g", "product_query": "tomate frito"}, {"name": "Queso mozzarella rallado", "quantity": 180, "unit": "g", "product_query": "queso mozzarella"}, {"name": "Jamón cocido", "quantity": 120, "unit": "g", "product_query": "jamón cocido"}, {"name": "Orégano", "quantity": None, "unit": "al gusto", "product_query": "orégano"}]},
+    {"title": "Burritos de Ternera", "description": "Burritos rellenos de ternera, arroz y verduras.", "servings": 4, "estimated_minutes": 30, "estimated_cost": 8.9, "tags": ["mexicana", "carne", "wrap"], "ingredients": [{"name": "Tortillas de trigo", "quantity": 8, "unit": "uds", "product_query": "tortillas trigo"}, {"name": "Carne picada de ternera", "quantity": 400, "unit": "g", "product_query": "carne picada ternera"}, {"name": "Arroz largo", "quantity": 200, "unit": "g", "product_query": "arroz largo"}, {"name": "Alubias cocidas", "quantity": 250, "unit": "g", "product_query": "alubias cocidas"}, {"name": "Pimiento rojo", "quantity": 1, "unit": "ud", "product_query": "pimiento rojo"}, {"name": "Maíz dulce", "quantity": 100, "unit": "g", "product_query": "maíz dulce"}]},
+    {"title": "Cuscús con Verduras", "description": "Cuscús ligero con verduras y garbanzos.", "servings": 4, "estimated_minutes": 20, "estimated_cost": 4.9, "tags": ["verduras", "rápida", "vegana"], "ingredients": [{"name": "Cuscús", "quantity": 250, "unit": "g", "product_query": "cuscús"}, {"name": "Calabacín", "quantity": 1, "unit": "ud", "product_query": "calabacín"}, {"name": "Zanahoria", "quantity": 2, "unit": "uds", "product_query": "zanahoria"}, {"name": "Cebolla", "quantity": 1, "unit": "ud", "product_query": "cebolla"}, {"name": "Garbanzos cocidos", "quantity": 200, "unit": "g", "product_query": "garbanzos cocidos"}, {"name": "Caldo de verduras", "quantity": 250, "unit": "ml", "product_query": "caldo verduras"}]},
+    {"title": "Puré de Calabaza", "description": "Crema suave de calabaza con cebolla y zanahoria.", "servings": 4, "estimated_minutes": 30, "estimated_cost": 4.2, "tags": ["crema", "verduras", "otoño"], "ingredients": [{"name": "Calabaza", "quantity": 700, "unit": "g", "product_query": "calabaza"}, {"name": "Zanahoria", "quantity": 2, "unit": "uds", "product_query": "zanahoria"}, {"name": "Cebolla", "quantity": 1, "unit": "ud", "product_query": "cebolla"}, {"name": "Patata", "quantity": 1, "unit": "ud", "product_query": "patatas"}, {"name": "Caldo de verduras", "quantity": 700, "unit": "ml", "product_query": "caldo verduras"}, {"name": "Quesitos", "quantity": 2, "unit": "uds", "product_query": "quesitos"}]},
+    {"title": "Brochetas de Pollo y Verduras", "description": "Brochetas marinadas con pollo, pimiento y cebolla.", "servings": 4, "estimated_minutes": 25, "estimated_cost": 7.1, "tags": ["pollo", "plancha", "verano"], "ingredients": [{"name": "Pechuga de pollo", "quantity": 500, "unit": "g", "product_query": "pechuga pollo"}, {"name": "Pimiento rojo", "quantity": 1, "unit": "ud", "product_query": "pimiento rojo"}, {"name": "Pimiento verde", "quantity": 1, "unit": "ud", "product_query": "pimiento verde"}, {"name": "Cebolla", "quantity": 1, "unit": "ud", "product_query": "cebolla"}, {"name": "Salsa soja", "quantity": 2, "unit": "cucharadas", "product_query": "salsa soja"}, {"name": "Aceite de oliva", "quantity": 1, "unit": "cucharada", "product_query": "aceite oliva"}]},
+    {"title": "Tacos de Pescado", "description": "Tacos suaves de pescado con col y yogur.", "servings": 4, "estimated_minutes": 25, "estimated_cost": 8.4, "tags": ["mexicana", "pescado", "rápida"], "ingredients": [{"name": "Tortillas de maíz", "quantity": 8, "unit": "uds", "product_query": "tortillas maíz"}, {"name": "Filetes de merluza", "quantity": 500, "unit": "g", "product_query": "merluza filetes"}, {"name": "Col", "quantity": 200, "unit": "g", "product_query": "col"}, {"name": "Yogur natural", "quantity": 2, "unit": "uds", "product_query": "yogur natural"}, {"name": "Limón", "quantity": 1, "unit": "ud", "product_query": "limón"}, {"name": "Pimentón dulce", "quantity": 1, "unit": "cucharadita", "product_query": "pimentón dulce"}]},
+    {"title": "Moussaka Rápida", "description": "Versión sencilla de moussaka con berenjena y carne.", "servings": 4, "estimated_minutes": 50, "estimated_cost": 9.4, "tags": ["horno", "carne", "berenjena"], "ingredients": [{"name": "Berenjena", "quantity": 2, "unit": "uds", "product_query": "berenjena"}, {"name": "Carne picada mixta", "quantity": 400, "unit": "g", "product_query": "carne picada"}, {"name": "Tomate triturado", "quantity": 300, "unit": "g", "product_query": "tomate triturado"}, {"name": "Bechamel lista", "quantity": 400, "unit": "ml", "product_query": "bechamel"}, {"name": "Cebolla", "quantity": 1, "unit": "ud", "product_query": "cebolla"}, {"name": "Queso rallado", "quantity": 120, "unit": "g", "product_query": "queso rallado"}]},
+    {"title": "Bacalao con Tomate", "description": "Lomos de bacalao en salsa de tomate y pimiento.", "servings": 4, "estimated_minutes": 35, "estimated_cost": 11.2, "tags": ["pescado", "tradicional", "salsa"], "ingredients": [{"name": "Lomos de bacalao", "quantity": 600, "unit": "g", "product_query": "bacalao lomos"}, {"name": "Tomate triturado", "quantity": 400, "unit": "g", "product_query": "tomate triturado"}, {"name": "Pimiento rojo", "quantity": 1, "unit": "ud", "product_query": "pimiento rojo"}, {"name": "Cebolla", "quantity": 1, "unit": "ud", "product_query": "cebolla"}, {"name": "Ajo", "quantity": 2, "unit": "dientes", "product_query": "ajo"}, {"name": "Aceite de oliva", "quantity": 3, "unit": "cucharadas", "product_query": "aceite oliva"}]},
+    {"title": "Ensalada César con Pollo", "description": "Ensalada completa con pollo, lechuga y parmesano.", "servings": 2, "estimated_minutes": 20, "estimated_cost": 6.2, "tags": ["ensalada", "pollo", "rápida"], "ingredients": [{"name": "Lechuga romana", "quantity": 1, "unit": "ud", "product_query": "lechuga romana"}, {"name": "Pechuga de pollo", "quantity": 250, "unit": "g", "product_query": "pechuga pollo"}, {"name": "Queso parmesano", "quantity": 40, "unit": "g", "product_query": "queso parmesano"}, {"name": "Picatostes", "quantity": 80, "unit": "g", "product_query": "picatostes"}, {"name": "Salsa césar", "quantity": 1, "unit": "ud", "product_query": "salsa césar"}]},
+    {"title": "Tabulé", "description": "Ensalada fresca de cuscús con tomate y pepino.", "servings": 4, "estimated_minutes": 15, "estimated_cost": 4.6, "tags": ["ensalada", "verano", "ligera"], "ingredients": [{"name": "Cuscús", "quantity": 250, "unit": "g", "product_query": "cuscús"}, {"name": "Tomate", "quantity": 2, "unit": "uds", "product_query": "tomate"}, {"name": "Pepino", "quantity": 1, "unit": "ud", "product_query": "pepino"}, {"name": "Cebolleta", "quantity": 1, "unit": "ud", "product_query": "cebolleta"}, {"name": "Limón", "quantity": 1, "unit": "ud", "product_query": "limón"}, {"name": "Hierbabuena", "quantity": 1, "unit": "manojo", "product_query": "hierbabuena"}]},
+    {"title": "Pisto con Huevo", "description": "Verduras pochadas con tomate y huevo.", "servings": 4, "estimated_minutes": 35, "estimated_cost": 5.3, "tags": ["verduras", "huevos", "tradicional"], "ingredients": [{"name": "Calabacín", "quantity": 1, "unit": "ud", "product_query": "calabacín"}, {"name": "Berenjena", "quantity": 1, "unit": "ud", "product_query": "berenjena"}, {"name": "Pimiento rojo", "quantity": 1, "unit": "ud", "product_query": "pimiento rojo"}, {"name": "Pimiento verde", "quantity": 1, "unit": "ud", "product_query": "pimiento verde"}, {"name": "Tomate triturado", "quantity": 400, "unit": "g", "product_query": "tomate triturado"}, {"name": "Huevos", "quantity": 4, "unit": "uds", "product_query": "huevos"}]},
+    {"title": "Berenjenas Rellenas", "description": "Berenjenas al horno rellenas de carne y queso.", "servings": 4, "estimated_minutes": 50, "estimated_cost": 7.6, "tags": ["horno", "berenjena", "carne"], "ingredients": [{"name": "Berenjena", "quantity": 2, "unit": "uds", "product_query": "berenjena"}, {"name": "Carne picada mixta", "quantity": 300, "unit": "g", "product_query": "carne picada"}, {"name": "Cebolla", "quantity": 1, "unit": "ud", "product_query": "cebolla"}, {"name": "Tomate frito", "quantity": 200, "unit": "g", "product_query": "tomate frito"}, {"name": "Queso rallado", "quantity": 120, "unit": "g", "product_query": "queso rallado"}]},
+    {"title": "Croquetas de Jamón", "description": "Croquetas cremosas de jamón.", "servings": 6, "estimated_minutes": 60, "estimated_cost": 5.8, "tags": ["aperitivo", "jamón", "tradicional"], "ingredients": [{"name": "Jamón serrano", "quantity": 150, "unit": "g", "product_query": "jamón serrano"}, {"name": "Harina", "quantity": 100, "unit": "g", "product_query": "harina trigo"}, {"name": "Leche", "quantity": 800, "unit": "ml", "product_query": "leche entera"}, {"name": "Mantequilla", "quantity": 80, "unit": "g", "product_query": "mantequilla"}, {"name": "Pan rallado", "quantity": 200, "unit": "g", "product_query": "pan rallado"}, {"name": "Huevos", "quantity": 2, "unit": "uds", "product_query": "huevos"}]},
+    {"title": "Empanada de Atún", "description": "Empanada salada con atún, tomate y pimiento.", "servings": 6, "estimated_minutes": 40, "estimated_cost": 7.2, "tags": ["horno", "atún", "familiar"], "ingredients": [{"name": "Masa empanada", "quantity": 2, "unit": "uds", "product_query": "masa empanada"}, {"name": "Atún en aceite", "quantity": 240, "unit": "g", "product_query": "atún aceite"}, {"name": "Tomate frito", "quantity": 200, "unit": "g", "product_query": "tomate frito"}, {"name": "Pimiento rojo", "quantity": 1, "unit": "ud", "product_query": "pimiento rojo"}, {"name": "Cebolla", "quantity": 1, "unit": "ud", "product_query": "cebolla"}, {"name": "Huevos", "quantity": 1, "unit": "ud", "product_query": "huevos"}]},
+    {"title": "Sopa de Pollo con Fideos", "description": "Sopa reconfortante con pollo y fideos finos.", "servings": 4, "estimated_minutes": 30, "estimated_cost": 4.9, "tags": ["sopa", "pollo", "invierno"], "ingredients": [{"name": "Caldo de pollo", "quantity": 1200, "unit": "ml", "product_query": "caldo pollo"}, {"name": "Fideos finos", "quantity": 120, "unit": "g", "product_query": "fideos sopa"}, {"name": "Pechuga de pollo", "quantity": 250, "unit": "g", "product_query": "pechuga pollo"}, {"name": "Zanahoria", "quantity": 1, "unit": "ud", "product_query": "zanahoria"}, {"name": "Apio", "quantity": 1, "unit": "rama", "product_query": "apio"}]},
+    {"title": "Tortilla Francesa con Queso", "description": "Cena rápida con tortilla jugosa y queso fundido.", "servings": 2, "estimated_minutes": 10, "estimated_cost": 2.9, "tags": ["huevos", "rápida", "cena"], "ingredients": [{"name": "Huevos", "quantity": 4, "unit": "uds", "product_query": "huevos"}, {"name": "Queso rallado", "quantity": 80, "unit": "g", "product_query": "queso rallado"}, {"name": "Mantequilla", "quantity": 10, "unit": "g", "product_query": "mantequilla"}, {"name": "Sal", "quantity": None, "unit": "al gusto", "product_query": "sal"}]},
+    {"title": "Wrap de Pavo y Aguacate", "description": "Wrap fresco con pavo, aguacate y queso crema.", "servings": 2, "estimated_minutes": 10, "estimated_cost": 4.7, "tags": ["wrap", "rápida", "fría"], "ingredients": [{"name": "Tortillas de trigo", "quantity": 4, "unit": "uds", "product_query": "tortillas trigo"}, {"name": "Fiambre de pavo", "quantity": 150, "unit": "g", "product_query": "fiambre pavo"}, {"name": "Aguacate", "quantity": 1, "unit": "ud", "product_query": "aguacate"}, {"name": "Queso crema", "quantity": 80, "unit": "g", "product_query": "queso crema"}, {"name": "Lechuga", "quantity": 1, "unit": "ud", "product_query": "lechuga"}]},
+    {"title": "Pollo Asado con Verduras", "description": "Bandeja al horno con pollo, patatas y verduras.", "servings": 4, "estimated_minutes": 70, "estimated_cost": 9.5, "tags": ["horno", "pollo", "familiar"], "ingredients": [{"name": "Muslos de pollo", "quantity": 1000, "unit": "g", "product_query": "muslos pollo"}, {"name": "Patatas", "quantity": 700, "unit": "g", "product_query": "patatas"}, {"name": "Zanahoria", "quantity": 2, "unit": "uds", "product_query": "zanahoria"}, {"name": "Cebolla", "quantity": 1, "unit": "ud", "product_query": "cebolla"}, {"name": "Pimiento rojo", "quantity": 1, "unit": "ud", "product_query": "pimiento rojo"}, {"name": "Aceite de oliva", "quantity": 3, "unit": "cucharadas", "product_query": "aceite oliva"}]},
+    {"title": "Pasta al Pesto", "description": "Pasta rápida con salsa pesto y parmesano.", "servings": 4, "estimated_minutes": 15, "estimated_cost": 5.4, "tags": ["pasta", "rápida", "italiana"], "ingredients": [{"name": "Fusilli", "quantity": 400, "unit": "g", "product_query": "fusilli"}, {"name": "Salsa pesto", "quantity": 1, "unit": "ud", "product_query": "salsa pesto"}, {"name": "Queso parmesano", "quantity": 50, "unit": "g", "product_query": "queso parmesano"}, {"name": "Piñones", "quantity": 30, "unit": "g", "product_query": "piñones"}]},
+    {"title": "Ñoquis con Salsa de Quesos", "description": "Ñoquis con salsa cremosa de quesos.", "servings": 4, "estimated_minutes": 20, "estimated_cost": 6.1, "tags": ["pasta", "queso", "rápida"], "ingredients": [{"name": "Ñoquis", "quantity": 500, "unit": "g", "product_query": "ñoquis"}, {"name": "Nata para cocinar", "quantity": 200, "unit": "ml", "product_query": "nata cocinar"}, {"name": "Queso azul", "quantity": 80, "unit": "g", "product_query": "queso azul"}, {"name": "Queso rallado", "quantity": 80, "unit": "g", "product_query": "queso rallado"}, {"name": "Pimienta negra", "quantity": None, "unit": "al gusto", "product_query": "pimienta negra"}]},
+    {"title": "Sandwich Club", "description": "Sándwich completo de pollo, bacon y tomate.", "servings": 2, "estimated_minutes": 15, "estimated_cost": 5.3, "tags": ["sandwich", "rápida", "cena"], "ingredients": [{"name": "Pan de molde", "quantity": 6, "unit": "rebanadas", "product_query": "pan molde"}, {"name": "Pechuga de pollo", "quantity": 150, "unit": "g", "product_query": "pechuga pollo"}, {"name": "Bacon", "quantity": 80, "unit": "g", "product_query": "bacon"}, {"name": "Lechuga", "quantity": 1, "unit": "ud", "product_query": "lechuga"}, {"name": "Tomate", "quantity": 1, "unit": "ud", "product_query": "tomate"}, {"name": "Mayonesa", "quantity": 2, "unit": "cucharadas", "product_query": "mayonesa"}]},
+    {"title": "Gazpacho Andaluz", "description": "Gazpacho fresco con tomate, pepino y pimiento.", "servings": 4, "estimated_minutes": 15, "estimated_cost": 3.9, "tags": ["verano", "fría", "verduras"], "ingredients": [{"name": "Tomate pera", "quantity": 1000, "unit": "g", "product_query": "tomate pera"}, {"name": "Pepino", "quantity": 1, "unit": "ud", "product_query": "pepino"}, {"name": "Pimiento verde", "quantity": 1, "unit": "ud", "product_query": "pimiento verde"}, {"name": "Ajo", "quantity": 1, "unit": "diente", "product_query": "ajo"}, {"name": "Aceite de oliva", "quantity": 60, "unit": "ml", "product_query": "aceite oliva"}, {"name": "Vinagre", "quantity": 1, "unit": "cucharada", "product_query": "vinagre"}]},
+    {"title": "Salmorejo Cordobés", "description": "Crema fría espesa de tomate con jamón y huevo.", "servings": 4, "estimated_minutes": 15, "estimated_cost": 4.6, "tags": ["verano", "fría", "tradicional"], "ingredients": [{"name": "Tomate pera", "quantity": 1000, "unit": "g", "product_query": "tomate pera"}, {"name": "Pan", "quantity": 200, "unit": "g", "product_query": "pan"}, {"name": "Aceite de oliva", "quantity": 100, "unit": "ml", "product_query": "aceite oliva"}, {"name": "Jamón serrano", "quantity": 80, "unit": "g", "product_query": "jamón serrano"}, {"name": "Huevos", "quantity": 2, "unit": "uds", "product_query": "huevos"}]},
+    {"title": "Revuelto de Setas", "description": "Huevos revueltos con champiñones y ajo.", "servings": 2, "estimated_minutes": 12, "estimated_cost": 3.8, "tags": ["huevos", "setas", "rápida"], "ingredients": [{"name": "Huevos", "quantity": 4, "unit": "uds", "product_query": "huevos"}, {"name": "Champiñones", "quantity": 250, "unit": "g", "product_query": "champiñones"}, {"name": "Ajo", "quantity": 2, "unit": "dientes", "product_query": "ajo"}, {"name": "Aceite de oliva", "quantity": 1, "unit": "cucharada", "product_query": "aceite oliva"}]},
+    {"title": "Wok de Ternera y Verduras", "description": "Salteado rápido con tiras de ternera y verduras.", "servings": 4, "estimated_minutes": 20, "estimated_cost": 8.7, "tags": ["wok", "ternera", "rápida"], "ingredients": [{"name": "Filetes de ternera", "quantity": 400, "unit": "g", "product_query": "filetes ternera"}, {"name": "Pimiento rojo", "quantity": 1, "unit": "ud", "product_query": "pimiento rojo"}, {"name": "Pimiento verde", "quantity": 1, "unit": "ud", "product_query": "pimiento verde"}, {"name": "Cebolla", "quantity": 1, "unit": "ud", "product_query": "cebolla"}, {"name": "Zanahoria", "quantity": 2, "unit": "uds", "product_query": "zanahoria"}, {"name": "Salsa soja", "quantity": 3, "unit": "cucharadas", "product_query": "salsa soja"}]},
+    {"title": "Quesadillas de Jamón y Queso", "description": "Quesadillas rápidas a la sartén con jamón cocido y queso fundido.", "servings": 4, "estimated_minutes": 15, "estimated_cost": 4.9, "tags": ["mexicana", "rápida", "queso"], "ingredients": [{"name": "Tortillas de trigo", "quantity": 8, "unit": "uds", "product_query": "tortillas trigo"}, {"name": "Jamón cocido", "quantity": 150, "unit": "g", "product_query": "jamón cocido"}, {"name": "Queso rallado", "quantity": 180, "unit": "g", "product_query": "queso rallado"}, {"name": "Tomate", "quantity": 1, "unit": "ud", "product_query": "tomate"}]},
+]
+
+SEED_RECIPES.extend(ADDITIONAL_SEED_RECIPES)
+
+
 class RecipeService:
     def __init__(self, db: AsyncSession):
         self.db = db
@@ -181,16 +230,17 @@ class RecipeService:
     # ── Seed ──────────────────────────────────────────────────────────────────
 
     async def ensure_seeds(self) -> None:
-        """Insert seed/template recipes if none exist yet (first run)."""
+        """Insert missing public seed/template recipes without duplicating existing titles."""
         result = await self.db.execute(
-            select(func.count(Recipe.id)).where(Recipe.is_public == True)
+            select(Recipe.title).where(Recipe.is_public == True)
         )
-        count = result.scalar_one()
-        if count > 0:
+        existing_titles = {title for title in result.scalars().all()}
+        missing_seeds = [seed for seed in SEED_RECIPES if seed["title"] not in existing_titles]
+        if not missing_seeds:
             return
 
-        logger.info("Inserting seed recipes...")
-        for seed in SEED_RECIPES:
+        logger.info("Inserting missing seed recipes...")
+        for seed in missing_seeds:
             recipe = Recipe(
                 user_id=None,
                 title=seed["title"],
@@ -217,7 +267,7 @@ class RecipeService:
                 self.db.add(ing)
 
         await self.db.commit()
-        logger.info(f"Seeded {len(SEED_RECIPES)} public recipes")
+        logger.info(f"Seeded {len(missing_seeds)} public recipes")
 
     # ── Helpers ───────────────────────────────────────────────────────────────
 
@@ -263,6 +313,32 @@ class RecipeService:
             created_at=recipe.created_at,
             updated_at=recipe.updated_at,
         )
+
+    async def _get_user_postal_code(self, user_id: int) -> str:
+        result = await self.db.execute(
+            select(User.postal_code).where(User.id == user_id)
+        )
+        postal_code = result.scalar_one_or_none()
+        return postal_code or "28001"
+
+    async def _resolve_product_for_ingredient(
+        self,
+        ingredient: RecipeIngredient,
+        postal_code: str,
+    ):
+        query = (ingredient.product_query or ingredient.name or "").strip()
+        if not query:
+            return None
+
+        result = await ProductService(self.db).search(
+            query=query,
+            postal_code=postal_code,
+            limit=5,
+        )
+        if not result.products:
+            return None
+
+        return result.products[0]
 
     # ── CRUD ──────────────────────────────────────────────────────────────────
 
@@ -400,6 +476,7 @@ class RecipeService:
         user can search/replace later from ListDetailPage).
         """
         recipe = await self._get_recipe_or_404(recipe_id, user_id)
+        postal_code = await self._get_user_postal_code(user_id)
 
         # Resolve or create target list
         if payload.list_id is not None:
@@ -420,29 +497,71 @@ class RecipeService:
 
         added_items = []
         skipped = 0
+        resolved_real = 0
+        resolved_fallback = 0
+        unresolved = 0
 
         for ing in recipe.ingredients:
             try:
-                qty = ing.quantity or 1.0
-                adjusted_qty = max(1, round(qty * payload.servings_multiplier))
+                product = await self._resolve_product_for_ingredient(ing, postal_code)
+                product_id = product.id if product else f"recipe_{recipe.id}_ing_{ing.id}"
+                adjusted_qty = _infer_cart_quantity(ing, payload.servings_multiplier)
+                note = _build_ingredient_note(ing, payload.servings_multiplier)
 
-                item = ShoppingListItem(
-                    shopping_list_id=target_list.id,
-                    product_id=f"recipe_{recipe.id}_ing_{ing.id}",
-                    product_name=_format_ingredient_name(ing),
-                    product_price=None,
-                    product_unit=ing.unit,
-                    product_thumbnail=None,
-                    product_category=None,
-                    quantity=adjusted_qty,
-                    is_checked=False,
-                    note=ing.notes,
+                existing_result = await self.db.execute(
+                    select(ShoppingListItem).where(
+                        ShoppingListItem.shopping_list_id == target_list.id,
+                        ShoppingListItem.product_id == product_id,
+                    )
                 )
-                self.db.add(item)
-                added_items.append({"name": item.product_name, "quantity": item.quantity})
+                item = existing_result.scalar_one_or_none()
+
+                if item:
+                    item.quantity += adjusted_qty
+                    item.note = _merge_notes(item.note, note)
+                    if item.product_price is None and product:
+                        item.product_price = product.price
+                    if not item.product_unit and product:
+                        item.product_unit = product.unit_size
+                    if not item.product_thumbnail and product:
+                        item.product_thumbnail = product.thumbnail
+                    if not item.product_category and product:
+                        item.product_category = product.category
+                else:
+                    item = ShoppingListItem(
+                        shopping_list_id=target_list.id,
+                        product_id=product_id,
+                        product_name=(product.name if product else ing.name),
+                        product_price=(product.price if product else None),
+                        product_unit=(product.unit_size if product else ing.unit),
+                        product_thumbnail=(product.thumbnail if product else None),
+                        product_category=(product.category if product else None),
+                        quantity=adjusted_qty,
+                        is_checked=False,
+                        note=note,
+                    )
+                    self.db.add(item)
+
+                added_items.append(
+                    {
+                        "name": item.product_name,
+                        "quantity": adjusted_qty,
+                        "price": item.product_price,
+                        "source": getattr(product, "source", "manual") if product else "manual",
+                        "resolved": bool(product),
+                    }
+                )
+                if product:
+                    if product.source == "fallback":
+                        resolved_fallback += 1
+                    else:
+                        resolved_real += 1
+                else:
+                    unresolved += 1
             except Exception as e:
                 logger.warning(f"Could not add ingredient '{ing.name}': {e}")
                 skipped += 1
+                unresolved += 1
 
         await self.db.commit()
 
@@ -452,14 +571,53 @@ class RecipeService:
             added=len(added_items),
             skipped=skipped,
             items=added_items,
+            resolved_real=resolved_real,
+            resolved_fallback=resolved_fallback,
+            unresolved=unresolved,
         )
 
 
-def _format_ingredient_name(ing: RecipeIngredient) -> str:
-    """Format ingredient for display as shopping list item."""
-    parts = [ing.name]
-    if ing.quantity is not None and ing.unit:
-        parts.append(f"({ing.quantity} {ing.unit})")
+def _infer_cart_quantity(ing: RecipeIngredient, servings_multiplier: float) -> int:
+    """
+    Convert recipe amounts into purchase units.
+    Weighted or volume ingredients default to one pack. Discrete units scale up.
+    """
+    scaled_quantity = (ing.quantity or 1.0) * servings_multiplier
+    unit = (ing.unit or "").strip().lower()
+    discrete_units = {"ud", "uds", "unidad", "unidades", "huevo", "huevos"}
+
+    if unit in discrete_units and ing.quantity is not None:
+        return max(1, math.ceil(scaled_quantity))
+
+    return 1
+
+
+def _build_ingredient_note(ing: RecipeIngredient, servings_multiplier: float) -> Optional[str]:
+    details: List[str] = []
+
+    if ing.quantity is not None:
+        scaled_quantity = ing.quantity * servings_multiplier
+        quantity_text = f"{scaled_quantity:g}"
+        if ing.unit:
+            quantity_text = f"{quantity_text} {ing.unit}"
+        details.append(f"Cantidad receta: {quantity_text}")
     elif ing.unit:
-        parts.append(f"({ing.unit})")
-    return " ".join(parts)
+        details.append(f"Unidad receta: {ing.unit}")
+
+    if ing.product_query and ing.product_query.strip().lower() != ing.name.strip().lower():
+        details.append(f"Búsqueda: {ing.product_query}")
+
+    if ing.notes:
+        details.append(ing.notes)
+
+    return " | ".join(details) if details else None
+
+
+def _merge_notes(current: Optional[str], incoming: Optional[str]) -> Optional[str]:
+    if not incoming:
+        return current
+    if not current:
+        return incoming
+    if incoming in current:
+        return current
+    return f"{current} | {incoming}"

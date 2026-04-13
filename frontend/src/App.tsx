@@ -9,6 +9,8 @@ import ListDetailPage from './pages/ListDetailPage';
 import AutomationPage from './pages/AutomationPage';
 import RecipesPage from './pages/RecipesPage';
 import RecipeDetailPage from './pages/RecipeDetailPage';
+import ProductsPage from './pages/ProductsPage';
+import FavoritesPage from './pages/FavoritesPage';
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
@@ -58,6 +60,8 @@ export default function App() {
           <Route path="dashboard" element={<DashboardPage />} />
           <Route path="lists" element={<ListsPage />} />
           <Route path="lists/:id" element={<ListDetailPage />} />
+          <Route path="products" element={<ProductsPage />} />
+          <Route path="favorites" element={<FavoritesPage />} />
           <Route path="automation" element={<AutomationPage />} />
           <Route path="recipes" element={<RecipesPage />} />
           <Route path="recipes/:id" element={<RecipeDetailPage />} />

@@ -7,6 +7,7 @@ class UserCreate(BaseModel):
     email: str = Field(..., pattern=r"^[^@]+@[^@]+\.[^@]+$")
     username: str = Field(..., min_length=3, max_length=50)
     password: str = Field(..., min_length=6)
+    postal_code: str = Field(default="28001", pattern=r"^\d{5}$")
 
 
 class UserLogin(BaseModel):

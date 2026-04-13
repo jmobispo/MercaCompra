@@ -20,6 +20,7 @@ class AuthService:
             email=data.email,
             username=data.username,
             hashed_password=hash_password(data.password),
+            postal_code=data.postal_code,
         )
         token = create_access_token(str(user.id))
         return TokenResponse(access_token=token, user=UserRead.model_validate(user))

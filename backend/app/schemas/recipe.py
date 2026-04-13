@@ -109,3 +109,6 @@ class AddToListResult(BaseModel):
     added: int           # ingredients added as items
     skipped: int         # ingredients that failed to add
     items: List[dict]    # brief info on what was added
+    resolved_real: int = 0
+    resolved_fallback: int = 0
+    unresolved: int = 0
