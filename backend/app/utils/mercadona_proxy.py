@@ -9,6 +9,7 @@ PRODUCT_SEARCH_MODE:
 """
 import asyncio
 import base64
+import json
 import logging
 import re
 import time
@@ -64,6 +65,8 @@ _SEARCH_CACHE: Dict[str, tuple[float, List[Dict]]] = {}
 _SEARCH_CACHE_TTL_SECONDS = 300
 _DIRECT_SEARCH_AVAILABLE: Optional[bool] = None
 _FALLBACK_CATEGORY_INDEX: Optional[Dict[str, Dict[str, Any]]] = None
+_WAREHOUSE_OVERRIDES: Optional[Dict[str, Dict[str, str]]] = None
+_WAREHOUSE_OVERRIDES_PATH = Path(__file__).parent.parent.parent.parent.parent / "data" / "catalog" / "warehouse_map.json"
 
 
 def _load_fallback_catalog() -> List[Dict]:
@@ -111,6 +114,29 @@ def _get_cached_search(cache_key: str) -> Optional[List[Dict]]:
 
 def _set_cached_search(cache_key: str, items: List[Dict]) -> None:
     _SEARCH_CACHE[cache_key] = (time.time(), [dict(item) for item in items])
+
+
+def _load_warehouse_overrides() -> Dict[str, Dict[str, str]]:
+    global _WAREHOUSE_OVERRIDES
+    if _WAREHOUSE_OVERRIDES is not None:
+        return _WAREHOUSE_OVERRIDES
+
+    overrides = {"exact": {}, "prefix": {}}
+    if _WAREHOUSE_OVERRIDES_PATH.exists():
+        try:
+            payload = json.loads(_WAREHOUSE_OVERRIDES_PATH.read_text(encoding="utf-8"))
+            if isinstance(payload, dict):
+                exact = payload.get("exact")
+                prefix = payload.get("prefix")
+                if isinstance(exact, dict):
+                    overrides["exact"] = {str(k): str(v) for k, v in exact.items()}
+                if isinstance(prefix, dict):
+                    overrides["prefix"] = {str(k): str(v) for k, v in prefix.items()}
+        except Exception as e:
+            logger.warning(f"Could not load warehouse overrides from {_WAREHOUSE_OVERRIDES_PATH}: {e}")
+
+    _WAREHOUSE_OVERRIDES = overrides
+    return overrides
 
 
 def _slugify_category(name: str) -> str:
@@ -188,8 +214,33 @@ def _tokenize_query(query: str) -> List[str]:
 
 
 def get_warehouse(postal_code: str) -> str:
-    prefix = postal_code[:2] if len(postal_code) >= 2 else "28"
-    return WAREHOUSES.get(prefix, "mad1")
+    normalized = (postal_code or "").strip()
+    overrides = _load_warehouse_overrides()
+
+    if re.fullmatch(r"\d{5}", normalized):
+        exact_match = overrides["exact"].get(normalized)
+        if exact_match:
+            return exact_match
+
+        prefix = normalized[:2]
+        override_prefix_match = overrides["prefix"].get(prefix)
+        if override_prefix_match:
+            logger.info(f"Resolved warehouse for postal code {normalized} using configured prefix {prefix}: {override_prefix_match}")
+            return override_prefix_match
+
+        builtin_match = WAREHOUSES.get(prefix)
+        if builtin_match:
+            logger.info(
+                f"Resolved warehouse for postal code {normalized} using builtin prefix {prefix}: {builtin_match}. "
+                "Add an exact override in data/catalog/warehouse_map.json for higher precision."
+            )
+            return builtin_match
+
+        logger.warning(f"No warehouse mapping found for postal code {normalized}; falling back to mad1")
+        return "mad1"
+
+    logger.warning(f"Invalid postal code '{postal_code}' received; falling back to mad1")
+    return "mad1"
 
 
 def _extract_categories(raw: Dict[str, Any]) -> tuple[Optional[str], Optional[str]]:

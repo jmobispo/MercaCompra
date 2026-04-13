@@ -24,6 +24,7 @@ from app.utils.mercadona_proxy import (
 
 logger = logging.getLogger(__name__)
 settings = get_settings()
+_REMOTE_CATEGORY_NAME_CACHE: dict[str, dict[str, str]] = {}
 
 
 def _coerce_price(value: Any) -> Optional[float]:
@@ -117,6 +118,19 @@ def _normalize_category_tree(raw: Any) -> list[CategoryNode]:
     if isinstance(raw, list):
         return [_normalize_category_node(item) for item in raw if isinstance(item, dict)]
     return []
+
+
+def _cache_category_names(postal_code: str, categories: list[CategoryNode]) -> None:
+    cache: dict[str, str] = {}
+
+    def walk(nodes: list[CategoryNode]) -> None:
+        for node in nodes:
+            cache[str(node.id)] = node.name
+            if node.children:
+                walk(node.children)
+
+    walk(categories)
+    _REMOTE_CATEGORY_NAME_CACHE[postal_code] = cache
 
 
 def _fallback_category_tree(postal_code: str, warehouse: str) -> CategoryTreeResponse:
@@ -220,6 +234,7 @@ class ProductService:
         try:
             raw = await get_categories(postal_code)
             categories = _normalize_category_tree(raw)
+            _cache_category_names(postal_code, categories)
             source = "mercadona_api"
             error = None
         except Exception as e:
@@ -227,6 +242,7 @@ class ProductService:
             effective_mode = settings.PRODUCT_SEARCH_MODE
             if effective_mode in {"fallback", "hybrid"}:
                 fallback_response = _fallback_category_tree(postal_code, warehouse)
+                _cache_category_names(postal_code, fallback_response.categories)
                 fallback_response.error = f"{type(e).__name__}: {str(e)[:200]}"
                 return fallback_response
 
@@ -259,10 +275,29 @@ class ProductService:
                     source = "fallback"
                     error = f"{type(e).__name__}: {str(e)[:200]}"
                 except Exception as fallback_error:
-                    logger.error(f"Fallback category {category_id} also failed: {fallback_error}")
-                    category_name, products = None, []
-                    source = "none"
-                    error = f"{type(fallback_error).__name__}: {str(fallback_error)[:200]}"
+                    remote_name = _REMOTE_CATEGORY_NAME_CACHE.get(postal_code, {}).get(str(category_id))
+                    if remote_name:
+                        fallback_products = await search_products(
+                            remote_name,
+                            postal_code=postal_code,
+                            limit=50,
+                            mode="fallback",
+                        )
+                        if fallback_products:
+                            category_name = remote_name
+                            products = [_to_product_read(p, postal_code, warehouse) for p in fallback_products]
+                            source = "fallback"
+                            error = f"{type(e).__name__}: {str(e)[:200]}"
+                        else:
+                            logger.error(f"Fallback category {category_id} also failed: {fallback_error}")
+                            category_name, products = None, []
+                            source = "none"
+                            error = f"{type(fallback_error).__name__}: {str(fallback_error)[:200]}"
+                    else:
+                        logger.error(f"Fallback category {category_id} also failed: {fallback_error}")
+                        category_name, products = None, []
+                        source = "none"
+                        error = f"{type(fallback_error).__name__}: {str(fallback_error)[:200]}"
             else:
                 category_name, products = None, []
                 source = "none"
