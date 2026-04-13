@@ -20,3 +20,5 @@ class User(Base):
     automation_runs = relationship("AutomationRun", back_populates="user", cascade="all, delete-orphan")
     recipes = relationship("Recipe", back_populates="user", cascade="all, delete-orphan")
     favorite_products = relationship("FavoriteProduct", back_populates="user", cascade="all, delete-orphan")
+    purchase_history = relationship("PurchaseHistory", back_populates="user", cascade="all, delete-orphan")
+    pantry_items = relationship("PantryItem", back_populates="user", cascade="all, delete-orphan")

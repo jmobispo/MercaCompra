@@ -8,7 +8,22 @@ from app.services.list_service import ListService
 from app.schemas.shopping_list import (
     ShoppingListCreate, ShoppingListUpdate, ShoppingListRead,
     ShoppingListSummary, ShoppingListItemCreate, ShoppingListItemUpdate,
+    ShoppingListItemRead,
 )
+from pydantic import BaseModel
+
+
+class SupermarketGroup(BaseModel):
+    category: str
+    items: List[ShoppingListItemRead]
+
+
+class SupermarketView(BaseModel):
+    list_id: int
+    list_name: str
+    groups: List[SupermarketGroup]
+    total_items: int
+    checked_items: int
 
 router = APIRouter(prefix="/lists", tags=["lists"])
 
@@ -107,3 +122,32 @@ async def remove_item(
 ):
     svc = ListService(db)
     return await svc.remove_item(list_id, current_user.id, item_id)
+
+
+@router.get("/{list_id}/supermarket", response_model=SupermarketView)
+async def get_supermarket_view(
+    list_id: int,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    svc = ListService(db)
+    sl = await svc.get_list(list_id, current_user.id)
+
+    # Group items by category, preserving insertion order within each group
+    groups: dict[str, list[ShoppingListItemRead]] = {}
+    for item in sl.items:
+        cat = item.product_category or "Sin categoría"
+        groups.setdefault(cat, []).append(item)
+
+    sorted_groups = [
+        SupermarketGroup(category=cat, items=items)
+        for cat, items in sorted(groups.items())
+    ]
+
+    return SupermarketView(
+        list_id=sl.id,
+        list_name=sl.name,
+        groups=sorted_groups,
+        total_items=len(sl.items),
+        checked_items=sum(1 for i in sl.items if i.is_checked),
+    )

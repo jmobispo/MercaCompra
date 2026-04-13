@@ -267,3 +267,81 @@ export interface AddToListResult {
   unresolved?: number;
   items: { name: string; quantity: number; price?: number | null; source?: string; resolved?: boolean }[];
 }
+
+// --- Spending / Purchase History ---
+
+export interface PurchaseHistory {
+  id: number;
+  user_id: number;
+  shopping_list_id: number | null;
+  list_name: string;
+  estimated_total: number;
+  item_count: number;
+  created_at: string;
+}
+
+export interface SpendingMetrics {
+  weekly_current: number;
+  weekly_previous: number;
+  weekly_variation: number;
+  monthly_current: number;
+  monthly_previous: number;
+  monthly_variation: number;
+  total_purchases: number;
+}
+
+export interface RecordPurchasePayload {
+  shopping_list_id?: number | null;
+  list_name: string;
+  estimated_total: number;
+  item_count: number;
+}
+
+// --- Pantry ---
+
+export interface PantryItem {
+  id: number;
+  user_id: number;
+  name: string;
+  product_id: string | null;
+  quantity: number;
+  unit: string | null;
+  expiry_date: string | null;
+  is_consumed: boolean;
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CreatePantryItemPayload {
+  name: string;
+  product_id?: string | null;
+  quantity?: number;
+  unit?: string | null;
+  expiry_date?: string | null;
+  notes?: string | null;
+}
+
+export interface UpdatePantryItemPayload {
+  name?: string;
+  quantity?: number;
+  unit?: string | null;
+  expiry_date?: string | null;
+  is_consumed?: boolean;
+  notes?: string | null;
+}
+
+// --- Supermarket mode ---
+
+export interface SupermarketGroup {
+  category: string;
+  items: ShoppingListItem[];
+}
+
+export interface SupermarketView {
+  list_id: number;
+  list_name: string;
+  groups: SupermarketGroup[];
+  total_items: number;
+  checked_items: number;
+}

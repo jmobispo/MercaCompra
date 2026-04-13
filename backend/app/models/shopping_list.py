@@ -18,6 +18,7 @@ class ShoppingList(Base):
     user = relationship("User", back_populates="shopping_lists")
     items = relationship("ShoppingListItem", back_populates="shopping_list", cascade="all, delete-orphan")
     automation_runs = relationship("AutomationRun", back_populates="shopping_list")
+    purchase_history = relationship("PurchaseHistory", back_populates="shopping_list")
 
 
 class ShoppingListItem(Base):

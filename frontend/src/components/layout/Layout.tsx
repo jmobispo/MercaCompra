@@ -8,6 +8,8 @@ const navItems = [
   { to: '/favorites', label: 'Favoritos', icon: '\u2B50' },
   { to: '/lists', label: 'Mis listas', icon: '\u{1F4CB}' },
   { to: '/recipes', label: 'Recetas', icon: '\u{1F37D}' },
+  { to: '/pantry', label: 'Despensa', icon: '\u{1F9FA}' },
+  { to: '/spending', label: 'Gasto', icon: '\u{1F4B0}' },
   { to: '/automation', label: 'Automatización', icon: '\u{1F916}' },
 ];
 
@@ -24,6 +26,9 @@ export default function Layout() {
     if (location.pathname === '/automation') return 'Automatización';
     if (location.pathname === '/recipes') return 'Recetas';
     if (location.pathname.startsWith('/recipes/')) return 'Detalle de receta';
+    if (location.pathname === '/pantry') return 'Despensa';
+    if (location.pathname === '/spending') return 'Control de gasto';
+    if (location.pathname.endsWith('/supermarket')) return 'Modo supermercado';
     return 'MercaCompra';
   };
 
