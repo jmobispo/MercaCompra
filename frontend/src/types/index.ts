@@ -3,6 +3,7 @@ export interface User {
   email: string;
   username: string;
   postal_code: string;
+  ui_mode: 'basic' | 'advanced';
   is_active: boolean;
   created_at: string;
 }
@@ -255,6 +256,7 @@ export interface AddToListPayload {
   list_id?: number | null;
   new_list_name?: string | null;
   servings_multiplier?: number;
+  selected_ingredient_ids?: number[] | null;
 }
 
 export interface AddToListResult {
@@ -344,4 +346,57 @@ export interface SupermarketView {
   groups: SupermarketGroup[];
   total_items: number;
   checked_items: number;
+}
+
+// --- Recipe pantry suggestions ---
+
+export interface PantryRecipeSuggestion {
+  recipe: RecipeSummary;
+  match_pct: number;
+  matched_count: number;
+  missing_count: number;
+  missing_ingredients: string[];
+}
+
+// --- Dashboard ---
+
+export interface RecentListData {
+  id: number;
+  name: string;
+  item_count: number;
+  total: number;
+  updated_at: string;
+}
+
+export interface SystemStatusData {
+  search_mode: string;
+  ai_mode: string;
+  postal_code: string;
+  bot_available: boolean;
+  demo_mode: boolean;
+}
+
+export interface DashboardData {
+  weekly_spending: number;
+  weekly_variation: number;
+  active_list_count: number;
+  total_pantry_items: number;
+  recipe_count: number;
+  favorite_count: number;
+  recent_list: RecentListData | null;
+  system_status: SystemStatusData;
+}
+
+// --- Demo ---
+
+export interface DemoStatus {
+  demo_mode: boolean;
+}
+
+export interface DemoSeedResult {
+  lists_created: number;
+  items_created: number;
+  pantry_items_created: number;
+  purchase_history_created: number;
+  message: string;
 }

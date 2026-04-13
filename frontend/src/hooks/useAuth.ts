@@ -35,7 +35,7 @@ export function useAuth() {
     return userData;
   };
 
-  const update = async (data: Partial<Pick<User, 'username' | 'postal_code'>>): Promise<User> => {
+  const update = async (data: Partial<Pick<User, 'username' | 'postal_code' | 'ui_mode'>>): Promise<User> => {
     const updated = await updateMe(data);
     setUser(updated);
     return updated;

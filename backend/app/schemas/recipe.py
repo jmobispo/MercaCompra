@@ -98,17 +98,27 @@ class RecipeSummary(BaseModel):
 
 class AddToListPayload(BaseModel):
     """Add recipe ingredients to an existing or new shopping list."""
-    list_id: Optional[int] = None           # existing list; creates new if None
-    new_list_name: Optional[str] = None     # name for new list (if list_id is None)
+    list_id: Optional[int] = None
+    new_list_name: Optional[str] = None
     servings_multiplier: float = Field(default=1.0, ge=0.1, le=10.0)
+    selected_ingredient_ids: Optional[List[int]] = None  # None = add all
 
 
 class AddToListResult(BaseModel):
     list_id: int
     list_name: str
-    added: int           # ingredients added as items
-    skipped: int         # ingredients that failed to add
-    items: List[dict]    # brief info on what was added
+    added: int
+    skipped: int
+    items: List[dict]
     resolved_real: int = 0
     resolved_fallback: int = 0
     unresolved: int = 0
+
+
+class PantryRecipeSuggestion(BaseModel):
+    """Recipe suggestion based on pantry contents."""
+    recipe: RecipeSummary
+    match_pct: float
+    matched_count: int
+    missing_count: int
+    missing_ingredients: List[str]

@@ -42,6 +42,9 @@ class Settings(BaseSettings):
     BOT_API_URL: str = "http://localhost:8001"
     BOT_TIMEOUT: int = 300  # seconds
 
+    # Demo mode — set DEMO_MODE=true to enable demo banner and seed endpoint
+    DEMO_MODE: bool = False
+
     # Logging
     LOG_LEVEL: str = "INFO"
 

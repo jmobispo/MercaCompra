@@ -32,7 +32,7 @@ export const getMe = async (): Promise<User> => {
   return response.data;
 };
 
-export const updateMe = async (data: Partial<Pick<User, 'username' | 'postal_code'>>): Promise<User> => {
+export const updateMe = async (data: Partial<Pick<User, 'username' | 'postal_code' | 'ui_mode'>>): Promise<User> => {
   const response = await apiClient.put<User>('/auth/me', data);
   return response.data;
 };

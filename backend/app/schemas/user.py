@@ -21,6 +21,7 @@ class UserRead(BaseModel):
     username: str
     is_active: bool
     postal_code: str
+    ui_mode: str = "advanced"
     created_at: datetime
 
     class Config:
@@ -31,6 +32,7 @@ class UserUpdate(BaseModel):
     username: Optional[str] = Field(None, min_length=3, max_length=50)
     postal_code: Optional[str] = Field(None, max_length=10)
     password: Optional[str] = Field(None, min_length=6)
+    ui_mode: Optional[str] = None  # 'basic' | 'advanced'
 
 
 class TokenResponse(BaseModel):

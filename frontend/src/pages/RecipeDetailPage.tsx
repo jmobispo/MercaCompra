@@ -262,6 +262,7 @@ export default function RecipeDetailPage() {
         <AddToListModal
           recipeTitle={recipe.title}
           defaultServings={recipe.servings}
+          ingredients={recipe.ingredients}
           onConfirm={handleAddToList}
           onCancel={() => setShowAddToList(false)}
         />

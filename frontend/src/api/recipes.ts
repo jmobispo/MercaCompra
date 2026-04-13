@@ -6,6 +6,7 @@ import type {
   UpdateRecipePayload,
   AddToListPayload,
   AddToListResult,
+  PantryRecipeSuggestion,
 } from '../types';
 
 export const getRecipes = async (): Promise<RecipeSummary[]> => {
@@ -42,5 +43,10 @@ export const addRecipeToList = async (
   payload: AddToListPayload
 ): Promise<AddToListResult> => {
   const r = await apiClient.post<AddToListResult>(`/recipes/${id}/add-to-list`, payload);
+  return r.data;
+};
+
+export const getPantryRecipeSuggestions = async (): Promise<PantryRecipeSuggestion[]> => {
+  const r = await apiClient.get<PantryRecipeSuggestion[]>('/recipes/suggestions/from-pantry');
   return r.data;
 };

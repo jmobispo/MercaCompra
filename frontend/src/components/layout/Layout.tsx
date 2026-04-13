@@ -2,7 +2,15 @@ import { NavLink, Outlet, useLocation } from 'react-router-dom';
 import Navbar from './Navbar';
 import { useAuth } from '../../hooks/useAuth';
 
-const navItems = [
+const basicNavItems = [
+  { to: '/dashboard', label: 'Inicio', icon: '\u{1F3E0}' },
+  { to: '/products', label: 'Catálogo', icon: '\u{1F96C}' },
+  { to: '/favorites', label: 'Favoritos', icon: '\u2B50' },
+  { to: '/lists', label: 'Mis listas', icon: '\u{1F4CB}' },
+  { to: '/recipes', label: 'Recetas', icon: '\u{1F37D}' },
+];
+
+const advancedNavItems = [
   { to: '/dashboard', label: 'Inicio', icon: '\u{1F3E0}' },
   { to: '/products', label: 'Catálogo', icon: '\u{1F96C}' },
   { to: '/favorites', label: 'Favoritos', icon: '\u2B50' },
@@ -14,8 +22,15 @@ const navItems = [
 ];
 
 export default function Layout() {
-  const { logout, user } = useAuth();
+  const { logout, user, update } = useAuth();
   const location = useLocation();
+  const isAdvanced = user?.ui_mode !== 'basic';
+  const navItems = isAdvanced ? advancedNavItems : basicNavItems;
+
+  const toggleMode = async () => {
+    if (!user) return;
+    await update({ ui_mode: isAdvanced ? 'basic' : 'advanced' });
+  };
 
   const getPageTitle = () => {
     if (location.pathname === '/dashboard') return 'Inicio';
@@ -54,6 +69,14 @@ export default function Layout() {
           ))}
         </nav>
         <div className="sidebar-footer">
+          <button
+            onClick={toggleMode}
+            title={isAdvanced ? 'Cambiar a modo básico' : 'Cambiar a modo avanzado'}
+            style={{ fontSize: 12, opacity: 0.7 }}
+          >
+            <span>{isAdvanced ? '\u{1F527}' : '\u2728'}</span>
+            {isAdvanced ? 'Modo avanzado' : 'Modo básico'}
+          </button>
           <button onClick={logout}>
             <span>{'\u{1F6AA}'}</span>
             Cerrar sesión
