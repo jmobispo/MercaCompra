@@ -1,47 +1,30 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { getLists } from '../api/lists';
-import { getRuns } from '../api/automation';
+import { getDashboard } from '../api/dashboard';
 import { useAuthStore } from '../store/authStore';
-import type { ShoppingListSummary, AutomationRun } from '../types';
+import type { DashboardData } from '../types';
 
 export default function DashboardPage() {
   const user = useAuthStore((s) => s.user);
-  const [lists, setLists] = useState<ShoppingListSummary[]>([]);
-  const [runs, setRuns] = useState<AutomationRun[]>([]);
+  const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
   useEffect(() => {
-    const fetchData = async () => {
-      setLoading(true);
-      try {
-        const [listsData, runsData] = await Promise.all([getLists(), getRuns()]);
-        setLists(listsData);
-        setRuns(runsData);
-      } catch {
-        setError('Error al cargar los datos');
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchData();
+    getDashboard()
+      .then(setData)
+      .catch(() => setError('Error al cargar el panel'))
+      .finally(() => setLoading(false));
   }, []);
 
-  const activeLists = lists.filter((l) => !l.is_archived);
-  const totalItems = lists.reduce((sum, l) => sum + l.item_count, 0);
-  const totalSpend = lists.reduce((sum, l) => sum + l.total, 0);
-  const recentRuns = runs.slice(0, 5);
-
-  const formatCurrency = (val: number) =>
+  const fmt = (val: number) =>
     val.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' });
 
-  const formatDate = (iso: string) =>
-    new Date(iso).toLocaleDateString('es-ES', {
-      day: '2-digit',
-      month: 'short',
-      year: 'numeric',
-    });
+  const fmtDate = (iso: string) =>
+    new Date(iso).toLocaleDateString('es-ES', { day: '2-digit', month: 'short', year: 'numeric' });
+
+  const variationColor = (v: number) =>
+    v > 0 ? 'var(--color-danger, #ef4444)' : v < 0 ? 'var(--color-success, #22c55e)' : 'inherit';
 
   if (loading) {
     return (
@@ -64,129 +47,128 @@ export default function DashboardPage() {
         </Link>
       </div>
 
-      {error && <div className="alert alert-error">{error}</div>}
+      {error && <div className="alert alert-error" style={{ marginBottom: 16 }}>{error}</div>}
 
-      <div className="stats-grid">
-        <div className="stat-card accent">
-          <div className="stat-icon">📋</div>
-          <div className="stat-label">Listas activas</div>
-          <div className="stat-value">{activeLists.length}</div>
-        </div>
-        <div className="stat-card">
-          <div className="stat-icon">🛒</div>
-          <div className="stat-label">Total artículos</div>
-          <div className="stat-value">{totalItems}</div>
-        </div>
-        <div className="stat-card">
-          <div className="stat-icon">💰</div>
-          <div className="stat-label">Gasto total</div>
-          <div className="stat-value" style={{ fontSize: 20 }}>{formatCurrency(totalSpend)}</div>
-        </div>
-        <div className="stat-card">
-          <div className="stat-icon">🤖</div>
-          <div className="stat-label">Automatizaciones</div>
-          <div className="stat-value">{runs.length}</div>
-        </div>
-      </div>
-
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
-        {/* Recent Lists */}
-        <div className="card">
-          <div className="card-header">
-            <h2>Listas recientes</h2>
-            <Link to="/lists" className="btn btn-ghost btn-sm">Ver todas</Link>
+      {data && (
+        <>
+          {/* KPI row */}
+          <div className="stats-grid">
+            <div className="stat-card accent">
+              <div className="stat-icon">💸</div>
+              <div className="stat-label">Gasto esta semana</div>
+              <div className="stat-value" style={{ fontSize: 20 }}>{fmt(data.weekly_spending)}</div>
+              {data.weekly_variation !== 0 && (
+                <div style={{ fontSize: 12, color: variationColor(data.weekly_variation), marginTop: 4 }}>
+                  {data.weekly_variation > 0 ? '▲' : '▼'} {Math.abs(data.weekly_variation).toFixed(1)}% vs semana anterior
+                </div>
+              )}
+            </div>
+            <div className="stat-card">
+              <div className="stat-icon">📋</div>
+              <div className="stat-label">Listas activas</div>
+              <div className="stat-value">{data.active_list_count}</div>
+            </div>
+            <div className="stat-card">
+              <div className="stat-icon">🧺</div>
+              <div className="stat-label">Artículos en despensa</div>
+              <div className="stat-value">{data.total_pantry_items}</div>
+            </div>
+            <div className="stat-card">
+              <div className="stat-icon">🍳</div>
+              <div className="stat-label">Recetas</div>
+              <div className="stat-value">{data.recipe_count}</div>
+            </div>
           </div>
-          <div className="card-body" style={{ padding: 0 }}>
-            {activeLists.length === 0 ? (
-              <div className="empty-state">
-                <div className="empty-icon">📋</div>
-                <p>No tienes listas aún</p>
-                <Link to="/lists" className="btn btn-primary btn-sm" style={{ marginTop: 12 }}>
-                  Crear primera lista
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 20 }}>
+            {/* Recent list */}
+            <div className="card">
+              <div className="card-header">
+                <h2>Lista reciente</h2>
+                <Link to="/lists" className="btn btn-ghost btn-sm">Ver todas</Link>
+              </div>
+              <div className="card-body">
+                {data.recent_list ? (
+                  <Link
+                    to={`/lists/${data.recent_list.id}`}
+                    style={{ textDecoration: 'none', color: 'inherit', display: 'block' }}
+                  >
+                    <div style={{ fontWeight: 600, marginBottom: 4 }}>{data.recent_list.name}</div>
+                    <div style={{ fontSize: 13, color: 'var(--color-text-muted)', marginBottom: 8 }}>
+                      {data.recent_list.item_count} artículos · {fmtDate(data.recent_list.updated_at)}
+                    </div>
+                    <div style={{ fontWeight: 700, color: 'var(--color-primary)', fontSize: 18 }}>
+                      {fmt(data.recent_list.total)}
+                    </div>
+                  </Link>
+                ) : (
+                  <div className="empty-state" style={{ padding: '16px 0' }}>
+                    <p style={{ marginBottom: 12 }}>No tienes listas aún</p>
+                    <Link to="/lists" className="btn btn-primary btn-sm">Crear primera lista</Link>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Quick links */}
+            <div className="card">
+              <div className="card-header">
+                <h2>Accesos rápidos</h2>
+              </div>
+              <div className="card-body" style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                <Link to="/products" className="btn btn-secondary" style={{ justifyContent: 'flex-start' }}>
+                  🥦 Buscar productos
+                </Link>
+                <Link to="/recipes" className="btn btn-secondary" style={{ justifyContent: 'flex-start' }}>
+                  🍳 Mis recetas
+                </Link>
+                <Link to="/pantry" className="btn btn-secondary" style={{ justifyContent: 'flex-start' }}>
+                  🧺 Gestionar despensa
+                </Link>
+                <Link to="/spending" className="btn btn-secondary" style={{ justifyContent: 'flex-start' }}>
+                  📊 Control de gasto
                 </Link>
               </div>
-            ) : (
-              <div>
-                {activeLists.slice(0, 5).map((list) => (
-                  <Link
-                    key={list.id}
-                    to={`/lists/${list.id}`}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      padding: '12px 20px',
-                      borderBottom: '1px solid var(--color-border)',
-                      textDecoration: 'none',
-                      color: 'inherit',
-                      transition: 'background 0.2s',
-                    }}
-                    onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--color-bg)')}
-                    onMouseLeave={(e) => (e.currentTarget.style.background = '')}
-                  >
-                    <div>
-                      <div style={{ fontWeight: 600, fontSize: 14 }}>{list.name}</div>
-                      <div style={{ fontSize: 12, color: 'var(--color-text-muted)' }}>
-                        {list.item_count} artículos · {formatDate(list.updated_at)}
-                      </div>
-                    </div>
-                    <div style={{ fontWeight: 600, color: 'var(--color-primary)' }}>
-                      {formatCurrency(list.total)}
-                    </div>
-                  </Link>
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
+            </div>
 
-        {/* Recent Runs */}
-        <div className="card">
-          <div className="card-header">
-            <h2>Automatizaciones recientes</h2>
-            <Link to="/automation" className="btn btn-ghost btn-sm">Ver todas</Link>
-          </div>
-          <div className="card-body" style={{ padding: 0 }}>
-            {recentRuns.length === 0 ? (
-              <div className="empty-state">
-                <div className="empty-icon">🤖</div>
-                <p>No hay ejecuciones aún</p>
+            {/* System status */}
+            <div className="card">
+              <div className="card-header">
+                <h2>Estado del sistema</h2>
               </div>
-            ) : (
-              <div>
-                {recentRuns.map((run) => (
-                  <Link
-                    key={run.id}
-                    to="/automation"
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      padding: '12px 20px',
-                      borderBottom: '1px solid var(--color-border)',
-                      textDecoration: 'none',
-                      color: 'inherit',
-                      transition: 'background 0.2s',
-                    }}
-                    onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--color-bg)')}
-                    onMouseLeave={(e) => (e.currentTarget.style.background = '')}
-                  >
-                    <div>
-                      <div style={{ fontWeight: 600, fontSize: 14 }}>
-                        Ejecución #{run.id}
-                      </div>
-                      <div style={{ fontSize: 12, color: 'var(--color-text-muted)' }}>
-                        {run.added_ok}/{run.total_items} añadidos · {formatDate(run.created_at)}
-                      </div>
-                    </div>
-                    <span className={`run-status ${run.status}`}>{run.status}</span>
-                  </Link>
-                ))}
+              <div className="card-body" style={{ fontSize: 14 }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  <StatusRow label="Búsqueda" value={data.system_status.search_mode} />
+                  <StatusRow label="IA (recetas)" value={data.system_status.ai_mode} />
+                  <StatusRow label="Código postal" value={data.system_status.postal_code} />
+                  <StatusRow
+                    label="Bot Mercadona"
+                    value={data.system_status.bot_available ? 'Disponible' : 'No disponible'}
+                    ok={data.system_status.bot_available}
+                  />
+                  {data.system_status.demo_mode && (
+                    <StatusRow label="Modo demo" value="Activo" ok={true} />
+                  )}
+                </div>
               </div>
-            )}
+            </div>
           </div>
-        </div>
-      </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+function StatusRow({ label, value, ok }: { label: string; value: string; ok?: boolean }) {
+  return (
+    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+      <span style={{ color: 'var(--color-text-muted)' }}>{label}</span>
+      <span style={{
+        fontWeight: 500,
+        color: ok === true ? 'var(--color-success, #22c55e)' : ok === false ? 'var(--color-danger, #ef4444)' : 'inherit',
+      }}>
+        {value}
+      </span>
     </div>
   );
 }

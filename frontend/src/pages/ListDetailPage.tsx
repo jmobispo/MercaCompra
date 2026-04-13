@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, Link } from 'react-router-dom';
 import {
   getList,
   updateList,
@@ -215,6 +215,13 @@ export default function ListDetailPage() {
         )}
 
         <div className="actions-row" style={{ marginLeft: 'auto' }}>
+          <Link
+            to={`/lists/${listId}/supermarket`}
+            className="btn btn-primary btn-sm"
+            title="Vista optimizada para tienda"
+          >
+            🛒 Supermercado
+          </Link>
           <button
             className="btn btn-secondary btn-sm"
             onClick={() => setShowEditModal(true)}

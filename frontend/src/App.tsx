@@ -1,5 +1,6 @@
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import Layout from './components/layout/Layout';
+import DemoBanner from './components/DemoBanner';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
 import DashboardPage from './pages/DashboardPage';
@@ -10,6 +11,9 @@ import RecipesPage from './pages/RecipesPage';
 import RecipeDetailPage from './pages/RecipeDetailPage';
 import ProductsPage from './pages/ProductsPage';
 import FavoritesPage from './pages/FavoritesPage';
+import SupermarketModePage from './pages/SupermarketModePage';
+import SpendingPage from './pages/SpendingPage';
+import PantryPage from './pages/PantryPage';
 import { useAuthStore } from './store/authStore';
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
@@ -31,6 +35,7 @@ function PublicRoute({ children }: { children: React.ReactNode }) {
 export default function App() {
   return (
     <BrowserRouter>
+      <DemoBanner />
       <Routes>
         <Route
           path="/login"
@@ -65,6 +70,9 @@ export default function App() {
           <Route path="automation" element={<AutomationPage />} />
           <Route path="recipes" element={<RecipesPage />} />
           <Route path="recipes/:id" element={<RecipeDetailPage />} />
+          <Route path="lists/:id/supermarket" element={<SupermarketModePage />} />
+          <Route path="spending" element={<SpendingPage />} />
+          <Route path="pantry" element={<PantryPage />} />
         </Route>
         <Route path="*" element={<Navigate to="/dashboard" replace />} />
       </Routes>

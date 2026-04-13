@@ -3,6 +3,7 @@ export interface User {
   email: string;
   username: string;
   postal_code: string;
+  ui_mode: 'basic' | 'advanced';
   is_active: boolean;
   created_at: string;
 }
@@ -255,6 +256,7 @@ export interface AddToListPayload {
   list_id?: number | null;
   new_list_name?: string | null;
   servings_multiplier?: number;
+  selected_ingredient_ids?: number[] | null;
 }
 
 export interface AddToListResult {
@@ -266,4 +268,135 @@ export interface AddToListResult {
   resolved_fallback?: number;
   unresolved?: number;
   items: { name: string; quantity: number; price?: number | null; source?: string; resolved?: boolean }[];
+}
+
+// --- Spending / Purchase History ---
+
+export interface PurchaseHistory {
+  id: number;
+  user_id: number;
+  shopping_list_id: number | null;
+  list_name: string;
+  estimated_total: number;
+  item_count: number;
+  created_at: string;
+}
+
+export interface SpendingMetrics {
+  weekly_current: number;
+  weekly_previous: number;
+  weekly_variation: number;
+  monthly_current: number;
+  monthly_previous: number;
+  monthly_variation: number;
+  total_purchases: number;
+}
+
+export interface RecordPurchasePayload {
+  shopping_list_id?: number | null;
+  list_name: string;
+  estimated_total: number;
+  item_count: number;
+}
+
+// --- Pantry ---
+
+export interface PantryItem {
+  id: number;
+  user_id: number;
+  name: string;
+  product_id: string | null;
+  quantity: number;
+  unit: string | null;
+  expiry_date: string | null;
+  is_consumed: boolean;
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CreatePantryItemPayload {
+  name: string;
+  product_id?: string | null;
+  quantity?: number;
+  unit?: string | null;
+  expiry_date?: string | null;
+  notes?: string | null;
+}
+
+export interface UpdatePantryItemPayload {
+  name?: string;
+  quantity?: number;
+  unit?: string | null;
+  expiry_date?: string | null;
+  is_consumed?: boolean;
+  notes?: string | null;
+}
+
+// --- Supermarket mode ---
+
+export interface SupermarketGroup {
+  category: string;
+  items: ShoppingListItem[];
+}
+
+export interface SupermarketView {
+  list_id: number;
+  list_name: string;
+  groups: SupermarketGroup[];
+  total_items: number;
+  checked_items: number;
+}
+
+// --- Recipe pantry suggestions ---
+
+export interface PantryRecipeSuggestion {
+  recipe: RecipeSummary;
+  match_pct: number;
+  matched_count: number;
+  missing_count: number;
+  missing_ingredients: string[];
+}
+
+// --- Dashboard ---
+
+export interface RecentListData {
+  id: number;
+  name: string;
+  item_count: number;
+  total: number;
+  updated_at: string;
+}
+
+export interface SystemStatusData {
+  search_mode: string;
+  ai_mode: string;
+  postal_code: string;
+  bot_available: boolean;
+  demo_mode: boolean;
+}
+
+export interface DashboardData {
+  weekly_spending: number;
+  weekly_variation: number;
+  active_list_count: number;
+  total_pantry_items: number;
+  recipe_count: number;
+  favorite_count: number;
+  recent_list: RecentListData | null;
+  system_status: SystemStatusData;
+}
+
+// --- Demo ---
+
+export interface DemoStatus {
+  demo_mode: boolean;
+}
+
+export interface DemoSeedResult {
+  lists_created: number;
+  items_created: number;
+  pantry_items_created: number;
+  purchase_history_created: number;
+  message: string;
 }

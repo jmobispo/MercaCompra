@@ -9,7 +9,7 @@ from app.db.session import engine
 # Import all models so Alembic sees them
 import app.models  # noqa: F401
 
-from app.api import auth, lists, products, automation, recipes, favorites, mercadona
+from app.api import auth, lists, products, automation, recipes, favorites, mercadona, spending, pantry, dashboard, demo
 
 settings = get_settings()
 
@@ -46,6 +46,10 @@ app.include_router(mercadona.router, prefix=API_PREFIX)
 app.include_router(favorites.router, prefix=API_PREFIX)
 app.include_router(automation.router, prefix=API_PREFIX)
 app.include_router(recipes.router, prefix=API_PREFIX)
+app.include_router(spending.router, prefix=API_PREFIX)
+app.include_router(pantry.router, prefix=API_PREFIX)
+app.include_router(dashboard.router, prefix=API_PREFIX)
+app.include_router(demo.router, prefix=API_PREFIX)
 
 
 @app.get("/")

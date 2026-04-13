@@ -11,12 +11,13 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from app.models.pantry import PantryItem
 from app.models.recipe import Recipe, RecipeIngredient
 from app.models.shopping_list import ShoppingList, ShoppingListItem
 from app.models.user import User
 from app.schemas.recipe import (
     RecipeCreate, RecipeUpdate, RecipeRead, RecipeSummary,
-    AddToListPayload, AddToListResult,
+    AddToListPayload, AddToListResult, PantryRecipeSuggestion,
 )
 from app.services.product_service import ProductService
 
@@ -501,7 +502,13 @@ class RecipeService:
         resolved_fallback = 0
         unresolved = 0
 
-        for ing in recipe.ingredients:
+        # Filter ingredients if caller specified a selection
+        ingredients_to_add = recipe.ingredients
+        if payload.selected_ingredient_ids is not None:
+            id_set = set(payload.selected_ingredient_ids)
+            ingredients_to_add = [i for i in recipe.ingredients if i.id in id_set]
+
+        for ing in ingredients_to_add:
             try:
                 product = await self._resolve_product_for_ingredient(ing, postal_code)
                 product_id = product.id if product else f"recipe_{recipe.id}_ing_{ing.id}"
@@ -575,6 +582,71 @@ class RecipeService:
             resolved_fallback=resolved_fallback,
             unresolved=unresolved,
         )
+
+    # ── Pantry suggestions ────────────────────────────────────────────────────
+
+    async def from_pantry_suggestions(self, user_id: int) -> list[PantryRecipeSuggestion]:
+        """Return recipes the user can cook based on their pantry items."""
+        pantry_result = await self.db.execute(
+            select(PantryItem).where(
+                PantryItem.user_id == user_id,
+                PantryItem.is_consumed == False,
+            )
+        )
+        pantry_items = pantry_result.scalars().all()
+        if not pantry_items:
+            return []
+
+        pantry_names = [item.name.lower().strip() for item in pantry_items]
+
+        await self.ensure_seeds()
+        recipe_result = await self.db.execute(
+            select(Recipe)
+            .where((Recipe.user_id == user_id) | (Recipe.is_public == True))
+            .options(selectinload(Recipe.ingredients))
+        )
+        recipes = recipe_result.scalars().all()
+
+        suggestions: list[PantryRecipeSuggestion] = []
+        for recipe in recipes:
+            if not recipe.ingredients:
+                continue
+
+            matched: list[str] = []
+            missing: list[str] = []
+            for ing in recipe.ingredients:
+                if _ingredient_in_pantry(ing.name, pantry_names):
+                    matched.append(ing.name)
+                else:
+                    missing.append(ing.name)
+
+            match_pct = len(matched) / len(recipe.ingredients) * 100
+            if match_pct > 0:
+                suggestions.append(
+                    PantryRecipeSuggestion(
+                        recipe=self._to_summary(recipe),
+                        match_pct=round(match_pct, 1),
+                        matched_count=len(matched),
+                        missing_count=len(missing),
+                        missing_ingredients=missing[:5],
+                    )
+                )
+
+        suggestions.sort(key=lambda s: (-s.match_pct, s.missing_count))
+        return suggestions[:12]
+
+
+def _ingredient_in_pantry(ingredient_name: str, pantry_names: list[str]) -> bool:
+    """Check if an ingredient is covered by any pantry item via substring or token overlap."""
+    ing_lower = ingredient_name.lower().strip()
+    ing_tokens = set(ing_lower.split())
+    for pname in pantry_names:
+        if ing_lower in pname or pname in ing_lower:
+            return True
+        pan_tokens = set(pname.split())
+        if ing_tokens & pan_tokens:
+            return True
+    return False
 
 
 def _infer_cart_quantity(ing: RecipeIngredient, servings_multiplier: float) -> int:

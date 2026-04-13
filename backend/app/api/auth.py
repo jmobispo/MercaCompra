@@ -46,6 +46,8 @@ async def update_me(
         updates["postal_code"] = data.postal_code
     if data.password:
         updates["hashed_password"] = hash_password(data.password)
+    if data.ui_mode in ("basic", "advanced"):
+        updates["ui_mode"] = data.ui_mode
 
     updated = await repo.update(current_user, **updates)
     return UserRead.model_validate(updated)

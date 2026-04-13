@@ -11,6 +11,13 @@ Aplicación full-stack para gestión de listas de la compra con automatización 
 - Sugerencias inteligentes (heurísticas, sin IA de pago)
 - Bot Playwright para automatizar la compra en Mercadona
 - Resultados de automatización persistidos y consultables
+- **Modo supermercado** — vista agrupada por categoría para hacer la compra in-situ
+- **Gestión de despensa** — inventario con fechas de caducidad y control de consumo
+- **Control de gasto** — historial de compras con métricas semanales y mensuales
+- **Recetas avanzadas** — checklist de ingredientes y sugerencias desde la despensa
+- **Panel de control** — resumen de gasto, listas, despensa, recetas y estado del sistema
+- **Modo básico/avanzado** — la interfaz se adapta al nivel del usuario (toggle en sidebar)
+- **Modo demo** — flag `DEMO_MODE` + endpoint para poblar datos de ejemplo
 - Funciona sin ninguna API de pago (IA opcional con Claude)
 
 ## Stack
@@ -85,6 +92,7 @@ API docs: http://localhost:8000/docs
 | `AI_MODE` | `heuristics` | Modo IA: heuristics / local_free / claude_optional |
 | `ANTHROPIC_API_KEY` | vacío | Solo si AI_MODE=claude_optional |
 | `CORS_ORIGINS` | localhost | Orígenes permitidos |
+| `DEMO_MODE` | `false` | Activa el banner demo y endpoint `/demo/seed` |
 
 Ver `backend/.env.example` para la lista completa.
 

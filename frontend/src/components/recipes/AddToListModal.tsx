@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react';
 import { getLists } from '../../api/lists';
-import type { ShoppingListSummary, AddToListPayload } from '../../types';
+import type { ShoppingListSummary, AddToListPayload, RecipeIngredient } from '../../types';
 
 interface AddToListModalProps {
   recipeTitle: string;
   defaultServings: number;
+  ingredients?: RecipeIngredient[];
   onConfirm: (payload: AddToListPayload) => Promise<void>;
   onCancel: () => void;
 }
@@ -12,6 +13,7 @@ interface AddToListModalProps {
 export default function AddToListModal({
   recipeTitle,
   defaultServings,
+  ingredients,
   onConfirm,
   onCancel,
 }: AddToListModalProps) {
@@ -20,6 +22,7 @@ export default function AddToListModal({
   const [selectedListId, setSelectedListId] = useState<number | null>(null);
   const [newListName, setNewListName] = useState(`Lista: ${recipeTitle}`);
   const [multiplier, setMultiplier] = useState(1.0);
+  const [selectedIds, setSelectedIds] = useState<Set<number> | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -34,6 +37,33 @@ export default function AddToListModal({
       .catch(() => setMode('new'));
   }, []);
 
+  useEffect(() => {
+    if (ingredients && ingredients.length > 0) {
+      setSelectedIds(new Set(ingredients.map((i) => i.id)));
+    }
+  }, [ingredients]);
+
+  const toggleIngredient = (id: number) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev ?? []);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const toggleAll = () => {
+    if (!ingredients) return;
+    if (selectedIds && selectedIds.size === ingredients.length) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(ingredients.map((i) => i.id)));
+    }
+  };
+
+  const allSelected = ingredients ? (selectedIds?.size ?? 0) === ingredients.length : true;
+  const noneSelected = ingredients ? (selectedIds?.size ?? 0) === 0 : false;
+
   const handleConfirm = async () => {
     setLoading(true);
     setError('');
@@ -42,6 +72,7 @@ export default function AddToListModal({
         list_id: mode === 'existing' ? selectedListId : null,
         new_list_name: mode === 'new' ? newListName.trim() : null,
         servings_multiplier: multiplier,
+        selected_ingredient_ids: selectedIds !== null ? Array.from(selectedIds) : null,
       };
       await onConfirm(payload);
     } catch {
@@ -50,6 +81,8 @@ export default function AddToListModal({
       setLoading(false);
     }
   };
+
+  const selectedCount = selectedIds?.size ?? ingredients?.length ?? 0;
 
   return (
     <div className="modal-overlay" onClick={(e) => e.target === e.currentTarget && onCancel()}>
@@ -82,6 +115,61 @@ export default function AddToListModal({
               </span>
             </div>
           </div>
+
+          {/* Ingredient checklist */}
+          {ingredients && ingredients.length > 0 && (
+            <div className="form-group">
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                <label className="form-label" style={{ margin: 0 }}>
+                  Ingredientes ({selectedCount}/{ingredients.length})
+                </label>
+                <button type="button" className="btn btn-ghost btn-sm" onClick={toggleAll}>
+                  {allSelected ? 'Deseleccionar todo' : 'Seleccionar todo'}
+                </button>
+              </div>
+              <div style={{
+                maxHeight: 200,
+                overflowY: 'auto',
+                border: '1px solid var(--border-color, #e2e8f0)',
+                borderRadius: 6,
+                padding: '4px 0',
+              }}>
+                {ingredients.map((ing) => {
+                  const checked = selectedIds?.has(ing.id) ?? true;
+                  const scaledQty = ing.quantity !== null
+                    ? Math.round(ing.quantity * multiplier * 100) / 100
+                    : null;
+                  return (
+                    <label
+                      key={ing.id}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 8,
+                        padding: '6px 12px',
+                        cursor: 'pointer',
+                        opacity: checked ? 1 : 0.45,
+                        transition: 'opacity 0.15s',
+                      }}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={checked}
+                        onChange={() => toggleIngredient(ing.id)}
+                        style={{ flexShrink: 0 }}
+                      />
+                      <span style={{ flex: 1, fontSize: 14 }}>{ing.name}</span>
+                      {scaledQty !== null && (
+                        <span style={{ fontSize: 13, color: 'var(--text-secondary, #64748b)', whiteSpace: 'nowrap' }}>
+                          {scaledQty} {ing.unit ?? ''}
+                        </span>
+                      )}
+                    </label>
+                  );
+                })}
+              </div>
+            </div>
+          )}
 
           {/* Destination list */}
           <div className="form-group">
@@ -134,8 +222,10 @@ export default function AddToListModal({
           <button className="btn btn-secondary" onClick={onCancel} disabled={loading}>
             Cancelar
           </button>
-          <button className="btn btn-primary" onClick={handleConfirm} disabled={loading}>
-            {loading ? 'Añadiendo…' : 'Añadir ingredientes'}
+          <button className="btn btn-primary" onClick={handleConfirm} disabled={loading || noneSelected}>
+            {loading ? 'Añadiendo…' : ingredients
+              ? `Añadir (${selectedCount}) ingredientes`
+              : 'Añadir ingredientes'}
           </button>
         </div>
       </div>

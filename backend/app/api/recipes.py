@@ -8,10 +8,20 @@ from app.models.user import User
 from app.services.recipe_service import RecipeService
 from app.schemas.recipe import (
     RecipeCreate, RecipeUpdate, RecipeRead, RecipeSummary,
-    AddToListPayload, AddToListResult,
+    AddToListPayload, AddToListResult, PantryRecipeSuggestion,
 )
 
 router = APIRouter(prefix="/recipes", tags=["recipes"])
+
+
+@router.get("/suggestions/from-pantry", response_model=List[PantryRecipeSuggestion])
+async def pantry_suggestions(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Return recipes the user can cook based on current pantry contents."""
+    svc = RecipeService(db)
+    return await svc.from_pantry_suggestions(current_user.id)
 
 
 @router.get("", response_model=List[RecipeSummary])

@@ -6,6 +6,7 @@ import type {
   UpdateListPayload,
   AddItemPayload,
   UpdateItemPayload,
+  SupermarketView,
 } from '../types';
 
 export const getLists = async (): Promise<ShoppingListSummary[]> => {
@@ -53,4 +54,9 @@ export const updateItem = async (
 
 export const deleteItem = async (listId: number, itemId: number): Promise<void> => {
   await apiClient.delete(`/lists/${listId}/items/${itemId}`);
+};
+
+export const getSupermarketView = async (listId: number): Promise<SupermarketView> => {
+  const response = await apiClient.get<SupermarketView>(`/lists/${listId}/supermarket`);
+  return response.data;
 };
