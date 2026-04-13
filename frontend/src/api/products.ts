@@ -1,5 +1,5 @@
 import apiClient from './client';
-import type { ProductSearchResult, Category } from '../types';
+import type { ProductSearchResult, CategoryTreeResponse, CategoryProductsResponse } from '../types';
 
 export const searchProducts = async (
   q: string,
@@ -11,8 +11,22 @@ export const searchProducts = async (
   return response.data;
 };
 
-export const getCategories = async (): Promise<Category[]> => {
-  const response = await apiClient.get<Category[]>('/products/categories');
+export const getCategories = async (
+  postal_code?: string
+): Promise<CategoryTreeResponse> => {
+  const response = await apiClient.get<CategoryTreeResponse>('/products/categories', {
+    params: postal_code ? { postal_code } : undefined,
+  });
+  return response.data;
+};
+
+export const getProductsByCategory = async (
+  categoryId: string,
+  postal_code?: string
+): Promise<CategoryProductsResponse> => {
+  const response = await apiClient.get<CategoryProductsResponse>(`/products/by-category/${categoryId}`, {
+    params: postal_code ? { postal_code } : undefined,
+  });
   return response.data;
 };
 

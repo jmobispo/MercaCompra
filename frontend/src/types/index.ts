@@ -44,13 +44,18 @@ export interface ShoppingList {
 
 export interface Product {
   id: string;
+  external_id?: string | null;
   name: string;
   display_name: string | null;
   price: number | null;
   unit_size: string | null;
   category: string | null;
+  subcategory?: string | null;
   thumbnail: string | null;
+  image?: string | null;
   source: string;
+  postal_code?: string | null;
+  warehouse?: string | null;
 }
 
 export interface ProductSearchResult {
@@ -59,6 +64,8 @@ export interface ProductSearchResult {
   query: string;
   source: 'mercadona_api' | 'fallback' | 'none';
   error: string | null;
+  warehouse?: string | null;
+  postal_code?: string | null;
 }
 
 export interface AutomationRun {
@@ -133,7 +140,43 @@ export interface LaunchAutomationPayload {
 export interface Category {
   id: string;
   name: string;
+  product_count?: number;
   children?: Category[];
+}
+
+export interface CategoryTreeResponse {
+  categories: Category[];
+  source: 'mercadona_api' | 'fallback' | 'none';
+  error: string | null;
+  warehouse?: string | null;
+  postal_code?: string | null;
+}
+
+export interface CategoryProductsResponse {
+  category_id: string;
+  category_name: string | null;
+  products: Product[];
+  total: number;
+  source: 'mercadona_api' | 'fallback' | 'none';
+  error: string | null;
+  warehouse?: string | null;
+  postal_code?: string | null;
+}
+
+export interface FavoriteProduct {
+  id: number;
+  user_id: number;
+  product_id: string;
+  external_id?: string | null;
+  product_name: string;
+  product_price: number | null;
+  product_unit: string | null;
+  product_thumbnail: string | null;
+  product_image: string | null;
+  product_category: string | null;
+  product_subcategory: string | null;
+  source: string;
+  created_at: string;
 }
 
 // ── Recipes ──────────────────────────────────────────────────────────────────
@@ -221,5 +264,8 @@ export interface AddToListResult {
   list_name: string;
   added: number;
   skipped: number;
-  items: { name: string; quantity: number }[];
+  resolved_real: number;
+  resolved_fallback: number;
+  unresolved: number;
+  items: { name: string; quantity: number; price?: number | null; source?: string; resolved?: boolean }[];
 }

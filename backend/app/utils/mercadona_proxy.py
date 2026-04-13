@@ -8,6 +8,7 @@ PRODUCT_SEARCH_MODE:
   hybrid     — intenta Mercadona; si devuelve 0 resultados o falla, usa catálogo local
 """
 import asyncio
+import base64
 import logging
 import re
 import time
@@ -52,6 +53,9 @@ PRIORITY_CATEGORIES = [
 # ─── Fallback catalog (loaded once) ──────────────────────────────────────────
 _FALLBACK_CATALOG: Optional[List[Dict]] = None
 _FALLBACK_CATALOG_PATH = Path(__file__).parent.parent.parent.parent.parent / "data" / "catalog" / "fallback.json"
+_SEARCH_CACHE: Dict[str, tuple[float, List[Dict]]] = {}
+_SEARCH_CACHE_TTL_SECONDS = 300
+_DIRECT_SEARCH_AVAILABLE: Optional[bool] = None
 
 
 def _load_fallback_catalog() -> List[Dict]:
@@ -78,6 +82,27 @@ def _load_fallback_catalog() -> List[Dict]:
     logger.warning("No fallback catalog found; searches may return empty when Mercadona API is unavailable")
     _FALLBACK_CATALOG = []
     return _FALLBACK_CATALOG
+
+
+def _cache_key(query: str, postal_code: str, limit: int, mode: str) -> str:
+    return f"{mode}|{postal_code}|{limit}|{query.strip().lower()}"
+
+
+def _get_cached_search(cache_key: str) -> Optional[List[Dict]]:
+    cached = _SEARCH_CACHE.get(cache_key)
+    if not cached:
+        return None
+
+    ts, items = cached
+    if time.time() - ts > _SEARCH_CACHE_TTL_SECONDS:
+        _SEARCH_CACHE.pop(cache_key, None)
+        return None
+
+    return [dict(item) for item in items]
+
+
+def _set_cached_search(cache_key: str, items: List[Dict]) -> None:
+    _SEARCH_CACHE[cache_key] = (time.time(), [dict(item) for item in items])
 
 
 def search_fallback_catalog(query: str, limit: int = 30) -> List[Dict]:
@@ -119,20 +144,95 @@ def get_warehouse(postal_code: str) -> str:
     return WAREHOUSES.get(prefix, "mad1")
 
 
+def _extract_categories(raw: Dict[str, Any]) -> tuple[Optional[str], Optional[str]]:
+    categories = raw.get("categories")
+    if not isinstance(categories, list) or not categories:
+        return raw.get("category"), raw.get("subcategory")
+
+    names: list[str] = []
+    current = categories[0]
+    while isinstance(current, dict):
+        name = current.get("name")
+        if name:
+            names.append(name)
+        children = current.get("categories")
+        if isinstance(children, list) and children:
+            current = children[0]
+            continue
+        break
+
+    category = names[0] if names else raw.get("category")
+    subcategory = names[-1] if len(names) > 1 else raw.get("subcategory")
+    return category, subcategory
+
+
 def _normalize_product(raw: Dict[str, Any], category: Optional[str] = None) -> Dict[str, Any]:
     price_info = raw.get("price_instructions") or {}
+    normalized_category, normalized_subcategory = _extract_categories(raw)
+    thumbnail = _extract_thumbnail(raw)
+    unit_price = price_info.get("unit_price") or price_info.get("bulk_price") or raw.get("price")
     return {
         "id": str(raw.get("id", "")),
+        "external_id": str(raw.get("objectID") or raw.get("id", "")),
         "name": raw.get("display_name") or raw.get("name") or "",
         "display_name": raw.get("display_name"),
-        "price": price_info.get("unit_price") or price_info.get("bulk_price") or raw.get("price"),
+        "price": unit_price,
         "unit_size": price_info.get("unit_size") or raw.get("format"),
-        "category": category,
-        "thumbnail": raw.get("thumbnail"),
+        "category": category or normalized_category,
+        "subcategory": normalized_subcategory,
+        "thumbnail": thumbnail,
+        "image": thumbnail,
         "photos": raw.get("photos"),
         "price_instructions": price_info,
+        "brand": raw.get("brand"),
+        "url": raw.get("share_url"),
         "source": "mercadona_api",
     }
+
+
+def _extract_thumbnail(raw: Dict[str, Any]) -> Optional[str]:
+    thumbnail = raw.get("thumbnail")
+    if thumbnail:
+        return thumbnail
+
+    photos = raw.get("photos")
+    if isinstance(photos, list) and photos:
+        first = photos[0]
+        if isinstance(first, dict):
+            return (
+                first.get("regular")
+                or first.get("zoom")
+                or first.get("perspective")
+                or first.get("url")
+            )
+        if isinstance(first, str):
+            return first
+
+    return _build_placeholder_thumbnail(
+        raw.get("display_name") or raw.get("name") or "Producto",
+        raw.get("category") or "Mercadona",
+    )
+
+
+def _build_placeholder_thumbnail(name: str, category: str) -> str:
+    initials = "".join(part[0] for part in (name or "P").split()[:2]).upper() or "P"
+    safe_category = (category or "Mercadona")[:20]
+    svg = f"""
+<svg xmlns="http://www.w3.org/2000/svg" width="96" height="96" viewBox="0 0 96 96">
+  <defs>
+    <linearGradient id="g" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#e6f7ee"/>
+      <stop offset="100%" stop-color="#ccefdc"/>
+    </linearGradient>
+  </defs>
+  <rect width="96" height="96" rx="16" fill="url(#g)"/>
+  <circle cx="48" cy="34" r="18" fill="#00a650" opacity="0.18"/>
+  <text x="48" y="41" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="20" font-weight="700" fill="#007d3c">{initials}</text>
+  <text x="48" y="72" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="10" fill="#2f4f3d">{safe_category}</text>
+</svg>
+""".strip()
+    encoded = base64.b64encode(svg.encode("utf-8")).decode("ascii")
+    return f"data:image/svg+xml;base64,{encoded}"
 
 
 # ─── Remote Mercadona API ─────────────────────────────────────────────────────
@@ -142,15 +242,25 @@ async def _search_direct(client: httpx.AsyncClient, query: str, warehouse: str) 
     Try Mercadona's product search endpoint.
     Returns normalised products, or empty list if endpoint is unavailable.
     """
+    global _DIRECT_SEARCH_AVAILABLE
+    if _DIRECT_SEARCH_AVAILABLE is False:
+        return []
+
     try:
         resp = await client.get(
             f"{MERCADONA_API}/products/",
             params={"q": query, "lang": "es", "wh": warehouse},
             headers=BASE_HEADERS,
         )
+        if resp.status_code == 404:
+            _DIRECT_SEARCH_AVAILABLE = False
+            logger.info("Mercadona /products devuelve 404; se desactiva la búsqueda directa y se prioriza Algolia")
+            return []
         if resp.status_code != 200:
             logger.debug(f"Direct search returned {resp.status_code} for '{query}'")
             return []
+
+        _DIRECT_SEARCH_AVAILABLE = True
 
         data = resp.json()
 
@@ -303,6 +413,31 @@ async def search_mercadona(query: str, postal_code: str = "28001", limit: int = 
         return _deduplicate(all_results)[:limit]
 
 
+async def _search_mercadona_fast(query: str, postal_code: str = "28001", limit: int = 30) -> List[Dict]:
+    """
+    Faster remote search path for interactive UI.
+    Prefers Algolia because Mercadona's old /products endpoint is now flaky/404.
+    """
+    warehouse = get_warehouse(postal_code)
+
+    async with httpx.AsyncClient(timeout=3.5) as client:
+        algolia = await _search_algolia(client, query, warehouse, limit=limit)
+        algolia_results = algolia if isinstance(algolia, list) else []
+
+        if algolia_results:
+            return _deduplicate(algolia_results)[:limit]
+
+        direct_results: List[Dict] = []
+        if _DIRECT_SEARCH_AVAILABLE is not False:
+            direct = await _search_direct(client, query, warehouse)
+            direct_results = direct if isinstance(direct, list) else []
+
+        if direct_results:
+            return _deduplicate(direct_results)[:limit]
+
+        return []
+
+
 def _deduplicate(products: List[Dict]) -> List[Dict]:
     seen: set = set()
     unique = []
@@ -327,35 +462,52 @@ async def search_products(
       hybrid     → remote first, fall back to local if no results
     """
     effective_mode = mode or getattr(settings, "PRODUCT_SEARCH_MODE", "hybrid")
+    cache_key = _cache_key(query, postal_code, limit, effective_mode)
+    cached = _get_cached_search(cache_key)
+    if cached is not None:
+        return cached
 
     if effective_mode == "fallback":
         results = search_fallback_catalog(query, limit=limit)
         logger.info(f"Fallback catalog: {len(results)} results for '{query}'")
         for p in results:
             p["source"] = "fallback"
+            p["thumbnail"] = p.get("thumbnail") or _build_placeholder_thumbnail(
+                p.get("display_name") or p.get("name") or "Producto",
+                p.get("category") or "Mercadona",
+            )
+        _set_cached_search(cache_key, results)
         return results
 
     if effective_mode == "mercadona":
         try:
-            return await search_mercadona(query, postal_code, limit)
+            results = await _search_mercadona_fast(query, postal_code, limit)
+            _set_cached_search(cache_key, results)
+            return results
         except Exception as e:
             logger.error(f"Mercadona search failed for '{query}': {e}", exc_info=True)
             return []
 
     # hybrid (default)
     try:
-        remote = await search_mercadona(query, postal_code, limit)
+        remote = await _search_mercadona_fast(query, postal_code, limit)
     except Exception as e:
         logger.warning(f"Mercadona API error for '{query}': {type(e).__name__}: {e}")
         remote = []
 
     if remote:
+        _set_cached_search(cache_key, remote)
         return remote
 
     logger.info(f"Mercadona returned 0 results for '{query}'; using fallback catalog")
     fallback = search_fallback_catalog(query, limit=limit)
     for p in fallback:
         p["source"] = "fallback"
+        p["thumbnail"] = p.get("thumbnail") or _build_placeholder_thumbnail(
+            p.get("display_name") or p.get("name") or "Producto",
+            p.get("category") or "Mercadona",
+        )
+    _set_cached_search(cache_key, fallback)
     return fallback
 
 

@@ -1,9 +1,12 @@
 import { Outlet, NavLink, useLocation } from 'react-router-dom';
+
 import Navbar from './Navbar';
 import { useAuth } from '../../hooks/useAuth';
 
 const navItems = [
   { to: '/dashboard', label: 'Inicio', icon: '🏠' },
+  { to: '/products', label: 'Catálogo', icon: '🥬' },
+  { to: '/favorites', label: 'Favoritos', icon: '⭐' },
   { to: '/lists', label: 'Mis listas', icon: '📋' },
   { to: '/recipes', label: 'Recetas', icon: '🍳' },
   { to: '/automation', label: 'Automatización', icon: '🤖' },
@@ -15,6 +18,8 @@ export default function Layout() {
 
   const getPageTitle = () => {
     if (location.pathname === '/dashboard') return 'Inicio';
+    if (location.pathname === '/products') return 'Catálogo';
+    if (location.pathname === '/favorites') return 'Favoritos';
     if (location.pathname === '/lists') return 'Mis listas';
     if (location.pathname.startsWith('/lists/')) return 'Detalle de lista';
     if (location.pathname === '/automation') return 'Automatización';
