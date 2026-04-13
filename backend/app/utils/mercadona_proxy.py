@@ -27,10 +27,17 @@ MERCADONA_ALGOLIA_API_KEY = settings.MERCADONA_ALGOLIA_API_KEY
 
 # Warehouse mapping by postal code prefix
 WAREHOUSES: Dict[str, str] = {
-    "28": "mad1", "08": "bcn1", "41": "svq1", "46": "vlc1",
-    "29": "mlg1", "48": "bil1", "50": "zar1", "15": "cor1",
-    "33": "ovi1", "03": "alc1", "30": "mur1", "07": "pal1",
-    "18": "grx1", "23": "jae1", "14": "cor2",
+    "01": "bil1", "02": "mur1", "03": "alc1", "04": "grx1", "05": "mad1",
+    "06": "cor2", "07": "pal1", "08": "bcn1", "09": "bil1", "10": "cor2",
+    "11": "svq1", "12": "vlc1", "13": "mad1", "14": "cor2", "15": "cor1",
+    "16": "mad1", "17": "bcn1", "18": "grx1", "19": "mad1", "20": "bil1",
+    "21": "svq1", "22": "zar1", "23": "jae1", "24": "ovi1", "25": "bcn1",
+    "26": "zar1", "27": "cor1", "28": "mad1", "29": "mlg1", "30": "mur1",
+    "31": "zar1", "32": "cor1", "33": "ovi1", "34": "ovi1", "35": "svq1",
+    "36": "cor1", "37": "mad1", "38": "svq1", "39": "bil1", "40": "mad1",
+    "41": "svq1", "42": "zar1", "43": "bcn1", "44": "zar1", "45": "mad1",
+    "46": "vlc1", "47": "mad1", "48": "bil1", "49": "cor1", "50": "zar1",
+    "51": "svq1", "52": "grx1",
 }
 
 BASE_HEADERS = {
@@ -56,6 +63,7 @@ _FALLBACK_CATALOG_PATH = Path(__file__).parent.parent.parent.parent.parent / "da
 _SEARCH_CACHE: Dict[str, tuple[float, List[Dict]]] = {}
 _SEARCH_CACHE_TTL_SECONDS = 300
 _DIRECT_SEARCH_AVAILABLE: Optional[bool] = None
+_FALLBACK_CATEGORY_INDEX: Optional[Dict[str, Dict[str, Any]]] = None
 
 
 def _load_fallback_catalog() -> List[Dict]:
@@ -103,6 +111,46 @@ def _get_cached_search(cache_key: str) -> Optional[List[Dict]]:
 
 def _set_cached_search(cache_key: str, items: List[Dict]) -> None:
     _SEARCH_CACHE[cache_key] = (time.time(), [dict(item) for item in items])
+
+
+def _slugify_category(name: str) -> str:
+    import unicodedata
+
+    normalized = unicodedata.normalize("NFKD", (name or "").lower())
+    normalized = "".join(c for c in normalized if not unicodedata.combining(c))
+    normalized = re.sub(r"[^a-z0-9]+", "-", normalized).strip("-")
+    return normalized or "sin-categoria"
+
+
+def _ensure_fallback_category_index() -> Dict[str, Dict[str, Any]]:
+    global _FALLBACK_CATEGORY_INDEX
+    if _FALLBACK_CATEGORY_INDEX is not None:
+        return _FALLBACK_CATEGORY_INDEX
+
+    catalog = _load_fallback_catalog()
+    grouped: Dict[str, List[Dict[str, Any]]] = {}
+    for item in catalog:
+        category = (item.get("category") or "Sin categoría").strip()
+        grouped.setdefault(category, []).append(item)
+
+    categories: list[Dict[str, Any]] = []
+    id_map: Dict[str, Dict[str, Any]] = {}
+    for index, category_name in enumerate(sorted(grouped.keys()), start=10000):
+        category_id = str(index)
+        category_node = {
+            "id": category_id,
+            "name": category_name,
+            "slug": _slugify_category(category_name),
+            "products": grouped[category_name],
+        }
+        categories.append(category_node)
+        id_map[category_id] = category_node
+
+    _FALLBACK_CATEGORY_INDEX = {
+        "categories": categories,
+        "id_map": id_map,
+    }
+    return _FALLBACK_CATEGORY_INDEX
 
 
 def search_fallback_catalog(query: str, limit: int = 30) -> List[Dict]:
@@ -512,6 +560,19 @@ async def search_products(
 
 
 # ─── Category / product helpers ───────────────────────────────────────────────
+
+def get_fallback_categories() -> Dict[str, Any]:
+    index = _ensure_fallback_category_index()
+    return {"categories": index["categories"]}
+
+
+def get_fallback_category_products(category_id: int | str) -> Dict[str, Any]:
+    index = _ensure_fallback_category_index()
+    category = index["id_map"].get(str(category_id))
+    if not category:
+        raise KeyError(f"Fallback category not found: {category_id}")
+    return category
+
 
 async def get_categories(postal_code: str = "28001") -> Dict:
     warehouse = get_warehouse(postal_code)

@@ -14,6 +14,8 @@ from app.schemas.product import (
 )
 from app.services.ai.factory import get_ai_service
 from app.utils.mercadona_proxy import (
+    get_fallback_categories,
+    get_fallback_category_products,
     get_categories,
     get_category_products,
     get_warehouse,
@@ -117,6 +119,18 @@ def _normalize_category_tree(raw: Any) -> list[CategoryNode]:
     return []
 
 
+def _fallback_category_tree(postal_code: str, warehouse: str) -> CategoryTreeResponse:
+    raw = get_fallback_categories()
+    categories = _normalize_category_tree(raw)
+    return CategoryTreeResponse(
+        categories=categories,
+        source="fallback",
+        error=None,
+        warehouse=warehouse,
+        postal_code=postal_code,
+    )
+
+
 def _normalize_category_products(raw: Any, postal_code: str, warehouse: str) -> tuple[str, list[ProductRead]]:
     category_name = raw.get("name") if isinstance(raw, dict) else None
     products: list[ProductRead] = []
@@ -210,6 +224,12 @@ class ProductService:
             error = None
         except Exception as e:
             logger.error(f"Error fetching categories: {e}")
+            effective_mode = settings.PRODUCT_SEARCH_MODE
+            if effective_mode in {"fallback", "hybrid"}:
+                fallback_response = _fallback_category_tree(postal_code, warehouse)
+                fallback_response.error = f"{type(e).__name__}: {str(e)[:200]}"
+                return fallback_response
+
             categories = []
             source = "none"
             error = f"{type(e).__name__}: {str(e)[:200]}"
@@ -231,9 +251,22 @@ class ProductService:
             error = None
         except Exception as e:
             logger.error(f"Error fetching category {category_id}: {e}")
-            category_name, products = None, []
-            source = "none"
-            error = f"{type(e).__name__}: {str(e)[:200]}"
+            effective_mode = settings.PRODUCT_SEARCH_MODE
+            if effective_mode in {"fallback", "hybrid"}:
+                try:
+                    raw = get_fallback_category_products(category_id)
+                    category_name, products = _normalize_category_products(raw, postal_code, warehouse)
+                    source = "fallback"
+                    error = f"{type(e).__name__}: {str(e)[:200]}"
+                except Exception as fallback_error:
+                    logger.error(f"Fallback category {category_id} also failed: {fallback_error}")
+                    category_name, products = None, []
+                    source = "none"
+                    error = f"{type(fallback_error).__name__}: {str(fallback_error)[:200]}"
+            else:
+                category_name, products = None, []
+                source = "none"
+                error = f"{type(e).__name__}: {str(e)[:200]}"
 
         return CategoryProductsResponse(
             category_id=str(category_id),
