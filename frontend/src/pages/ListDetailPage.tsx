@@ -394,7 +394,7 @@ export default function ListDetailPage() {
               <h2>Optimizar lista</h2>
               <button className="btn-icon" onClick={() => setOptimizationPreview(null)}>×</button>
             </div>
-            <div style={{ padding: '8px 4px 16px', display: 'grid', gap: 12 }}>
+            <div className="modal-body modal-body-scroll" style={{ display: 'grid', gap: 12 }}>
               {optimizationPreview.suggestions.length === 0 ? (
                 <div className="empty-state">
                   <div className="empty-icon">✨</div>

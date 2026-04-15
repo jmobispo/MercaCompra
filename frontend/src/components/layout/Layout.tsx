@@ -1,10 +1,10 @@
 import { NavLink, Outlet, useLocation } from 'react-router-dom';
-import Navbar from './Navbar';
 import { useAuth } from '../../hooks/useAuth';
+import Navbar from './Navbar';
 
 const basicNavItems = [
   { to: '/dashboard', label: 'Inicio', icon: '\u{1F3E0}' },
-  { to: '/products', label: 'Catálogo', icon: '\u{1F96C}' },
+  { to: '/products', label: 'Catalogo', icon: '\u{1F96C}' },
   { to: '/favorites', label: 'Favoritos', icon: '\u2B50' },
   { to: '/weekly-plans', label: 'Planes', icon: '\u{1F4C5}' },
   { to: '/lists', label: 'Mis listas', icon: '\u{1F4CB}' },
@@ -13,13 +13,14 @@ const basicNavItems = [
 
 const advancedNavItems = [
   { to: '/dashboard', label: 'Inicio', icon: '\u{1F3E0}' },
-  { to: '/products', label: 'Catálogo', icon: '\u{1F96C}' },
+  { to: '/products', label: 'Catalogo', icon: '\u{1F96C}' },
   { to: '/favorites', label: 'Favoritos', icon: '\u2B50' },
+  { to: '/weekly-plans', label: 'Planes', icon: '\u{1F4C5}' },
   { to: '/lists', label: 'Mis listas', icon: '\u{1F4CB}' },
   { to: '/recipes', label: 'Recetas', icon: '\u{1F37D}' },
   { to: '/pantry', label: 'Despensa', icon: '\u{1F9FA}' },
   { to: '/spending', label: 'Gasto', icon: '\u{1F4B0}' },
-  { to: '/automation', label: 'Automatización', icon: '\u{1F916}' },
+  { to: '/automation', label: 'Automatizacion', icon: '\u{1F916}' },
 ];
 
 export default function Layout() {
@@ -35,13 +36,13 @@ export default function Layout() {
 
   const getPageTitle = () => {
     if (location.pathname === '/dashboard') return 'Inicio';
-    if (location.pathname === '/products') return 'Catálogo';
+    if (location.pathname === '/products') return 'Catalogo';
     if (location.pathname === '/favorites') return 'Favoritos';
     if (location.pathname === '/weekly-plans') return 'Planes semanales';
     if (location.pathname.startsWith('/weekly-plans/')) return 'Detalle del plan';
     if (location.pathname === '/lists') return 'Mis listas';
     if (location.pathname.startsWith('/lists/')) return 'Detalle de lista';
-    if (location.pathname === '/automation') return 'Automatización';
+    if (location.pathname === '/automation') return 'Automatizacion';
     if (location.pathname === '/recipes') return 'Recetas';
     if (location.pathname.startsWith('/recipes/')) return 'Detalle de receta';
     if (location.pathname === '/pantry') return 'Despensa';
@@ -74,15 +75,15 @@ export default function Layout() {
         <div className="sidebar-footer">
           <button
             onClick={toggleMode}
-            title={isAdvanced ? 'Cambiar a modo básico' : 'Cambiar a modo avanzado'}
+            title={isAdvanced ? 'Cambiar a modo basico' : 'Cambiar a modo avanzado'}
             style={{ fontSize: 12, opacity: 0.7 }}
           >
             <span>{isAdvanced ? '\u{1F527}' : '\u2728'}</span>
-            {isAdvanced ? 'Modo avanzado' : 'Modo básico'}
+            {isAdvanced ? 'Modo avanzado' : 'Modo basico'}
           </button>
           <button onClick={logout}>
             <span>{'\u{1F6AA}'}</span>
-            Cerrar sesión
+            Cerrar sesion
           </button>
         </div>
       </aside>

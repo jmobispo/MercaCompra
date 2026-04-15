@@ -82,6 +82,10 @@ export default function SupermarketModePage() {
   const progress = view.total_items > 0
     ? Math.round((view.checked_items / view.total_items) * 100)
     : 0;
+  const checkedTotal = view.groups
+    .flatMap((group) => group.items)
+    .filter((item) => item.is_checked)
+    .reduce((sum, item) => sum + ((item.product_price ?? 0) * item.quantity), 0);
 
   return (
     <div style={{ maxWidth: 640, margin: '0 auto', padding: '0 0 80px' }}>
@@ -100,10 +104,11 @@ export default function SupermarketModePage() {
           position: 'sticky',
           top: 0,
           zIndex: 10,
-          background: 'var(--color-surface)',
+          background: 'var(--color-white)',
           borderBottom: '1px solid var(--color-border)',
           padding: '12px 16px',
-          marginBottom: 8,
+          marginBottom: 12,
+          boxShadow: '0 4px 12px rgba(0,0,0,0.06)',
         }}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
@@ -147,9 +152,14 @@ export default function SupermarketModePage() {
               }}
             />
           </div>
-          <span style={{ fontSize: 13, color: 'var(--color-text-muted)', whiteSpace: 'nowrap' }}>
-            {view.checked_items}/{view.total_items}
-          </span>
+          <div style={{ display: 'grid', justifyItems: 'end', gap: 2, flexShrink: 0 }}>
+            <span style={{ fontSize: 13, color: 'var(--color-text-muted)', whiteSpace: 'nowrap' }}>
+              {view.checked_items}/{view.total_items}
+            </span>
+            <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--color-primary-dark)', whiteSpace: 'nowrap' }}>
+              {checkedTotal.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}
+            </span>
+          </div>
         </div>
       </div>
 
@@ -230,7 +240,7 @@ function SupermarketItemRow({
         gap: 14,
         width: '100%',
         padding: '14px 16px',
-        background: item.is_checked ? 'var(--color-bg)' : 'var(--color-surface)',
+        background: item.is_checked ? 'var(--color-bg)' : 'var(--color-white)',
         border: 'none',
         borderBottom: '1px solid var(--color-border)',
         cursor: 'pointer',

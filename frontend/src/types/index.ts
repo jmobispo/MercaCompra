@@ -308,6 +308,8 @@ export interface AddToListResult {
   resolved_real?: number;
   resolved_fallback?: number;
   unresolved?: number;
+  pantry_covered?: number;
+  pantry_reduced?: number;
   items: { name: string; quantity: number; price?: number | null; source?: string; resolved?: boolean }[];
 }
 

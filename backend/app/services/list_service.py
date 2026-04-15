@@ -1,8 +1,14 @@
+import math
+import re
+import unicodedata
+from difflib import SequenceMatcher
+from typing import List
+
 from fastapi import HTTPException
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
-from sqlalchemy import select
-from typing import List
+from app.models.pantry import PantryItem
 from app.repositories.list_repo import ShoppingListRepository
 from app.models.shopping_list import ShoppingList, ShoppingListItem
 from app.schemas.shopping_list import (
@@ -12,6 +18,14 @@ from app.schemas.shopping_list import (
     ShoppingListItemRead,
 )
 from app.services.habit_service import HabitService
+from app.services.pantry_support import (
+    convert_amount,
+    normalize_text,
+    normalize_unit,
+    pantry_total_in_unit,
+    parse_measurement_text,
+    units_compatible,
+)
 
 
 class ListService:
@@ -184,7 +198,8 @@ class ListService:
 
     async def optimize_list_preview(self, list_id: int, user_id: int) -> dict:
         sl = await self.get_list_entity(list_id, user_id)
-        suggestions = self._build_optimization_suggestions(sl.items)
+        pantry_items = await self._get_active_pantry_items(user_id)
+        suggestions = self._build_optimization_suggestions(sl.items, pantry_items)
         return {
             "list_id": sl.id,
             "list_name": sl.name,
@@ -195,9 +210,10 @@ class ListService:
 
     async def apply_optimization(self, list_id: int, user_id: int, suggestion_ids: list[str]) -> ShoppingListRead:
         sl = await self.get_list_entity(list_id, user_id)
+        pantry_items = await self._get_active_pantry_items(user_id)
         suggestion_map = {
             suggestion["id"]: suggestion
-            for suggestion in self._build_optimization_suggestions(sl.items)
+            for suggestion in self._build_optimization_suggestions(sl.items, pantry_items)
         }
         if not suggestion_ids:
             return ShoppingListRead.model_validate(sl)
@@ -207,9 +223,15 @@ class ListService:
             if not suggestion:
                 continue
             items = [item for item in sl.items if item.id in suggestion["item_ids"]]
-            if len(items) < 2:
+            if not items:
                 continue
             keeper = items[0]
+            if suggestion["combined_quantity"] <= 0:
+                await self.repo.delete_item(keeper)
+                if len(items) > 1:
+                    for extra in items[1:]:
+                        await self.repo.delete_item(extra)
+                continue
             keeper.quantity = suggestion["combined_quantity"]
             keeper.product_name = suggestion["merged_product_name"]
             keeper.note = suggestion["merged_note"]
@@ -221,16 +243,41 @@ class ListService:
                 keeper.product_category = suggestion["product_category"]
             if suggestion["product_unit"]:
                 keeper.product_unit = suggestion["product_unit"]
-            for extra in items[1:]:
-                await self.repo.delete_item(extra)
+            if len(items) > 1:
+                for extra in items[1:]:
+                    await self.repo.delete_item(extra)
 
         sl = await self.repo.get_by_id(list_id, user_id)
         if not sl:
             raise HTTPException(status_code=404, detail="Lista no encontrada")
         return ShoppingListRead.model_validate(sl)
 
-    def _build_optimization_suggestions(self, items: list[ShoppingListItem]) -> list[dict]:
+    async def _get_active_pantry_items(self, user_id: int) -> list[PantryItem]:
+        result = await self.db.execute(
+            select(PantryItem).where(
+                PantryItem.user_id == user_id,
+                PantryItem.is_consumed == False,
+            )
+        )
+        return list(result.scalars().all())
+
+    def _build_optimization_suggestions(
+        self,
+        items: list[ShoppingListItem],
+        pantry_items: list[PantryItem] | None = None,
+    ) -> list[dict]:
         groups: dict[str, list[ShoppingListItem]] = {}
+        suggestions: list[dict] = []
+        seen_groups: set[tuple[int, ...]] = set()
+        pantry_items = pantry_items or []
+
+        for suggestion in self._build_pantry_coverage_suggestions(items, pantry_items):
+            suggestions.append(suggestion)
+            seen_groups.add(tuple(sorted(suggestion["item_ids"])))
+
+        for suggestion in self._build_quantity_rightsizing_suggestions(items):
+            suggestions.append(suggestion)
+            seen_groups.add(tuple(sorted(suggestion["item_ids"])))
 
         for item in items:
             normalized = self._normalize_name(item.product_name)
@@ -240,39 +287,384 @@ class ListService:
                 key = f"product:{item.product_id}"
             groups.setdefault(key, []).append(item)
 
-        suggestions: list[dict] = []
         for key, group in groups.items():
             if len(group) < 2:
                 continue
 
-            keeper = sorted(group, key=lambda item: (-item.quantity, item.id))[0]
-            combined_quantity = sum(item.quantity for item in group)
-            merged_note = " | ".join(
-                note for note in dict.fromkeys(item.note for item in group if item.note)
-            ) or None
             reason = "Duplicados exactos" if key.startswith("product:") else "Productos muy parecidos por nombre"
+            suggestion = self._build_group_suggestion(group, reason)
+            if suggestion:
+                suggestions.append(suggestion)
+                seen_groups.add(tuple(sorted(suggestion["item_ids"])))
+
+        fuzzy_groups = self._build_fuzzy_groups(items)
+        for group, reason in fuzzy_groups:
+            ids_key = tuple(sorted(item.id for item in group))
+            if len(ids_key) < 2 or ids_key in seen_groups:
+                continue
+            suggestion = self._build_group_suggestion(group, reason)
+            if suggestion:
+                suggestions.append(suggestion)
+                seen_groups.add(ids_key)
+
+        return suggestions
+
+    def _build_pantry_coverage_suggestions(
+        self,
+        items: list[ShoppingListItem],
+        pantry_items: list[PantryItem],
+    ) -> list[dict]:
+        if not pantry_items:
+            return []
+
+        suggestions: list[dict] = []
+        for item in items:
+            if item.is_checked or item.quantity <= 0 or not item.product_unit:
+                continue
+
+            pack = self._parse_pack_size(item.product_unit)
+            if not pack:
+                continue
+
+            pack_amount, pack_unit = pack
+            baseline_qty = self._infer_reasonable_quantity(item) or item.quantity
+            total_required = baseline_qty * pack_amount
+            pantry_available = pantry_total_in_unit(
+                pantry_items,
+                product_id=item.product_id,
+                product_name=item.product_name,
+                ingredient_name=item.product_name,
+                target_unit=pack_unit,
+            )
+
+            remaining = max(0.0, total_required - pantry_available)
+            if remaining <= 0:
+                recommended = 0
+            else:
+                recommended = max(1, math.ceil(remaining / pack_amount))
+
+            if recommended >= item.quantity:
+                continue
+
             suggestions.append(
                 {
-                    "id": f"merge-{'-'.join(str(item.id) for item in sorted(group, key=lambda item: item.id))}",
-                    "reason": reason,
-                    "item_ids": [item.id for item in group],
-                    "item_names": [item.product_name for item in group],
-                    "merged_product_name": keeper.product_name,
-                    "combined_quantity": combined_quantity,
-                    "product_price": keeper.product_price,
-                    "product_unit": keeper.product_unit,
-                    "product_thumbnail": keeper.product_thumbnail,
-                    "product_category": keeper.product_category,
-                    "merged_note": merged_note,
+                    "id": f"pantry-{item.id}",
+                    "reason": (
+                        "Ya lo tienes cubierto en despensa"
+                        if recommended == 0
+                        else "La despensa cubre parte de este producto"
+                    ),
+                    "item_ids": [item.id],
+                    "item_names": [item.product_name],
+                    "merged_product_name": item.product_name,
+                    "combined_quantity": recommended,
+                    "product_price": item.product_price,
+                    "product_unit": item.product_unit,
+                    "product_thumbnail": item.product_thumbnail,
+                    "product_category": item.product_category,
+                    "merged_note": item.note,
                 }
             )
 
         return suggestions
 
+    def _build_quantity_rightsizing_suggestions(self, items: list[ShoppingListItem]) -> list[dict]:
+        suggestions: list[dict] = []
+        for item in items:
+            recommended = self._infer_reasonable_quantity(item)
+            if recommended is None or recommended >= item.quantity:
+                continue
+            suggestions.append(
+                {
+                    "id": f"resize-{item.id}",
+                    "reason": "Cantidad probablemente sobredimensionada segun recetas y tamano del pack",
+                    "item_ids": [item.id],
+                    "item_names": [item.product_name],
+                    "merged_product_name": item.product_name,
+                    "combined_quantity": recommended,
+                    "product_price": item.product_price,
+                    "product_unit": item.product_unit,
+                    "product_thumbnail": item.product_thumbnail,
+                    "product_category": item.product_category,
+                    "merged_note": item.note,
+                }
+            )
+        return suggestions
+
+    def _build_fuzzy_groups(self, items: list[ShoppingListItem]) -> list[tuple[list[ShoppingListItem], str]]:
+        groups: list[tuple[list[ShoppingListItem], str]] = []
+        consumed: set[int] = set()
+
+        comparable = [item for item in items if not item.is_checked]
+
+        for item in comparable:
+            if item.id in consumed:
+                continue
+
+            current_group = [item]
+            current_reason: str | None = None
+
+            for other in comparable:
+                if other.id == item.id or other.id in consumed:
+                    continue
+
+                reason = self._match_reason(item, other)
+                if reason:
+                    current_group.append(other)
+                    current_reason = current_reason or reason
+
+            if len(current_group) >= 2 and current_reason:
+                groups.append((current_group, current_reason))
+                consumed.update(member.id for member in current_group)
+
+        return groups
+
+    def _match_reason(self, left: ShoppingListItem, right: ShoppingListItem) -> str | None:
+        left_name = self._normalize_name(left.product_name)
+        right_name = self._normalize_name(right.product_name)
+        if not left_name or not right_name or left_name == right_name:
+            return None
+
+        left_tokens = self._name_tokens(left.product_name)
+        right_tokens = self._name_tokens(right.product_name)
+        if not left_tokens or not right_tokens:
+            return None
+
+        intersection = left_tokens & right_tokens
+        overlap = len(intersection) / max(min(len(left_tokens), len(right_tokens)), 1)
+        similarity = SequenceMatcher(None, left_name, right_name).ratio()
+
+        same_category = bool(left.product_category and right.product_category and left.product_category == right.product_category)
+        same_unit = bool(left.product_unit and right.product_unit and left.product_unit == right.product_unit)
+
+        if same_category and same_unit and overlap >= 0.6:
+            return "Variantes muy parecidas en la misma categoría"
+        if same_category and similarity >= 0.82:
+            return "Nombres casi duplicados en la misma categoría"
+        if overlap >= 0.75 and similarity >= 0.72:
+            return "Posible duplicado por nombre parecido"
+
+        return None
+
+    def _build_group_suggestion(self, group: list[ShoppingListItem], reason: str) -> dict | None:
+        if len(group) < 2:
+            return None
+
+        ordered = sorted(group, key=lambda item: (-item.quantity, item.id))
+        keeper = ordered[0]
+        combined_quantity = sum(item.quantity for item in ordered)
+        merged_note = " | ".join(
+            note for note in dict.fromkeys(item.note for item in ordered if item.note)
+        ) or None
+        return {
+            "id": f"merge-{'-'.join(str(item.id) for item in sorted(ordered, key=lambda item: item.id))}",
+            "reason": reason,
+            "item_ids": [item.id for item in ordered],
+            "item_names": [item.product_name for item in ordered],
+            "merged_product_name": keeper.product_name,
+            "combined_quantity": combined_quantity,
+            "product_price": keeper.product_price,
+            "product_unit": keeper.product_unit,
+            "product_thumbnail": keeper.product_thumbnail,
+            "product_category": keeper.product_category,
+            "merged_note": merged_note,
+        }
+
     @staticmethod
     def _normalize_name(value: str) -> str:
-        import unicodedata
-
         normalized = unicodedata.normalize("NFKD", value or "")
         plain = "".join(char for char in normalized if not unicodedata.combining(char))
         return " ".join(plain.lower().strip().split())
+
+    def _infer_reasonable_quantity(self, item: ShoppingListItem) -> int | None:
+        if item.quantity <= 1 or not item.note or not item.product_unit:
+            return None
+
+        pack = self._parse_pack_size(item.product_unit)
+        if not pack:
+            return None
+
+        pack_amount, pack_unit = pack
+        note_amounts = self._parse_recipe_amounts(item.note)
+        if self._is_staple_item(item) and (note_amounts or "al gusto" in self._normalize_name(item.note)):
+            return 1
+
+        if note_amounts and pack_unit in {"kg", "g", "l", "ml"}:
+            discrete_totals = []
+            cooking_measure_seen = False
+            for amount, unit in note_amounts:
+                normalized_unit = self._normalize_unit(unit)
+                if normalized_unit == "uds":
+                    discrete_totals.append(amount)
+                elif self._is_cooking_measure(normalized_unit):
+                    cooking_measure_seen = True
+
+            if cooking_measure_seen and self._is_staple_item(item):
+                return 1
+
+            if discrete_totals and self._is_packaged_weight_item(item):
+                guessed_pack_units = self._guess_units_per_pack(item)
+                if guessed_pack_units:
+                    return max(1, math.ceil(sum(discrete_totals) / guessed_pack_units))
+                return 1
+
+        if not note_amounts:
+            return None
+
+        compatible_totals = []
+        discrete_fallback_total = 0.0
+
+        for amount, unit in note_amounts:
+            normalized_unit = self._normalize_unit(unit)
+            if self._units_compatible(pack_unit, normalized_unit):
+                converted = self._convert_amount(amount, normalized_unit, pack_unit)
+                if converted is not None:
+                    compatible_totals.append(converted)
+            elif pack_unit in {"kg", "g", "l", "ml"} and normalized_unit in {"ud", "uds", "unidad", "unidades"} and amount < 1:
+                discrete_fallback_total += amount
+
+        if compatible_totals:
+            total_required_in_pack_unit = sum(compatible_totals)
+            recommended = max(1, math.ceil(total_required_in_pack_unit / pack_amount))
+            return recommended
+
+        if discrete_fallback_total > 0:
+            return max(1, math.ceil(discrete_fallback_total))
+
+        return None
+
+    def _is_staple_item(self, item: ShoppingListItem) -> bool:
+        haystack = self._normalize_name(f"{item.product_name} {item.product_category or ''}")
+        keywords = {
+            "aceite", "sal", "pimienta", "especia", "especias", "oregano", "oregano",
+            "comino", "curry", "pimenton", "pimenton", "ajo granulado", "salsa soja",
+            "vinagre", "azucar", "harina", "pan rallado", "caldo", "mayonesa",
+            "ketchup", "mostaza",
+        }
+        return any(keyword in haystack for keyword in keywords)
+
+    def _is_packaged_weight_item(self, item: ShoppingListItem) -> bool:
+        name = self._normalize_name(item.product_name)
+        category = self._normalize_name(item.product_category or "")
+
+        packaged_keywords = {
+            "tortilla", "wrap", "rallada", "rallado", "lavada", "lavado", "mezcla",
+            "brotes", "bolsa", "granulado", "lomos", "filetes congelados", "lonchas",
+        }
+        if any(keyword in name for keyword in packaged_keywords):
+            return True
+
+        packaged_categories = {
+            "panaderia y pasteleria", "charcuteria y quesos", "congelados",
+            "conservas, caldos y cremas", "aceite, especias y salsas",
+            "leche, huevos y mantequilla", "pastas", "arroz y cereales",
+        }
+        return category in packaged_categories
+
+    def _guess_units_per_pack(self, item: ShoppingListItem) -> int | None:
+        name = self._normalize_name(item.product_name)
+        if "tortilla" in name or "wrap" in name:
+            return 8
+        if "lomos de salmon" in name or "salmon" in name:
+            return 2
+        return None
+
+    @staticmethod
+    def _is_cooking_measure(unit: str) -> bool:
+        return unit in {
+            "cucharada", "cucharadas", "cucharadita", "cucharaditas",
+            "diente", "dientes", "pizca", "pizcas",
+        }
+
+    @staticmethod
+    def _parse_pack_size(value: str) -> tuple[float, str] | None:
+        text = ListService._normalize_name(value)
+        match = re.search(r"(\d+(?:[.,]\d+)?)\s*(kg|g|l|ml|ud|uds|unidad|unidades)\b", text)
+        if match:
+            amount = float(match.group(1).replace(",", "."))
+            unit = ListService._normalize_unit(match.group(2))
+            return amount, unit
+
+        if "docena" in text:
+            return 12.0, "uds"
+
+        return None
+
+    @staticmethod
+    def _parse_recipe_amounts(note: str) -> list[tuple[float, str]]:
+        matches = re.findall(
+            r"Cantidad receta:\s*(\d+(?:[.,]\d+)?)\s*([a-zA-ZáéíóúÁÉÍÓÚ]+)",
+            note or "",
+        )
+        parsed: list[tuple[float, str]] = []
+        for raw_amount, raw_unit in matches:
+            parsed.append((float(raw_amount.replace(",", ".")), raw_unit))
+        return parsed
+
+    @staticmethod
+    def _normalize_unit(value: str) -> str:
+        unit = ListService._normalize_name(value)
+        aliases = {
+            "uds": "uds",
+            "ud": "uds",
+            "unidad": "uds",
+            "unidades": "uds",
+            "cucharada": "cucharada",
+            "cucharadas": "cucharadas",
+            "cucharadita": "cucharadita",
+            "cucharaditas": "cucharaditas",
+            "diente": "diente",
+            "dientes": "dientes",
+            "sobre": "sobre",
+            "sobres": "sobre",
+            "kg": "kg",
+            "g": "g",
+            "l": "l",
+            "ml": "ml",
+        }
+        return aliases.get(unit, unit)
+
+    @staticmethod
+    def _units_compatible(left: str, right: str) -> bool:
+        families = [
+            {"kg", "g"},
+            {"l", "ml"},
+            {"uds"},
+        ]
+        return any(left in family and right in family for family in families)
+
+    @staticmethod
+    def _convert_amount(amount: float, from_unit: str, to_unit: str) -> float | None:
+        if from_unit == to_unit:
+            return amount
+
+        conversions = {
+            ("g", "kg"): amount / 1000,
+            ("kg", "g"): amount * 1000,
+            ("ml", "l"): amount / 1000,
+            ("l", "ml"): amount * 1000,
+        }
+
+        key = (from_unit, to_unit)
+        if key in conversions:
+            return conversions[key]
+        return None
+
+    @classmethod
+    def _name_tokens(cls, value: str) -> set[str]:
+        normalized = cls._normalize_name(value)
+        raw_tokens = re.findall(r"[a-z0-9]+", normalized)
+        stopwords = {
+            "de", "del", "la", "el", "los", "las", "y", "con", "sin", "para",
+            "al", "a", "en", "tipo", "extra", "mini", "pack", "hacienda", "hacendado",
+        }
+        tokens: set[str] = set()
+        for token in raw_tokens:
+            if token in stopwords:
+                continue
+            if len(token) > 3 and token.endswith("es"):
+                token = token[:-2]
+            elif len(token) > 2 and token.endswith("s"):
+                token = token[:-1]
+            tokens.add(token)
+        return tokens

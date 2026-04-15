@@ -3,6 +3,7 @@ Recipe service — CRUD, add-to-list, and seed data.
 """
 import logging
 import math
+import re
 from datetime import datetime, timezone
 from typing import List, Optional
 
@@ -20,6 +21,14 @@ from app.schemas.recipe import (
     AddToListPayload, AddToListResult, PantryRecipeSuggestion,
 )
 from app.services.habit_service import HabitService
+from app.services.pantry_support import (
+    convert_amount,
+    names_match,
+    normalize_unit,
+    pantry_total_in_unit,
+    parse_measurement_text,
+    units_compatible,
+)
 from app.services.product_service import ProductService
 
 logger = logging.getLogger(__name__)
@@ -342,6 +351,56 @@ class RecipeService:
 
         return result.products[0]
 
+    async def _get_active_pantry_items(self, user_id: int) -> list[PantryItem]:
+        result = await self.db.execute(
+            select(PantryItem).where(
+                PantryItem.user_id == user_id,
+                PantryItem.is_consumed == False,
+            )
+        )
+        return list(result.scalars().all())
+
+    def _apply_pantry_coverage(
+        self,
+        pantry_items: list[PantryItem],
+        ingredient: RecipeIngredient,
+        product,
+        servings_multiplier: float,
+        purchase_quantity: int,
+    ) -> tuple[int, bool, bool]:
+        if purchase_quantity <= 0 or not pantry_items:
+            return purchase_quantity, False, False
+
+        required = _ingredient_required_amount(ingredient, servings_multiplier, product)
+        if not required:
+            return purchase_quantity, False, False
+
+        required_amount, required_unit = required
+        pantry_available = pantry_total_in_unit(
+            pantry_items,
+            product_id=getattr(product, "id", None),
+            product_name=getattr(product, "name", None) if product else ingredient.name,
+            ingredient_name=ingredient.name,
+            target_unit=required_unit,
+        )
+
+        remaining = max(0.0, required_amount - pantry_available)
+        if remaining <= 0:
+            return 0, True, False
+
+        pack = parse_measurement_text(getattr(product, "unit_size", None)) if product else None
+        if pack and units_compatible(pack[1], required_unit):
+            converted = convert_amount(remaining, required_unit, pack[1])
+            if converted is not None:
+                adjusted = max(1, math.ceil(converted / pack[0]))
+                return adjusted, False, adjusted < purchase_quantity
+
+        if required_unit == "uds":
+            adjusted = max(1, math.ceil(remaining))
+            return adjusted, False, adjusted < purchase_quantity
+
+        return purchase_quantity, False, False
+
     # ── CRUD ──────────────────────────────────────────────────────────────────
 
     async def get_recipes(self, user_id: int) -> List[RecipeSummary]:
@@ -479,6 +538,7 @@ class RecipeService:
         """
         recipe = await self._get_recipe_or_404(recipe_id, user_id)
         postal_code = await self._get_user_postal_code(user_id)
+        pantry_items = await self._get_active_pantry_items(user_id)
 
         # Resolve or create target list
         if payload.list_id is not None:
@@ -503,6 +563,8 @@ class RecipeService:
         resolved_real = 0
         resolved_fallback = 0
         unresolved = 0
+        pantry_covered = 0
+        pantry_reduced = 0
 
         # Filter ingredients if caller specified a selection
         ingredients_to_add = recipe.ingredients
@@ -514,8 +576,21 @@ class RecipeService:
             try:
                 product = await self._resolve_product_for_ingredient(ing, postal_code)
                 product_id = product.id if product else f"recipe_{recipe.id}_ing_{ing.id}"
-                adjusted_qty = _infer_cart_quantity(ing, payload.servings_multiplier)
+                adjusted_qty = _infer_cart_quantity(ing, payload.servings_multiplier, product)
                 note = _build_ingredient_note(ing, payload.servings_multiplier)
+                adjusted_qty, covered_by_pantry, reduced_by_pantry = self._apply_pantry_coverage(
+                    pantry_items,
+                    ing,
+                    product,
+                    payload.servings_multiplier,
+                    adjusted_qty,
+                )
+                if covered_by_pantry:
+                    skipped += 1
+                    pantry_covered += 1
+                    continue
+                if reduced_by_pantry:
+                    pantry_reduced += 1
 
                 existing_result = await self.db.execute(
                     select(ShoppingListItem).where(
@@ -596,6 +671,8 @@ class RecipeService:
             resolved_real=resolved_real,
             resolved_fallback=resolved_fallback,
             unresolved=unresolved,
+            pantry_covered=pantry_covered,
+            pantry_reduced=pantry_reduced,
         )
 
     # ── Pantry suggestions ────────────────────────────────────────────────────
@@ -652,20 +729,15 @@ class RecipeService:
 
 
 def _ingredient_in_pantry(ingredient_name: str, pantry_names: list[str]) -> bool:
-    """Check if an ingredient is covered by any pantry item via substring or token overlap."""
-    ing_lower = ingredient_name.lower().strip()
-    ing_tokens = set(ing_lower.split())
+    """Check if an ingredient is covered by pantry using stricter fuzzy matching."""
     for pname in pantry_names:
-        if ing_lower in pname or pname in ing_lower:
-            return True
-        pan_tokens = set(pname.split())
-        if ing_tokens & pan_tokens:
+        if names_match(ingredient_name, pname):
             return True
     return False
 
 
 
-def _infer_cart_quantity(ing: RecipeIngredient, servings_multiplier: float) -> int:
+def _infer_cart_quantity(ing: RecipeIngredient, servings_multiplier: float, product=None) -> int:
     """
     Convert recipe amounts into purchase units.
     Weighted or volume ingredients default to one pack. Discrete units scale up.
@@ -673,11 +745,170 @@ def _infer_cart_quantity(ing: RecipeIngredient, servings_multiplier: float) -> i
     scaled_quantity = (ing.quantity or 1.0) * servings_multiplier
     unit = (ing.unit or "").strip().lower()
     discrete_units = {"ud", "uds", "unidad", "unidades", "huevo", "huevos"}
+    cooking_measure_units = {
+        "cucharada", "cucharadas", "cucharadita", "cucharaditas",
+        "diente", "dientes", "pizca", "pizcas",
+    }
+
+    if _looks_like_eggs(ing, product):
+        pack_size = _infer_pack_size(product) or 12
+        return max(1, math.ceil(scaled_quantity / pack_size))
+
+    if unit in cooking_measure_units and _is_staple_or_packaged_product(ing, product):
+        return 1
 
     if unit in discrete_units and ing.quantity is not None:
+        if _has_weight_pack(product) and _is_packaged_or_processed_product(ing, product):
+            guessed_pack_units = _guess_units_per_pack(product, ing)
+            if guessed_pack_units:
+                return max(1, math.ceil(scaled_quantity / guessed_pack_units))
+            return 1
         return max(1, math.ceil(scaled_quantity))
 
     return 1
+
+
+def _ingredient_required_amount(
+    ing: RecipeIngredient,
+    servings_multiplier: float,
+    product=None,
+) -> tuple[float, str] | None:
+    if ing.quantity is None:
+        return None
+
+    scaled_quantity = max((ing.quantity or 0.0) * servings_multiplier, 0.0)
+    if scaled_quantity <= 0:
+        return None
+
+    raw_unit = (ing.unit or "").strip().lower()
+    unit = normalize_unit(ing.unit or "")
+    if _looks_like_eggs(ing, product):
+        return scaled_quantity, "uds"
+
+    if unit in {"kg", "g", "l", "ml"}:
+        return scaled_quantity, unit
+
+    if raw_unit in {"ud", "uds", "unidad", "unidades"}:
+        pack = parse_measurement_text(getattr(product, "unit_size", None)) if product else None
+        if pack and pack[1] in {"kg", "g", "l", "ml"}:
+            return scaled_quantity * pack[0], pack[1]
+        return scaled_quantity, "uds"
+
+    return None
+
+
+def _looks_like_eggs(ing: RecipeIngredient, product) -> bool:
+    haystack = " ".join(
+        part.lower()
+        for part in [
+            ing.name or "",
+            ing.product_query or "",
+            getattr(product, "name", "") or "",
+            getattr(product, "display_name", "") or "",
+            getattr(product, "unit_size", "") or "",
+        ]
+        if part
+    )
+    return "huevo" in haystack
+
+
+def _infer_pack_size(product) -> Optional[int]:
+    if not product:
+        return None
+
+    candidates = [
+        getattr(product, "unit_size", None),
+        getattr(product, "display_name", None),
+        getattr(product, "name", None),
+    ]
+    for value in candidates:
+        parsed = _parse_pack_units(value)
+        if parsed:
+            return parsed
+    return None
+
+
+def _parse_pack_units(value: Optional[str]) -> Optional[int]:
+    if not value:
+        return None
+
+    text = value.lower()
+
+    dozen_markers = ("docena", "docenas", "12 ud", "12 uds", "12 huevos", "x12")
+    if any(marker in text for marker in dozen_markers):
+        return 12
+
+    match = re.search(r"(\d+)\s*(ud|uds|unidades|huevos?)\b", text)
+    if match:
+        return int(match.group(1))
+
+    match = re.search(r"x\s*(\d+)\b", text)
+    if match:
+        return int(match.group(1))
+
+    return None
+
+
+def _has_weight_pack(product) -> bool:
+    pack = parse_measurement_text(getattr(product, "unit_size", None)) if product else None
+    return bool(pack and pack[1] in {"kg", "g", "l", "ml"})
+
+
+def _is_staple_or_packaged_product(ing: RecipeIngredient, product) -> bool:
+    haystack = " ".join(
+        part.lower()
+        for part in [
+            ing.name or "",
+            ing.product_query or "",
+            getattr(product, "name", "") or "",
+            getattr(product, "display_name", "") or "",
+            getattr(product, "category", "") or "",
+        ]
+        if part
+    )
+    keywords = (
+        "aceite", "sal", "pimienta", "especia", "oregano", "comino", "curry",
+        "pimenton", "ajo granulado", "salsa soja", "vinagre", "pan rallado",
+        "tortilla", "wrap", "rallad", "lavad",
+    )
+    return any(keyword in haystack for keyword in keywords)
+
+
+def _is_packaged_or_processed_product(ing: RecipeIngredient, product) -> bool:
+    haystack = " ".join(
+        part.lower()
+        for part in [
+            ing.name or "",
+            ing.product_query or "",
+            getattr(product, "name", "") or "",
+            getattr(product, "display_name", "") or "",
+            getattr(product, "category", "") or "",
+        ]
+        if part
+    )
+    keywords = (
+        "tortilla", "wrap", "rallad", "lavad", "mezcla", "brotes", "bolsa",
+        "granulado", "lomos de salmon", "salmon", "lonchas",
+    )
+    return any(keyword in haystack for keyword in keywords)
+
+
+def _guess_units_per_pack(product, ing: RecipeIngredient) -> Optional[int]:
+    haystack = " ".join(
+        part.lower()
+        for part in [
+            ing.name or "",
+            ing.product_query or "",
+            getattr(product, "name", "") or "",
+            getattr(product, "display_name", "") or "",
+        ]
+        if part
+    )
+    if "tortilla" in haystack or "wrap" in haystack:
+        return 8
+    if "lomos de salmon" in haystack or "salmon" in haystack:
+        return 2
+    return None
 
 
 def _build_ingredient_note(ing: RecipeIngredient, servings_multiplier: float) -> Optional[str]:

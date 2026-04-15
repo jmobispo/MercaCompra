@@ -233,7 +233,7 @@ export default function WeeklyPlanDetailPage() {
       {error && <div className="alert alert-error" style={{ marginBottom: 16 }}>{error}</div>}
       {result && (
         <div className="alert alert-success" style={{ marginBottom: 16 }}>
-          Lista generada: {result.list_name}. Añadidos {result.added}, reales {result.resolved_real ?? 0}, fallback {result.resolved_fallback ?? 0}, pendientes {result.unresolved ?? 0}.
+          Lista generada: {result.list_name}. Añadidos {result.added}, reales {result.resolved_real ?? 0}, fallback {result.resolved_fallback ?? 0}, pendientes {result.unresolved ?? 0}, cubiertos por despensa {result.pantry_covered ?? 0}, ajustados por despensa {result.pantry_reduced ?? 0}.
         </div>
       )}
 

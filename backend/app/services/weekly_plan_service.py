@@ -117,6 +117,7 @@ class WeeklyPlanService:
         recipe_service = RecipeService(self.db)
         habit_service = HabitService(self.db)
         postal_code = await recipe_service._get_user_postal_code(user_id)
+        pantry_items = await recipe_service._get_active_pantry_items(user_id)
 
         if payload.list_id is not None:
             list_result = await self.db.execute(
@@ -142,6 +143,8 @@ class WeeklyPlanService:
         resolved_real = 0
         resolved_fallback = 0
         unresolved = 0
+        pantry_covered = 0
+        pantry_reduced = 0
         consolidated: dict[str, dict] = {}
 
         for day in plan.days:
@@ -154,7 +157,20 @@ class WeeklyPlanService:
                 product_id = product.id if product else f"weekly_{plan.id}_{ingredient.id}"
                 note = _build_ingredient_note(ingredient, servings_multiplier)
                 key = product_id if product else ingredient.name.strip().lower()
-                adjusted_qty = _infer_cart_quantity(ingredient, servings_multiplier)
+                adjusted_qty = _infer_cart_quantity(ingredient, servings_multiplier, product)
+                adjusted_qty, covered_by_pantry, reduced_by_pantry = recipe_service._apply_pantry_coverage(
+                    pantry_items,
+                    ingredient,
+                    product,
+                    servings_multiplier,
+                    adjusted_qty,
+                )
+                if covered_by_pantry:
+                    skipped += 1
+                    pantry_covered += 1
+                    continue
+                if reduced_by_pantry:
+                    pantry_reduced += 1
 
                 if key not in consolidated:
                     consolidated[key] = {
@@ -246,6 +262,8 @@ class WeeklyPlanService:
             resolved_real=resolved_real,
             resolved_fallback=resolved_fallback,
             unresolved=unresolved,
+            pantry_covered=pantry_covered,
+            pantry_reduced=pantry_reduced,
         )
 
     async def _get_plan_or_404(self, plan_id: int, user_id: int) -> WeeklyPlan:

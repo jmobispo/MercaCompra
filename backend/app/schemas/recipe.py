@@ -113,6 +113,8 @@ class AddToListResult(BaseModel):
     resolved_real: int = 0
     resolved_fallback: int = 0
     unresolved: int = 0
+    pantry_covered: int = 0
+    pantry_reduced: int = 0
 
 
 class PantryRecipeSuggestion(BaseModel):

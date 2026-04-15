@@ -1159,6 +1159,45 @@ input, select, textarea {
   box-shadow: 0 20px 60px rgba(0,0,0,0.25);
 }
 
+.modal-content {
+  width: 100%;
+  max-height: calc(100vh - 40px);
+  background: var(--color-white);
+  color: var(--color-text);
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  border-radius: 20px;
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.28);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 18px 20px 14px;
+  background: var(--color-white);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.modal-header h2 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--color-text);
+}
+
+.modal-content > .modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  padding: 14px 20px 20px;
+  background: var(--color-white);
+  border-top: 1px solid var(--color-border);
+}
+
 .modal h2 {
   font-size: 18px;
   font-weight: 600;
@@ -1170,6 +1209,22 @@ input, select, textarea {
   gap: 8px;
   justify-content: flex-end;
   margin-top: 20px;
+}
+
+.modal-content .form-input,
+.modal-content input,
+.modal-content select,
+.modal-content textarea {
+  background: var(--color-white);
+}
+
+.modal-body {
+  padding: 16px 20px;
+}
+
+.modal-body-scroll {
+  min-height: 0;
+  overflow-y: auto;
 }
 
 /* ===== BADGE ===== */
