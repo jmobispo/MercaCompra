@@ -232,6 +232,11 @@ export interface RecipeIngredient {
   position: number;
 }
 
+export interface RecipeStep {
+  position: number;
+  text: string;
+}
+
 export interface Recipe {
   id: number;
   user_id: number | null;
@@ -241,6 +246,7 @@ export interface Recipe {
   estimated_minutes: number | null;
   estimated_cost: number | null;
   tags: string[] | null;
+  steps: RecipeStep[];
   image_url: string | null;
   is_public: boolean;
   ingredients: RecipeIngredient[];
@@ -257,6 +263,7 @@ export interface RecipeSummary {
   estimated_minutes: number | null;
   estimated_cost: number | null;
   tags: string[] | null;
+  steps: RecipeStep[];
   image_url: string | null;
   is_public: boolean;
   ingredient_count: number;
@@ -273,6 +280,11 @@ export interface RecipeIngredientPayload {
   position?: number;
 }
 
+export interface RecipeStepPayload {
+  position?: number;
+  text: string;
+}
+
 export interface CreateRecipePayload {
   title: string;
   description?: string | null;
@@ -281,6 +293,7 @@ export interface CreateRecipePayload {
   estimated_cost?: number | null;
   tags?: string[] | null;
   ingredients: RecipeIngredientPayload[];
+  steps?: RecipeStepPayload[];
 }
 
 export interface UpdateRecipePayload {
@@ -291,6 +304,7 @@ export interface UpdateRecipePayload {
   estimated_cost?: number | null;
   tags?: string[] | null;
   ingredients?: RecipeIngredientPayload[];
+  steps?: RecipeStepPayload[];
 }
 
 export interface AddToListPayload {

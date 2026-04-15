@@ -231,6 +231,380 @@ ADDITIONAL_SEED_RECIPES = [
     {"title": "Quesadillas de Jamón y Queso", "description": "Quesadillas rápidas a la sartén con jamón cocido y queso fundido.", "servings": 4, "estimated_minutes": 15, "estimated_cost": 4.9, "tags": ["mexicana", "rápida", "queso"], "ingredients": [{"name": "Tortillas de trigo", "quantity": 8, "unit": "uds", "product_query": "tortillas trigo"}, {"name": "Jamón cocido", "quantity": 150, "unit": "g", "product_query": "jamón cocido"}, {"name": "Queso rallado", "quantity": 180, "unit": "g", "product_query": "queso rallado"}, {"name": "Tomate", "quantity": 1, "unit": "ud", "product_query": "tomate"}]},
 ]
 
+SEED_RECIPE_STEPS = {
+    "Espaguetis a la Carbonara": [
+        "Cuece los espaguetis en agua con sal hasta que queden al dente.",
+        "Dora el bacon o guanciale en una sartén sin quemarlo.",
+        "Bate los huevos con el parmesano y bastante pimienta negra.",
+        "Mezcla la pasta caliente con el bacon fuera del fuego.",
+        "Añade la mezcla de huevo y queso removiendo rápido para que quede cremosa.",
+    ],
+    "Macarrones con Tomate y Queso": [
+        "Cuece los macarrones y escúrrelos.",
+        "Mézclalos con tomate frito, orégano y un poco de aceite.",
+        "Pásalos a una fuente apta para horno.",
+        "Cubre con mozzarella y parmesano.",
+        "Hornea hasta que el queso se funda y gratina ligeramente.",
+    ],
+    "Tortilla de Patatas": [
+        "Pela y corta las patatas y la cebolla.",
+        "Fríelas a fuego medio en abundante aceite hasta que estén tiernas.",
+        "Escúrrelas y mézclalas con los huevos batidos y sal.",
+        "Cuaja la mezcla en una sartén por un lado.",
+        "Da la vuelta a la tortilla y termina de cuajar al gusto.",
+    ],
+    "Arroz con Pollo": [
+        "Sofríe ajo, cebolla y pimiento con aceite.",
+        "Añade el pollo troceado y dóralo.",
+        "Incorpora tomate y pimentón.",
+        "Añade el arroz y rehógalo un minuto.",
+        "Vierte el caldo, ajusta sal y cocina hasta que el arroz esté hecho.",
+    ],
+    "Pasta Boloñesa": [
+        "Sofríe cebolla, zanahoria y ajo picados.",
+        "Añade la carne picada y dóralo bien.",
+        "Incorpora tomate triturado y vino tinto.",
+        "Cocina la salsa a fuego medio-lento hasta que espese.",
+        "Cuece la pasta y sírvela con la boloñesa y parmesano.",
+    ],
+    "Ensalada Mixta": [
+        "Lava y corta la lechuga, el tomate y la cebolla.",
+        "Colócalos en una fuente.",
+        "Añade el atún escurrido y las aceitunas.",
+        "Aliña con aceite, vinagre y sal.",
+        "Mezcla justo antes de servir.",
+    ],
+    "Lasaña de Carne": [
+        "Sofríe cebolla y cocina la carne picada.",
+        "Añade tomate frito y cocina unos minutos.",
+        "Monta capas de pasta, carne y bechamel.",
+        "Termina con mozzarella y parmesano.",
+        "Hornea hasta que esté caliente y gratinada.",
+    ],
+    "Crema de Verduras": [
+        "Sofríe cebolla con un poco de aceite.",
+        "Añade calabacín, zanahoria y patata troceados.",
+        "Cubre con caldo y cocina hasta que todo esté tierno.",
+        "Tritura hasta obtener una crema fina.",
+        "Añade nata, salpimenta y da un hervor final.",
+    ],
+    "Pollo al Curry con Arroz": [
+        "Cuece el arroz y resérvalo.",
+        "Sofríe cebolla y añade el pollo troceado.",
+        "Incorpora curry y remueve.",
+        "Añade la leche de coco y cocina hasta espesar.",
+        "Sirve el pollo al curry con el arroz aparte o debajo.",
+    ],
+    "Fajitas de Pollo": [
+        "Corta pollo, cebolla y pimientos en tiras.",
+        "Saltea primero el pollo.",
+        "Añade las verduras y el sazonador.",
+        "Cocina hasta que todo esté bien hecho pero jugoso.",
+        "Rellena las tortillas y sírvelas calientes.",
+    ],
+    "Chili con Carne": [
+        "Sofríe la cebolla.",
+        "Añade la carne y dóralo.",
+        "Incorpora tomate, alubias, maíz y comino.",
+        "Cocina a fuego medio hasta que espese.",
+        "Sirve caliente solo o con arroz.",
+    ],
+    "Lentejas Estofadas": [
+        "Prepara las verduras troceadas.",
+        "Pon lentejas, verduras, chorizo y patata en la olla.",
+        "Cubre con agua y añade sal.",
+        "Cocina hasta que las lentejas estén tiernas.",
+        "Corrige el punto de caldo y sirve caliente.",
+    ],
+    "Garbanzos con Espinacas": [
+        "Sofríe cebolla y ajo.",
+        "Añade tomate triturado y comino.",
+        "Incorpora las espinacas y deja que bajen.",
+        "Añade los garbanzos cocidos.",
+        "Cocina unos minutos hasta integrar sabores.",
+    ],
+    "Merluza al Horno con Patatas": [
+        "Corta patatas y cebolla en rodajas finas.",
+        "Colócalas en una fuente y hornéalas con aceite.",
+        "Añade la merluza, ajo y limón.",
+        "Hornea hasta que el pescado esté hecho.",
+        "Sirve con el jugo de la bandeja por encima.",
+    ],
+    "Salmón con Verduras": [
+        "Corta las verduras en tiras o rodajas.",
+        "Saltéalas hasta que queden tiernas pero enteras.",
+        "Cocina el salmón a la plancha o al horno.",
+        "Añade limón al final.",
+        "Sirve el salmón con las verduras salteadas.",
+    ],
+    "Hamburguesas Caseras con Patatas": [
+        "Forma las hamburguesas con la carne.",
+        "Corta y cocina las patatas fritas o al horno.",
+        "Cocina las hamburguesas en sartén o plancha.",
+        "Monta el pan con lechuga, tomate y queso.",
+        "Sirve con las patatas.",
+    ],
+    "Albóndigas en Salsa": [
+        "Doura ligeramente las albóndigas.",
+        "Sofríe cebolla y zanahoria.",
+        "Añade tomate frito y un poco de agua si hace falta.",
+        "Incorpora guisantes y albóndigas.",
+        "Cocina hasta que la salsa espese y las albóndigas estén tiernas.",
+    ],
+    "Pechugas de Pollo al Limón": [
+        "Dora el pollo en aceite.",
+        "Añade ajo picado.",
+        "Incorpora zumo de limón y mantequilla.",
+        "Cocina unos minutos para ligar la salsa.",
+        "Termina con perejil picado.",
+    ],
+    "Arroz Tres Delicias": [
+        "Cuece el arroz y enfríalo.",
+        "Haz una tortilla fina con los huevos y córtala.",
+        "Saltea zanahoria y guisantes.",
+        "Añade jamón y arroz.",
+        "Incorpora huevo y salsa de soja al final.",
+    ],
+    "Paella de Verduras": [
+        "Sofríe pimiento, judías y alcachofas.",
+        "Añade tomate triturado.",
+        "Incorpora el arroz y rehoga.",
+        "Vierte el caldo y cocina sin remover demasiado.",
+        "Deja reposar unos minutos antes de servir.",
+    ],
+    "Risotto de Champiñones": [
+        "Sofríe cebolla y champiñones.",
+        "Añade el arroz y remueve.",
+        "Ve incorporando el caldo caliente poco a poco.",
+        "Remueve constantemente hasta que quede meloso.",
+        "Termina con mantequilla y parmesano.",
+    ],
+    "Quiche de Espinacas y Queso": [
+        "Forra un molde con la masa quebrada.",
+        "Sofríe la cebolla y añade las espinacas.",
+        "Mezcla huevos, nata y queso.",
+        "Reparte el relleno sobre la masa.",
+        "Hornea hasta que cuaje y se dore.",
+    ],
+    "Pizza Casera de Jamón y Queso": [
+        "Extiende la masa.",
+        "Cubre con tomate frito.",
+        "Añade mozzarella y jamón cocido.",
+        "Espolvorea orégano.",
+        "Hornea hasta que la base esté hecha y el queso fundido.",
+    ],
+    "Burritos de Ternera": [
+        "Cuece el arroz.",
+        "Cocina la carne con el pimiento.",
+        "Añade alubias y maíz.",
+        "Rellena las tortillas con arroz y mezcla de carne.",
+        "Enrolla y sirve.",
+    ],
+    "Cuscús con Verduras": [
+        "Hidrata el cuscús con caldo caliente.",
+        "Sofríe cebolla, zanahoria y calabacín.",
+        "Añade los garbanzos.",
+        "Mezcla todo con el cuscús.",
+        "Ajusta sal y sirve.",
+    ],
+    "Puré de Calabaza": [
+        "Sofríe cebolla.",
+        "Añade calabaza, patata y zanahoria.",
+        "Cubre con caldo y cocina.",
+        "Tritura hasta que quede fino.",
+        "Añade los quesitos y mezcla.",
+    ],
+    "Brochetas de Pollo y Verduras": [
+        "Corta pollo y verduras en trozos regulares.",
+        "Marina con soja y aceite.",
+        "Inserta en brochetas alternando ingredientes.",
+        "Cocina en plancha, sartén o horno.",
+        "Sirve recién hechas.",
+    ],
+    "Tacos de Pescado": [
+        "Cocina la merluza con limón y pimentón.",
+        "Corta la col muy fina.",
+        "Mezcla yogur con un poco de limón.",
+        "Calienta las tortillas.",
+        "Monta los tacos con pescado, col y salsa.",
+    ],
+    "Moussaka Rápida": [
+        "Corta y cocina la berenjena a la plancha o al horno.",
+        "Sofríe cebolla y cocina la carne.",
+        "Añade tomate triturado.",
+        "Monta capas de berenjena, carne y bechamel.",
+        "Cubre con queso y hornea.",
+    ],
+    "Bacalao con Tomate": [
+        "Sofríe cebolla, ajo y pimiento.",
+        "Añade tomate triturado y cocina la salsa.",
+        "Incorpora el bacalao.",
+        "Cocina unos minutos hasta que el pescado esté en su punto.",
+        "Sirve caliente con salsa abundante.",
+    ],
+    "Ensalada César con Pollo": [
+        "Cocina el pollo a la plancha.",
+        "Lava y corta la lechuga.",
+        "Mezcla lechuga, pollo, picatostes y parmesano.",
+        "Añade la salsa César.",
+        "Sirve enseguida.",
+    ],
+    "Tabulé": [
+        "Hidrata el cuscús.",
+        "Corta tomate, pepino y cebolleta en pequeño.",
+        "Pica la hierbabuena.",
+        "Mezcla todo con zumo de limón.",
+        "Enfría antes de servir.",
+    ],
+    "Pisto con Huevo": [
+        "Corta todas las verduras en dados.",
+        "Sofríelas poco a poco hasta que estén tiernas.",
+        "Añade tomate triturado y cocina.",
+        "Fríe o cuaja los huevos aparte.",
+        "Sirve el pisto con huevo encima.",
+    ],
+    "Berenjenas Rellenas": [
+        "Parte las berenjenas y ásalas o cuécelas ligeramente.",
+        "Vacía parte de la pulpa.",
+        "Sofríe cebolla, carne y pulpa troceada.",
+        "Añade tomate y rellena las berenjenas.",
+        "Cubre con queso y hornea.",
+    ],
+    "Croquetas de Jamón": [
+        "Derrite mantequilla y añade harina para hacer roux.",
+        "Incorpora la leche poco a poco removiendo.",
+        "Añade el jamón y cocina hasta espesar.",
+        "Enfría la masa por completo.",
+        "Forma, empana y fríe las croquetas.",
+    ],
+    "Empanada de Atún": [
+        "Sofríe cebolla y pimiento.",
+        "Añade tomate y atún.",
+        "Extiende una masa y coloca el relleno.",
+        "Cubre con la otra masa y pincela con huevo.",
+        "Hornea hasta que esté dorada.",
+    ],
+    "Sopa de Pollo con Fideos": [
+        "Cuece el caldo con pollo y verduras.",
+        "Saca y desmenuza el pollo si hace falta.",
+        "Vuelve a incorporarlo al caldo.",
+        "Añade los fideos.",
+        "Cocina hasta que estén tiernos y sirve.",
+    ],
+    "Tortilla Francesa con Queso": [
+        "Bate los huevos con sal.",
+        "Funde un poco de mantequilla en la sartén.",
+        "Añade el huevo.",
+        "Incorpora el queso antes de cerrar.",
+        "Dobla la tortilla y sirve.",
+    ],
+    "Wrap de Pavo y Aguacate": [
+        "Unta las tortillas con queso crema.",
+        "Coloca lechuga, pavo y aguacate.",
+        "Ajusta sal si hace falta.",
+        "Enrolla bien el wrap.",
+        "Corta y sirve.",
+    ],
+    "Pollo Asado con Verduras": [
+        "Coloca patata y verduras en una bandeja.",
+        "Pon el pollo encima.",
+        "Aliña con aceite y sal.",
+        "Hornea hasta que el pollo esté dorado y hecho.",
+        "Riega con sus jugos antes de servir.",
+    ],
+    "Pasta al Pesto": [
+        "Cuece la pasta.",
+        "Escúrrela reservando algo de agua de cocción.",
+        "Mezcla con la salsa pesto.",
+        "Añade parmesano.",
+        "Termina con piñones.",
+    ],
+    "Ñoquis con Salsa de Quesos": [
+        "Cuece los ñoquis según el envase.",
+        "Calienta la nata.",
+        "Añade los quesos y remueve hasta fundir.",
+        "Mezcla con los ñoquis.",
+        "Ajusta pimienta y sirve.",
+    ],
+    "Sandwich Club": [
+        "Cocina el bacon y el pollo.",
+        "Tuesta el pan.",
+        "Coloca mayonesa, lechuga, tomate, pollo y bacon en capas.",
+        "Cierra el sándwich.",
+        "Corta y sirve.",
+    ],
+    "Gazpacho Andaluz": [
+        "Trocea tomate, pepino, pimiento y ajo.",
+        "Tritura todo junto.",
+        "Añade aceite y vinagre.",
+        "Ajusta textura con agua si hace falta.",
+        "Enfría antes de servir.",
+    ],
+    "Salmorejo Cordobés": [
+        "Tritura tomate y pan.",
+        "Añade aceite poco a poco hasta emulsionar.",
+        "Ajusta sal y enfría.",
+        "Cuece los huevos.",
+        "Sirve con jamón y huevo picado.",
+    ],
+    "Revuelto de Setas": [
+        "Saltea el ajo y los champiñones.",
+        "Bate los huevos.",
+        "Añade los huevos a la sartén.",
+        "Remueve suavemente hasta cuajar.",
+        "Sirve de inmediato.",
+    ],
+    "Wok de Ternera y Verduras": [
+        "Corta la ternera en tiras.",
+        "Saltea las verduras a fuego fuerte.",
+        "Añade la ternera.",
+        "Incorpora salsa de soja.",
+        "Cocina poco tiempo para que quede jugoso.",
+    ],
+    "Quesadillas de Jamón y Queso": [
+        "Coloca queso y jamón sobre una tortilla.",
+        "Cubre con otra tortilla o dóblala.",
+        "Cocina en sartén por un lado.",
+        "Dale la vuelta hasta que el queso funda.",
+        "Corta y sirve.",
+    ],
+}
+
+
+def _seed_title_key(value: str) -> str:
+    normalized = value.lower()
+    replacements = {
+        "ã¡": "a", "ã ": "a", "ã¤": "a", "ã£": "a",
+        "ã©": "e", "ã¨": "e", "ã«": "e",
+        "ã­": "i", "ã¬": "i", "ã¯": "i",
+        "ã³": "o", "ã²": "o", "ã¶": "o", "ãµ": "o",
+        "ãº": "u", "ã¹": "u", "ã¼": "u",
+        "ã±": "n",
+        "á": "a", "à": "a", "ä": "a", "ã": "a",
+        "é": "e", "è": "e", "ë": "e",
+        "í": "i", "ì": "i", "ï": "i",
+        "ó": "o", "ò": "o", "ö": "o", "õ": "o",
+        "ú": "u", "ù": "u", "ü": "u",
+        "ñ": "n",
+    }
+    for source, target in replacements.items():
+        normalized = normalized.replace(source, target)
+    return normalized
+
+
+def _step_objects(step_texts: list[str]) -> list[dict]:
+    return [{"position": index, "text": text} for index, text in enumerate(step_texts)]
+
+
+_SEED_STEP_MAP = {
+    _seed_title_key(title): _step_objects(steps)
+    for title, steps in SEED_RECIPE_STEPS.items()
+}
+
+
+for seed in SEED_RECIPES + ADDITIONAL_SEED_RECIPES:
+    seed["steps"] = list(_SEED_STEP_MAP.get(_seed_title_key(seed["title"]), []))
+
 SEED_RECIPES.extend(ADDITIONAL_SEED_RECIPES)
 
 
@@ -241,44 +615,58 @@ class RecipeService:
     # ── Seed ──────────────────────────────────────────────────────────────────
 
     async def ensure_seeds(self) -> None:
-        """Insert missing public seed/template recipes without duplicating existing titles."""
+        """Insert missing public seed/template recipes and backfill seed steps safely."""
         result = await self.db.execute(
-            select(Recipe.title).where(Recipe.is_public == True)
+            select(Recipe).where(Recipe.is_public == True).options(selectinload(Recipe.ingredients))
         )
-        existing_titles = {title for title in result.scalars().all()}
-        missing_seeds = [seed for seed in SEED_RECIPES if seed["title"] not in existing_titles]
-        if not missing_seeds:
+        existing_recipes = list(result.scalars().all())
+        existing_by_key = {_seed_title_key(recipe.title): recipe for recipe in existing_recipes}
+        changed = False
+        created = 0
+
+        for seed in SEED_RECIPES:
+            key = _seed_title_key(seed["title"])
+            recipe = existing_by_key.get(key)
+            seed_steps = list(seed.get("steps", []))
+
+            if recipe is None:
+                recipe = Recipe(
+                    user_id=None,
+                    title=seed["title"],
+                    description=seed.get("description"),
+                    servings=seed.get("servings", 4),
+                    estimated_minutes=seed.get("estimated_minutes"),
+                    estimated_cost=seed.get("estimated_cost"),
+                    tags=seed.get("tags"),
+                    steps=seed_steps,
+                    is_public=True,
+                )
+                self.db.add(recipe)
+                await self.db.flush()
+
+                for pos, ing_data in enumerate(seed.get("ingredients", [])):
+                    self.db.add(RecipeIngredient(
+                        recipe_id=recipe.id,
+                        name=ing_data["name"],
+                        quantity=ing_data.get("quantity"),
+                        unit=ing_data.get("unit"),
+                        notes=ing_data.get("notes"),
+                        product_query=ing_data.get("product_query"),
+                        position=pos,
+                    ))
+                created += 1
+                changed = True
+                continue
+
+            if (recipe.steps or []) != seed_steps:
+                recipe.steps = seed_steps
+                changed = True
+
+        if not changed:
             return
 
-        logger.info("Inserting missing seed recipes...")
-        for seed in missing_seeds:
-            recipe = Recipe(
-                user_id=None,
-                title=seed["title"],
-                description=seed.get("description"),
-                servings=seed.get("servings", 4),
-                estimated_minutes=seed.get("estimated_minutes"),
-                estimated_cost=seed.get("estimated_cost"),
-                tags=seed.get("tags"),
-                is_public=True,
-            )
-            self.db.add(recipe)
-            await self.db.flush()
-
-            for pos, ing_data in enumerate(seed.get("ingredients", [])):
-                ing = RecipeIngredient(
-                    recipe_id=recipe.id,
-                    name=ing_data["name"],
-                    quantity=ing_data.get("quantity"),
-                    unit=ing_data.get("unit"),
-                    notes=ing_data.get("notes"),
-                    product_query=ing_data.get("product_query"),
-                    position=pos,
-                )
-                self.db.add(ing)
-
         await self.db.commit()
-        logger.info(f"Seeded {len(missing_seeds)} public recipes")
+        logger.info(f"Seed sync complete. Created {created} recipes and updated seed steps.")
 
     # ── Helpers ───────────────────────────────────────────────────────────────
 
@@ -318,6 +706,7 @@ class RecipeService:
             estimated_minutes=recipe.estimated_minutes,
             estimated_cost=recipe.estimated_cost,
             tags=recipe.tags,
+            steps=_normalize_steps(recipe.steps),
             image_url=recipe.image_url,
             is_public=recipe.is_public,
             ingredient_count=len(recipe.ingredients),
@@ -417,7 +806,7 @@ class RecipeService:
 
     async def get_recipe(self, recipe_id: int, user_id: int) -> RecipeRead:
         recipe = await self._get_recipe_or_404(recipe_id, user_id)
-        return RecipeRead.model_validate(recipe)
+        return _to_recipe_read(recipe)
 
     async def create_recipe(self, user_id: int, data: RecipeCreate) -> RecipeRead:
         recipe = Recipe(
@@ -428,6 +817,7 @@ class RecipeService:
             estimated_minutes=data.estimated_minutes,
             estimated_cost=data.estimated_cost,
             tags=data.tags,
+            steps=_normalize_steps(data.steps),
             image_url=data.image_url,
             is_public=False,
         )
@@ -452,7 +842,7 @@ class RecipeService:
         result = await self.db.execute(
             select(Recipe).where(Recipe.id == recipe.id).options(selectinload(Recipe.ingredients))
         )
-        return RecipeRead.model_validate(result.scalar_one())
+        return _to_recipe_read(result.scalar_one())
 
     async def update_recipe(self, recipe_id: int, user_id: int, data: RecipeUpdate) -> RecipeRead:
         recipe = await self._get_own_recipe_or_404(recipe_id, user_id)
@@ -469,6 +859,8 @@ class RecipeService:
             recipe.estimated_cost = data.estimated_cost
         if data.tags is not None:
             recipe.tags = data.tags
+        if data.steps is not None:
+            recipe.steps = _normalize_steps(data.steps)
         if data.image_url is not None:
             recipe.image_url = data.image_url
 
@@ -495,7 +887,7 @@ class RecipeService:
         result = await self.db.execute(
             select(Recipe).where(Recipe.id == recipe.id).options(selectinload(Recipe.ingredients))
         )
-        return RecipeRead.model_validate(result.scalar_one())
+        return _to_recipe_read(result.scalar_one())
 
     async def delete_recipe(self, recipe_id: int, user_id: int) -> None:
         recipe = await self._get_own_recipe_or_404(recipe_id, user_id)
@@ -512,6 +904,7 @@ class RecipeService:
             estimated_minutes=source.estimated_minutes,
             estimated_cost=source.estimated_cost,
             tags=source.tags,
+            steps=_normalize_steps(source.steps),
             ingredients=[
                 type("IngCreate", (), {
                     "name": i.name, "quantity": i.quantity, "unit": i.unit,
@@ -940,3 +1333,54 @@ def _merge_notes(current: Optional[str], incoming: Optional[str]) -> Optional[st
     if incoming in current:
         return current
     return f"{current} | {incoming}"
+
+
+def _normalize_steps(steps) -> list[dict]:
+    if not steps:
+        return []
+
+    normalized_steps: list[dict] = []
+    for index, step in enumerate(steps):
+        text = getattr(step, "text", None) if not isinstance(step, dict) else step.get("text")
+        position = getattr(step, "position", index) if not isinstance(step, dict) else step.get("position", index)
+        normalized_steps.append({
+            "position": int(position),
+            "text": str(text).strip(),
+        })
+
+    normalized_steps.sort(key=lambda item: item["position"])
+    return [
+        {"position": index, "text": step["text"]}
+        for index, step in enumerate(normalized_steps)
+    ]
+
+
+def _to_recipe_read(recipe: Recipe) -> RecipeRead:
+    return RecipeRead(
+        id=recipe.id,
+        user_id=recipe.user_id,
+        title=recipe.title,
+        description=recipe.description,
+        servings=recipe.servings,
+        estimated_minutes=recipe.estimated_minutes,
+        estimated_cost=recipe.estimated_cost,
+        tags=recipe.tags,
+        steps=_normalize_steps(recipe.steps),
+        image_url=recipe.image_url,
+        is_public=recipe.is_public,
+        ingredients=[
+            {
+                "id": ingredient.id,
+                "recipe_id": ingredient.recipe_id,
+                "name": ingredient.name,
+                "quantity": ingredient.quantity,
+                "unit": ingredient.unit,
+                "notes": ingredient.notes,
+                "product_query": ingredient.product_query,
+                "position": ingredient.position,
+            }
+            for ingredient in recipe.ingredients
+        ],
+        created_at=recipe.created_at,
+        updated_at=recipe.updated_at,
+    )

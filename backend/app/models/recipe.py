@@ -24,6 +24,7 @@ class Recipe(Base):
     estimated_minutes = Column(Integer, nullable=True)
     estimated_cost = Column(Float, nullable=True)
     tags = Column(JSON, nullable=True)          # list[str]
+    steps = Column(JSON, nullable=True)         # list[{position:int,text:str}]
     image_url = Column(String(500), nullable=True)
     is_public = Column(Boolean, default=False, nullable=False)   # True for seed/template recipes
 

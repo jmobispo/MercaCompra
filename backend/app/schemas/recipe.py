@@ -1,6 +1,27 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator, model_validator
 from typing import Optional, List
 from datetime import datetime
+
+
+class RecipeStepBase(BaseModel):
+    position: int = Field(default=0, ge=0)
+    text: str = Field(..., max_length=500)
+
+    @field_validator("text")
+    @classmethod
+    def validate_text(cls, value: str) -> str:
+        text = value.strip()
+        if not text:
+            raise ValueError("El texto del paso no puede estar vacio")
+        return text
+
+
+class RecipeStepCreate(RecipeStepBase):
+    pass
+
+
+class RecipeStepRead(RecipeStepBase):
+    pass
 
 
 class RecipeIngredientCreate(BaseModel):
@@ -43,7 +64,14 @@ class RecipeCreate(BaseModel):
     estimated_cost: Optional[float] = Field(None, ge=0)
     tags: Optional[List[str]] = None
     image_url: Optional[str] = None
-    ingredients: List[RecipeIngredientCreate] = []
+    ingredients: List[RecipeIngredientCreate] = Field(default_factory=list)
+    steps: List[RecipeStepCreate] = Field(default_factory=list)
+
+    @model_validator(mode="after")
+    def validate_steps_count(self):
+        if len(self.steps) > 20:
+            raise ValueError("Una receta no puede tener mas de 20 pasos")
+        return self
 
 
 class RecipeUpdate(BaseModel):
@@ -55,6 +83,13 @@ class RecipeUpdate(BaseModel):
     tags: Optional[List[str]] = None
     image_url: Optional[str] = None
     ingredients: Optional[List[RecipeIngredientCreate]] = None  # replaces all ingredients
+    steps: Optional[List[RecipeStepCreate]] = None
+
+    @model_validator(mode="after")
+    def validate_steps_count(self):
+        if self.steps is not None and len(self.steps) > 20:
+            raise ValueError("Una receta no puede tener mas de 20 pasos")
+        return self
 
 
 class RecipeRead(BaseModel):
@@ -66,6 +101,7 @@ class RecipeRead(BaseModel):
     estimated_minutes: Optional[int]
     estimated_cost: Optional[float]
     tags: Optional[List[str]]
+    steps: List[RecipeStepRead] = Field(default_factory=list)
     image_url: Optional[str]
     is_public: bool
     ingredients: List[RecipeIngredientRead]
@@ -74,6 +110,11 @@ class RecipeRead(BaseModel):
 
     class Config:
         from_attributes = True
+
+    @field_validator("steps", mode="before")
+    @classmethod
+    def default_steps(cls, value):
+        return value or []
 
 
 class RecipeSummary(BaseModel):
@@ -86,6 +127,7 @@ class RecipeSummary(BaseModel):
     estimated_minutes: Optional[int]
     estimated_cost: Optional[float]
     tags: Optional[List[str]]
+    steps: List[RecipeStepRead] = Field(default_factory=list)
     image_url: Optional[str]
     is_public: bool
     ingredient_count: int
@@ -94,6 +136,11 @@ class RecipeSummary(BaseModel):
 
     class Config:
         from_attributes = True
+
+    @field_validator("steps", mode="before")
+    @classmethod
+    def default_steps(cls, value):
+        return value or []
 
 
 class AddToListPayload(BaseModel):

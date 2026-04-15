@@ -108,6 +108,7 @@ export default function RecipeDetailPage() {
   }
 
   const isOwn = recipe.user_id !== null && !recipe.is_public;
+  const steps = Array.isArray(recipe.steps) ? recipe.steps : [];
 
   return (
     <div>
@@ -243,6 +244,31 @@ export default function RecipeDetailPage() {
                   </li>
                 ))}
             </ul>
+          )}
+        </div>
+      </div>
+
+      <div className="card" style={{ marginTop: 24 }}>
+        <div className="card-header">
+          <h2>Elaboración</h2>
+          <span style={{ fontSize: 13, color: 'var(--color-text-muted)' }}>
+            {steps.length} paso(s)
+          </span>
+        </div>
+        <div className="card-body" style={{ padding: steps.length === 0 ? 16 : 20 }}>
+          {steps.length === 0 ? (
+            <p style={{ color: 'var(--color-text-muted)' }}>Sin pasos definidos</p>
+          ) : (
+            <ol style={{ margin: 0, paddingLeft: 20, display: 'grid', gap: 14 }}>
+              {steps
+                .slice()
+                .sort((a, b) => a.position - b.position)
+                .map((step) => (
+                  <li key={`${step.position}-${step.text}`} style={{ paddingLeft: 4 }}>
+                    <span style={{ lineHeight: 1.6 }}>{step.text}</span>
+                  </li>
+                ))}
+            </ol>
           )}
         </div>
       </div>
