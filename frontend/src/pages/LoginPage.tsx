@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
+import BrandLogo from '../components/branding/BrandLogo';
 
 export default function LoginPage() {
   const { login } = useAuth();
@@ -34,8 +35,7 @@ export default function LoginPage() {
     <div className="auth-page">
       <div className="auth-card">
         <div className="auth-logo">
-          <h1>Merca<span>Compra</span></h1>
-          <p>Gestiona tu compra de Mercadona</p>
+          <BrandLogo subtitle="Listas, recetas y planificacion semanal con estilo premium" />
         </div>
 
         <div className="auth-form">

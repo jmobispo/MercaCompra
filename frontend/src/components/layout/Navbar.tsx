@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '../../hooks/useAuth';
 import type { User } from '../../types';
+import BrandLogo from '../branding/BrandLogo';
 
 interface NavbarProps {
   title: string;
@@ -30,7 +31,13 @@ export default function Navbar({ title, user }: NavbarProps) {
 
   return (
     <header className="topbar">
-      <span className="topbar-title">{title}</span>
+      <div className="topbar-title-group">
+        <BrandLogo iconOnly className="topbar-logo-badge" />
+        <div className="topbar-title-stack">
+          <span className="topbar-title">{title}</span>
+          <span className="topbar-caption">MercaCompra</span>
+        </div>
+      </div>
       <div className="topbar-user">
         {user && (
           <>

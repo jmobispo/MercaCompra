@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
+import BrandLogo from '../components/branding/BrandLogo';
 
 interface FormErrors {
   email?: string;
@@ -57,8 +58,7 @@ export default function RegisterPage() {
     <div className="auth-page">
       <div className="auth-card">
         <div className="auth-logo">
-          <h1>Merca<span>Compra</span></h1>
-          <p>Crea tu cuenta gratuita</p>
+          <BrandLogo subtitle="Tu compra organizada, inteligente y lista para movil" />
         </div>
 
         <div className="auth-form">

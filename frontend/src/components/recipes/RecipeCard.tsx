@@ -45,7 +45,7 @@ export default function RecipeCard({
         <div className="recipe-card-header">
           <h3 className="recipe-card-title">{recipe.title}</h3>
           {recipe.is_public && (
-            <span className="badge" style={{ background: 'var(--color-success)', color: '#fff', fontSize: 10 }}>
+            <span className="badge recipe-card-badge">
               Sugerida
             </span>
           )}

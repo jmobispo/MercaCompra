@@ -15,13 +15,52 @@ import type {
   WeeklyPlanSummary,
 } from '../types';
 
+function MetricIcon({ kind }: { kind: 'spend' | 'lists' | 'items' | 'plans' }) {
+  const icons = {
+    spend: (
+      <>
+        <rect x="4" y="6" width="16" height="12" rx="6" stroke="currentColor" strokeWidth="1.8" />
+        <path d="M8 12h8" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+        <circle cx="12" cy="12" r="2.6" fill="currentColor" />
+      </>
+    ),
+    lists: (
+      <>
+        <rect x="5" y="4" width="14" height="16" rx="4" stroke="currentColor" strokeWidth="1.8" />
+        <path d="M9 9h6M9 13h6M9 17h4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+      </>
+    ),
+    items: (
+      <>
+        <path d="M7 8h12l-1.2 7a2 2 0 0 1-2 1.7H10a2 2 0 0 1-2-1.7L7 8Z" stroke="currentColor" strokeWidth="1.8" />
+        <path d="M9 8V7a3 3 0 0 1 6 0v1" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+      </>
+    ),
+    plans: (
+      <>
+        <rect x="4" y="5" width="16" height="15" rx="4" stroke="currentColor" strokeWidth="1.8" />
+        <path d="M8 3v4M16 3v4M4 9h16" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+        <path d="M8 13h3M8 16h6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+      </>
+    ),
+  };
+
+  return (
+    <span className="stat-icon stat-icon-svg" aria-hidden="true">
+      <svg viewBox="0 0 24 24" fill="none">
+        {icons[kind]}
+      </svg>
+    </span>
+  );
+}
+
 function StatusRow({ label, value, ok }: { label: string; value: string; ok?: boolean }) {
   return (
-    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-      <span style={{ color: 'var(--color-text-muted)' }}>{label}</span>
+    <div className="dashboard-status-row">
+      <span className="dashboard-status-label">{label}</span>
       <span
+        className="dashboard-status-value"
         style={{
-          fontWeight: 500,
           color:
             ok === true
               ? 'var(--color-success, #22c55e)'
@@ -70,7 +109,7 @@ export default function DashboardPage() {
       }
     };
 
-    fetchData();
+    void fetchData();
   }, []);
 
   const activeLists = lists.filter((item) => !item.is_archived);
@@ -120,7 +159,7 @@ export default function DashboardPage() {
   }
 
   return (
-    <div>
+    <div className="dashboard-page">
       <div className="page-header">
         <div>
           <h1>Hola, {user?.username ?? 'Usuario'}</h1>
@@ -131,22 +170,19 @@ export default function DashboardPage() {
         </Link>
       </div>
 
-      {error && <div className="alert alert-error" style={{ marginBottom: 16 }}>{error}</div>}
+      {error && <div className="alert alert-error dashboard-alert">{error}</div>}
 
       <div className="stats-grid">
         <div className="stat-card accent">
-          <div className="stat-icon">💸</div>
+          <MetricIcon kind="spend" />
           <div className="stat-label">Gasto esta semana</div>
-          <div className="stat-value" style={{ fontSize: 20 }}>
+          <div className="stat-value dashboard-stat-value-lg">
             {formatCurrency(dashboard?.weekly_spending ?? totalSpend)}
           </div>
           {(dashboard?.weekly_variation ?? 0) !== 0 && (
             <div
-              style={{
-                fontSize: 12,
-                color: variationColor(dashboard?.weekly_variation ?? 0),
-                marginTop: 4,
-              }}
+              className="dashboard-variation-note"
+              style={{ color: variationColor(dashboard?.weekly_variation ?? 0) }}
             >
               {(dashboard?.weekly_variation ?? 0) > 0 ? '▲' : '▼'}{' '}
               {Math.abs(dashboard?.weekly_variation ?? 0).toFixed(1)}% vs semana anterior
@@ -154,32 +190,32 @@ export default function DashboardPage() {
           )}
         </div>
         <div className="stat-card">
-          <div className="stat-icon">📋</div>
+          <MetricIcon kind="lists" />
           <div className="stat-label">Listas activas</div>
           <div className="stat-value">{dashboard?.active_list_count ?? activeLists.length}</div>
         </div>
         <div className="stat-card">
-          <div className="stat-icon">🛒</div>
+          <MetricIcon kind="items" />
           <div className="stat-label">Total artículos</div>
           <div className="stat-value">{totalItems}</div>
         </div>
         <div className="stat-card">
-          <div className="stat-icon">🗓</div>
+          <MetricIcon kind="plans" />
           <div className="stat-label">Planes semanales</div>
           <div className="stat-value">{weeklyPlans.length}</div>
         </div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
+      <div className="dashboard-columns">
         <div className="card">
           <div className="card-header">
             <h2>Listas recientes</h2>
             <Link to="/lists" className="btn btn-ghost btn-sm">Ver todas</Link>
           </div>
-          <div className="card-body" style={{ padding: 0 }}>
+          <div className="card-body dashboard-card-list">
             {activeLists.length === 0 ? (
               <div className="empty-state">
-                <div className="empty-icon">📋</div>
+                <div className="empty-icon empty-icon-soft">◦</div>
                 <p>No tienes listas aún</p>
               </div>
             ) : (
@@ -187,23 +223,15 @@ export default function DashboardPage() {
                 <Link
                   key={list.id}
                   to={`/lists/${list.id}`}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    padding: '12px 20px',
-                    borderBottom: '1px solid var(--color-border)',
-                    textDecoration: 'none',
-                    color: 'inherit',
-                  }}
+                  className="dashboard-list-link"
                 >
-                  <div>
-                    <div style={{ fontWeight: 600, fontSize: 14 }}>{list.name}</div>
-                    <div style={{ fontSize: 12, color: 'var(--color-text-muted)' }}>
+                  <div className="dashboard-list-link-copy">
+                    <div className="dashboard-list-link-title">{list.name}</div>
+                    <div className="dashboard-list-link-meta">
                       {list.item_count} artículos · {formatDate(list.updated_at)}
                     </div>
                   </div>
-                  <div style={{ fontWeight: 600, color: 'var(--color-primary)' }}>
+                  <div className="dashboard-list-link-value">
                     {formatCurrency(list.total)}
                   </div>
                 </Link>
@@ -217,10 +245,10 @@ export default function DashboardPage() {
             <h2>Automatizaciones recientes</h2>
             <Link to="/automation" className="btn btn-ghost btn-sm">Ver todas</Link>
           </div>
-          <div className="card-body" style={{ padding: 0 }}>
+          <div className="card-body dashboard-card-list">
             {recentRuns.length === 0 ? (
               <div className="empty-state">
-                <div className="empty-icon">🤖</div>
+                <div className="empty-icon empty-icon-soft">◦</div>
                 <p>No hay ejecuciones aún</p>
               </div>
             ) : (
@@ -228,19 +256,11 @@ export default function DashboardPage() {
                 <Link
                   key={run.id}
                   to="/automation"
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    padding: '12px 20px',
-                    borderBottom: '1px solid var(--color-border)',
-                    textDecoration: 'none',
-                    color: 'inherit',
-                  }}
+                  className="dashboard-list-link"
                 >
-                  <div>
-                    <div style={{ fontWeight: 600, fontSize: 14 }}>Ejecución #{run.id}</div>
-                    <div style={{ fontSize: 12, color: 'var(--color-text-muted)' }}>
+                  <div className="dashboard-list-link-copy">
+                    <div className="dashboard-list-link-title">Ejecución #{run.id}</div>
+                    <div className="dashboard-list-link-meta">
                       {run.added_ok}/{run.total_items} añadidos · {formatDate(run.created_at)}
                     </div>
                   </div>
@@ -252,7 +272,7 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, marginTop: 20 }}>
+      <div className="dashboard-columns dashboard-columns-secondary">
         <div className="card">
           <div className="card-header">
             <h2>Tus básicos</h2>
@@ -267,20 +287,20 @@ export default function DashboardPage() {
           <div className="card-body">
             {frequentProducts.length === 0 ? (
               <div className="empty-state">
-                <div className="empty-icon">⭐</div>
+                <div className="empty-icon empty-icon-soft">◦</div>
                 <p>Aún no hay hábitos suficientes</p>
               </div>
             ) : (
-              <div style={{ display: 'grid', gap: 12 }}>
+              <div className="dashboard-basics-grid">
                 {frequentProducts.map((product) => (
-                  <div key={product.product_id} style={{ display: 'flex', justifyContent: 'space-between', gap: 12 }}>
+                  <div key={product.product_id} className="dashboard-basic-card">
                     <div>
-                      <div style={{ fontWeight: 600 }}>{product.product_name}</div>
-                      <div style={{ fontSize: 12, color: 'var(--color-text-muted)' }}>
+                      <div className="dashboard-basic-card-title">{product.product_name}</div>
+                      <div className="dashboard-basic-card-meta">
                         {product.times_added} veces · media {product.average_quantity.toFixed(1)}
                       </div>
                     </div>
-                    <div style={{ fontWeight: 600 }}>
+                    <div className="dashboard-basic-card-value">
                       {product.product_price != null ? formatCurrency(product.product_price) : '—'}
                     </div>
                   </div>
@@ -295,10 +315,10 @@ export default function DashboardPage() {
             <h2>Planificación semanal</h2>
             <Link to="/weekly-plans" className="btn btn-ghost btn-sm">Ver planes</Link>
           </div>
-          <div className="card-body" style={{ padding: 0 }}>
+          <div className="card-body dashboard-card-list">
             {weeklyPlans.length === 0 ? (
               <div className="empty-state">
-                <div className="empty-icon">🗓</div>
+                <div className="empty-icon empty-icon-soft">◦</div>
                 <p>Todavía no has creado planes</p>
               </div>
             ) : (
@@ -306,23 +326,15 @@ export default function DashboardPage() {
                 <Link
                   key={plan.id}
                   to={`/weekly-plans/${plan.id}`}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    padding: '12px 20px',
-                    borderBottom: '1px solid var(--color-border)',
-                    textDecoration: 'none',
-                    color: 'inherit',
-                  }}
+                  className="dashboard-list-link"
                 >
-                  <div>
-                    <div style={{ fontWeight: 600, fontSize: 14 }}>{plan.title}</div>
-                    <div style={{ fontSize: 12, color: 'var(--color-text-muted)' }}>
+                  <div className="dashboard-list-link-copy">
+                    <div className="dashboard-list-link-title">{plan.title}</div>
+                    <div className="dashboard-list-link-meta">
                       {plan.assigned_days}/{plan.days_count} días cubiertos
                     </div>
                   </div>
-                  <div style={{ fontWeight: 600 }}>{plan.people_count} pers.</div>
+                  <div className="dashboard-list-link-value">{plan.people_count} pers.</div>
                 </Link>
               ))
             )}
@@ -331,12 +343,12 @@ export default function DashboardPage() {
       </div>
 
       {dashboard?.system_status && (
-        <div className="card" style={{ marginTop: 20 }}>
+        <div className="card dashboard-system-card">
           <div className="card-header">
             <h2>Estado del sistema</h2>
           </div>
-          <div className="card-body" style={{ fontSize: 14 }}>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <div className="card-body">
+            <div className="dashboard-status-grid">
               <StatusRow label="Búsqueda" value={dashboard.system_status.search_mode} />
               <StatusRow label="IA (recetas)" value={dashboard.system_status.ai_mode} />
               <StatusRow label="Código postal" value={dashboard.system_status.postal_code} />
@@ -346,7 +358,7 @@ export default function DashboardPage() {
                 ok={dashboard.system_status.bot_available}
               />
               {dashboard.system_status.demo_mode && (
-                <StatusRow label="Modo demo" value="Activo" ok={true} />
+                <StatusRow label="Modo demo" value="Activo" ok />
               )}
             </div>
           </div>
