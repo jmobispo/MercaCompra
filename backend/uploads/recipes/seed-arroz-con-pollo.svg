@@ -1,0 +1,17 @@
+<svg xmlns='http://www.w3.org/2000/svg' width='1200' height='800' viewBox='0 0 1200 800'>
+  <defs>
+    <linearGradient id='bg' x1='0' y1='0' x2='1' y2='1'>
+      <stop offset='0%' stop-color='#ee8cc2'/>
+      <stop offset='100%' stop-color='#afee8c'/>
+    </linearGradient>
+  </defs>
+  <rect width='1200' height='800' rx='36' fill='url(#bg)'/>
+  <rect x='40' y='40' width='1120' height='720' rx='30' fill='rgba(255,255,255,0.88)'/>
+  <circle cx='1020' cy='180' r='110' fill='rgba(255,255,255,0.42)'/>
+  <circle cx='1080' cy='600' r='150' fill='rgba(255,255,255,0.20)'/>
+  <text x='44' y='88' font-size='18' font-weight='700' fill='#355345'>MercaCompra recipe</text>
+  <text x='44' y='138' font-size='26' font-weight='700' fill='#132018'>Arroz con Pollo</text>
+  <text x='44' y='260' font-size='20' font-weight='600' fill='#355345'>Comida ? Cena</text>
+  <text x='44' y='690' font-size='18' fill='#466458'>Receta sin foto real aun ? portada automatica</text>
+  <text x='44' y='724' font-size='15' fill='#5e786b'>Puedes reemplazarla desde Editar receta cuando quieras.</text>
+</svg>

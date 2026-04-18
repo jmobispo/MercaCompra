@@ -2,6 +2,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 
 import app.api.auth as auth
 import app.api.automation as automation
@@ -19,6 +20,7 @@ import app.models  # noqa: F401
 from app.core.config import get_settings
 from app.core.logging import setup_logging
 from app.db.session import engine
+from app.utils.recipe_images import get_upload_root
 
 settings = get_settings()
 
@@ -44,6 +46,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+uploads_dir = get_upload_root()
+app.mount("/uploads", StaticFiles(directory=str(uploads_dir)), name="uploads")
 
 API_PREFIX = "/api/v1"
 app.include_router(auth.router, prefix=API_PREFIX)

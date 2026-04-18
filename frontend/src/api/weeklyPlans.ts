@@ -5,6 +5,7 @@ import type {
   GenerateWeeklyPlanListPayload,
   UpdateWeeklyPlanPayload,
   WeeklyPlan,
+  WeeklyPlanGeneratedSummary,
   WeeklyPlanSummary,
 } from '../types';
 
@@ -30,6 +31,16 @@ export const updateWeeklyPlan = async (id: number, payload: UpdateWeeklyPlanPayl
 
 export const deleteWeeklyPlan = async (id: number): Promise<void> => {
   await apiClient.delete(`/weekly-plans/${id}`);
+};
+
+export const generateWeeklyPlan = async (id: number): Promise<WeeklyPlan> => {
+  const response = await apiClient.post<WeeklyPlan>(`/weekly-plans/${id}/generate`);
+  return response.data;
+};
+
+export const getWeeklyPlanSummary = async (id: number): Promise<WeeklyPlanGeneratedSummary> => {
+  const response = await apiClient.get<WeeklyPlanGeneratedSummary>(`/weekly-plans/${id}/summary`);
+  return response.data;
 };
 
 export const generateWeeklyPlanShoppingList = async (

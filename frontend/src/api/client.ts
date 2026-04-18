@@ -14,6 +14,18 @@ import axios from 'axios';
  */
 const API_URL = import.meta.env.VITE_API_URL ?? '/api/v1';
 
+export function resolveBackendUrl(path?: string | null): string | null {
+  if (!path) return null;
+  if (/^https?:\/\//i.test(path)) return path;
+
+  if (API_URL.startsWith('http')) {
+    const origin = new URL(API_URL).origin;
+    return path.startsWith('/') ? `${origin}${path}` : `${origin}/${path}`;
+  }
+
+  return path.startsWith('/') ? path : `/${path}`;
+}
+
 const apiClient = axios.create({
   baseURL: API_URL,
   headers: {

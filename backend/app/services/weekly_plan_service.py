@@ -1,11 +1,14 @@
-from datetime import date
+from dataclasses import asdict
+from datetime import date, datetime, timezone
 from typing import Optional
 
 from fastapi import HTTPException
-from sqlalchemy import select
+from sqlalchemy import delete, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from app.models.habit import UserProductStats
+from app.models.pantry import PantryItem
 from app.models.recipe import Recipe
 from app.models.shopping_list import ShoppingList, ShoppingListItem
 from app.models.weekly_plan import WeeklyPlan, WeeklyPlanDay
@@ -13,15 +16,18 @@ from app.schemas.recipe import AddToListResult
 from app.schemas.weekly_plan import (
     WeeklyPlanCreate,
     WeeklyPlanDayRead,
+    WeeklyPlanDaySummaryRead,
     WeeklyPlanGeneratePayload,
+    WeeklyPlanMealSummary,
+    WeeklyPlanPreferences,
     WeeklyPlanRead,
     WeeklyPlanSummary,
+    WeeklyPlanSummaryRead,
     WeeklyPlanUpdate,
 )
 from app.services.habit_service import HabitService
+from app.services.meal_planner_service import MEAL_SLOTS, MealPlannerService, normalize_preferences, recipe_cost_for_plan
 from app.services.recipe_service import RecipeService, _build_ingredient_note, _infer_cart_quantity, _merge_notes
-
-MEAL_SLOTS = ("desayuno", "comida", "cena")
 
 
 class WeeklyPlanService:
@@ -54,6 +60,10 @@ class WeeklyPlanService:
         plan = await self._get_plan_or_404(plan_id, user_id)
         return self._to_read(plan)
 
+    async def get_summary(self, plan_id: int, user_id: int) -> WeeklyPlanSummaryRead:
+        plan = await self._get_plan_or_404(plan_id, user_id)
+        return self._build_summary(plan)
+
     async def create_plan(self, user_id: int, data: WeeklyPlanCreate) -> WeeklyPlanRead:
         plan = WeeklyPlan(
             user_id=user_id,
@@ -62,10 +72,11 @@ class WeeklyPlanService:
             days_count=data.days_count,
             start_date=data.start_date,
             budget_target=data.budget_target,
-            preferences=data.preferences,
+            preferences=data.preferences.model_dump() if data.preferences else None,
         )
         self.db.add(plan)
         await self.db.flush()
+        await self.db.execute(delete(WeeklyPlanDay).where(WeeklyPlanDay.weekly_plan_id == plan.id))
         for day_index in range(data.days_count):
             for meal_slot in MEAL_SLOTS:
                 self.db.add(
@@ -95,17 +106,46 @@ class WeeklyPlanService:
         if "budget_target" in provided:
             plan.budget_target = data.budget_target
         if "preferences" in provided:
-            plan.preferences = data.preferences
+            plan.preferences = data.preferences.model_dump() if data.preferences else None
 
         await self._sync_days(plan.id, plan.days_count, data.days)
+        plan.updated_at = datetime.now(timezone.utc)
         await self.db.commit()
         updated = await self._get_plan_or_404(plan_id, user_id)
         return self._to_read(updated)
 
     async def delete_plan(self, plan_id: int, user_id: int) -> None:
         plan = await self._get_plan_or_404(plan_id, user_id)
-        await self.db.delete(plan)
-        await self.db.flush()
+        await self.db.execute(delete(WeeklyPlanDay).where(WeeklyPlanDay.weekly_plan_id == plan.id))
+        await self.db.execute(delete(WeeklyPlan).where(WeeklyPlan.id == plan.id, WeeklyPlan.user_id == user_id))
+        await self.db.commit()
+
+    async def generate_plan(self, plan_id: int, user_id: int) -> WeeklyPlanRead:
+        plan = await self._get_plan_or_404(plan_id, user_id)
+        recipes = await self._get_candidate_recipes(user_id)
+        if not recipes:
+            raise HTTPException(status_code=400, detail="No hay recetas disponibles para generar el plan")
+
+        pantry_items = await self._get_active_pantry_items(user_id)
+        habit_stats = await self._get_habit_stats(user_id)
+        assignments = MealPlannerService(
+            people_count=plan.people_count,
+            days_count=plan.days_count,
+            budget_target=plan.budget_target,
+            preferences=plan.preferences,
+            pantry_items=pantry_items,
+            habit_stats=habit_stats,
+        ).generate(recipes)
+
+        for day in plan.days:
+            recipe = assignments.get((day.day_index, day.meal_slot))
+            day.recipe_id = recipe.id if recipe else None
+            day.meal_type = day.meal_slot
+
+        plan.updated_at = datetime.now(timezone.utc)
+        await self.db.commit()
+        refreshed = await self._get_plan_or_404(plan_id, user_id)
+        return self._to_read(refreshed)
 
     async def generate_shopping_list(
         self,
@@ -279,6 +319,30 @@ class WeeklyPlanService:
             raise HTTPException(status_code=404, detail="Plan semanal no encontrado")
         return plan
 
+    async def _get_candidate_recipes(self, user_id: int) -> list[Recipe]:
+        result = await self.db.execute(
+            select(Recipe)
+            .where(or_(Recipe.is_public.is_(True), Recipe.user_id == user_id))
+            .options(selectinload(Recipe.ingredients))
+        )
+        return list(result.scalars().unique().all())
+
+    async def _get_active_pantry_items(self, user_id: int) -> list[PantryItem]:
+        result = await self.db.execute(
+            select(PantryItem)
+            .where(PantryItem.user_id == user_id, PantryItem.is_consumed.is_(False))
+        )
+        return list(result.scalars().all())
+
+    async def _get_habit_stats(self, user_id: int) -> list[UserProductStats]:
+        result = await self.db.execute(
+            select(UserProductStats)
+            .where(UserProductStats.user_id == user_id)
+            .order_by(UserProductStats.times_added.desc(), UserProductStats.last_added_at.desc())
+            .limit(20)
+        )
+        return list(result.scalars().all())
+
     async def _sync_days(
         self,
         plan_id: int,
@@ -333,7 +397,7 @@ class WeeklyPlanService:
             days_count=plan.days_count,
             start_date=plan.start_date,
             budget_target=plan.budget_target,
-            preferences=plan.preferences,
+            preferences=self._normalized_preferences(plan.preferences),
             created_at=plan.created_at,
             updated_at=plan.updated_at,
             days=[
@@ -347,4 +411,95 @@ class WeeklyPlanService:
                 )
                 for day in sorted(plan.days, key=lambda item: (item.day_index, MEAL_SLOTS.index(item.meal_slot)))
             ],
+        )
+
+    def _normalized_preferences(self, preferences: dict | None) -> WeeklyPlanPreferences:
+        return WeeklyPlanPreferences.model_validate(asdict(normalize_preferences(preferences)))
+
+    def _build_summary(self, plan: WeeklyPlan) -> WeeklyPlanSummaryRead:
+        daily: list[WeeklyPlanDaySummaryRead] = []
+        total_cost = 0.0
+        total_calories = 0.0
+        total_protein = 0.0
+        total_carbs = 0.0
+        total_fat = 0.0
+
+        for day_index in range(plan.days_count):
+            day_date = date.fromordinal(plan.start_date.toordinal() + day_index)
+            meals: list[WeeklyPlanMealSummary] = []
+            day_cost = 0.0
+            day_calories = 0.0
+            day_protein = 0.0
+            day_carbs = 0.0
+            day_fat = 0.0
+
+            for meal_slot in MEAL_SLOTS:
+                day = next(
+                    (slot for slot in plan.days if slot.day_index == day_index and slot.meal_slot == meal_slot),
+                    None,
+                )
+                recipe = day.recipe if day else None
+                meal_cost = recipe_cost_for_plan(recipe, plan.people_count) if recipe else 0.0
+                calories = float(recipe.calories_per_serving or 0.0) if recipe else 0.0
+                protein = float(recipe.protein_g or 0.0) if recipe else 0.0
+                carbs = float(recipe.carbs_g or 0.0) if recipe else 0.0
+                fat = float(recipe.fat_g or 0.0) if recipe else 0.0
+
+                meals.append(
+                    WeeklyPlanMealSummary(
+                        meal_slot=meal_slot,
+                        recipe_id=recipe.id if recipe else None,
+                        recipe_title=recipe.title if recipe else None,
+                        calories=round(calories, 1),
+                        protein_g=round(protein, 1),
+                        carbs_g=round(carbs, 1),
+                        fat_g=round(fat, 1),
+                        estimated_cost=round(meal_cost, 2),
+                        meal_types=list(recipe.meal_types or []) if recipe else [],
+                    )
+                )
+
+                day_cost += meal_cost
+                day_calories += calories
+                day_protein += protein
+                day_carbs += carbs
+                day_fat += fat
+
+            total_cost += day_cost
+            total_calories += day_calories
+            total_protein += day_protein
+            total_carbs += day_carbs
+            total_fat += day_fat
+
+            daily.append(
+                WeeklyPlanDaySummaryRead(
+                    day_index=day_index,
+                    date=day_date,
+                    estimated_day_cost=round(day_cost, 2),
+                    estimated_day_calories=round(day_calories, 1),
+                    protein_g=round(day_protein, 1),
+                    carbs_g=round(day_carbs, 1),
+                    fat_g=round(day_fat, 1),
+                    meals=meals,
+                )
+            )
+
+        budget_remaining = round((plan.budget_target or 0.0) - total_cost, 2) if plan.budget_target is not None else None
+        return WeeklyPlanSummaryRead(
+            plan_id=plan.id,
+            title=plan.title,
+            people_count=plan.people_count,
+            days_count=plan.days_count,
+            budget_target=plan.budget_target,
+            preferences=self._normalized_preferences(plan.preferences),
+            total_estimated_cost=round(total_cost, 2),
+            total_estimated_calories=round(total_calories, 1),
+            total_protein_g=round(total_protein, 1),
+            total_carbs_g=round(total_carbs, 1),
+            total_fat_g=round(total_fat, 1),
+            average_daily_calories=round(total_calories / max(plan.days_count, 1), 1),
+            average_daily_cost=round(total_cost / max(plan.days_count, 1), 2),
+            budget_remaining=budget_remaining,
+            within_budget=(budget_remaining >= 0) if budget_remaining is not None else None,
+            days=daily,
         )

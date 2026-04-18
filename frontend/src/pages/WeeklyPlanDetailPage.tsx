@@ -1,9 +1,17 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 
+import { resolveBackendUrl } from '../api/client';
 import { getLists } from '../api/lists';
 import { getRecipes } from '../api/recipes';
-import { generateWeeklyPlanShoppingList, getWeeklyPlan, updateWeeklyPlan } from '../api/weeklyPlans';
+import {
+  generateWeeklyPlan,
+  generateWeeklyPlanShoppingList,
+  getWeeklyPlan,
+  getWeeklyPlanSummary,
+  updateWeeklyPlan,
+} from '../api/weeklyPlans';
+import MealSlotPickerModal from '../components/weekly-plan/MealSlotPickerModal';
 import type {
   AddToListResult,
   RecipeSummary,
@@ -11,33 +19,52 @@ import type {
   WeeklyPlan,
   WeeklyPlanDay,
   WeeklyPlanDayPayload,
+  WeeklyPlanDaySummary,
+  WeeklyPlanGeneratedSummary,
+  WeeklyPlanPreferences,
 } from '../types';
 
+type MealSlot = 'desayuno' | 'comida' | 'cena';
+
 const WEEKDAY_LABELS = ['Lun', 'Mar', 'Mie', 'Jue', 'Vie', 'Sab', 'Dom'];
-const SLOT_LABELS: Array<{ key: 'desayuno' | 'comida' | 'cena'; label: string }> = [
+const SLOT_LABELS: Array<{ key: MealSlot; label: string }> = [
   { key: 'desayuno', label: 'Desayuno' },
   { key: 'comida', label: 'Comida' },
   { key: 'cena', label: 'Cena' },
+];
+const PREFERENCE_LABELS: Array<{ key: keyof WeeklyPlanPreferences; label: string }> = [
+  { key: 'economico', label: 'Economico' },
+  { key: 'rapido', label: 'Rapido' },
+  { key: 'saludable', label: 'Saludable' },
+  { key: 'familiar', label: 'Familiar' },
 ];
 
 type CalendarCell = {
   isoDate: string;
   dayNumber: number;
   dayIndex: number | null;
+  weekdayIndex: number;
   isCurrentMonth: boolean;
   isActivePlanDay: boolean;
 };
 
-const toIsoDate = (date: Date) => {
-  const year = date.getFullYear();
-  const month = `${date.getMonth() + 1}`.padStart(2, '0');
-  const day = `${date.getDate()}`.padStart(2, '0');
+const defaultPreferences: WeeklyPlanPreferences = {
+  economico: false,
+  rapido: false,
+  saludable: false,
+  familiar: false,
+};
+
+const toIsoDate = (value: Date) => {
+  const year = value.getFullYear();
+  const month = `${value.getMonth() + 1}`.padStart(2, '0');
+  const day = `${value.getDate()}`.padStart(2, '0');
   return `${year}-${month}-${day}`;
 };
 
-const addDays = (base: Date, days: number) => {
+const addDays = (base: Date, amount: number) => {
   const next = new Date(base);
-  next.setDate(next.getDate() + days);
+  next.setDate(next.getDate() + amount);
   return next;
 };
 
@@ -62,14 +89,19 @@ function buildCalendar(startDateIso: string, daysCount: number): CalendarCell[] 
       isoDate,
       dayNumber: current.getDate(),
       dayIndex: activeIndex ?? null,
+      weekdayIndex: (current.getDay() + 6) % 7,
       isCurrentMonth: current.getMonth() === calendarMonth,
       isActivePlanDay: activeIndex !== undefined,
     };
   });
 }
 
-function getSlotDay(plan: WeeklyPlan, dayIndex: number, mealSlot: 'desayuno' | 'comida' | 'cena'): WeeklyPlanDay | null {
+function getSlotDay(plan: WeeklyPlan, dayIndex: number, mealSlot: MealSlot): WeeklyPlanDay | null {
   return plan.days.find((day) => day.day_index === dayIndex && day.meal_slot === mealSlot) ?? null;
+}
+
+function getDaySummary(summary: WeeklyPlanGeneratedSummary | null, dayIndex: number): WeeklyPlanDaySummary | null {
+  return summary?.days.find((day) => day.day_index === dayIndex) ?? null;
 }
 
 export default function WeeklyPlanDetailPage() {
@@ -78,25 +110,42 @@ export default function WeeklyPlanDetailPage() {
   const planId = Number(id);
 
   const [plan, setPlan] = useState<WeeklyPlan | null>(null);
+  const [summary, setSummary] = useState<WeeklyPlanGeneratedSummary | null>(null);
   const [recipes, setRecipes] = useState<RecipeSummary[]>([]);
   const [lists, setLists] = useState<ShoppingListSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [generatingMenu, setGeneratingMenu] = useState(false);
+  const [summaryLoading, setSummaryLoading] = useState(false);
   const [error, setError] = useState('');
-  const [showGenerate, setShowGenerate] = useState(false);
+  const [showGenerateList, setShowGenerateList] = useState(false);
+  const [pickerState, setPickerState] = useState<{ dayIndex: number; mealSlot: MealSlot } | null>(null);
+  const [pickerSaving, setPickerSaving] = useState(false);
   const [generateMode, setGenerateMode] = useState<'new' | 'existing'>('new');
   const [selectedListId, setSelectedListId] = useState<number | null>(null);
   const [newListName, setNewListName] = useState('Lista semanal');
   const [result, setResult] = useState<AddToListResult | null>(null);
 
+  const loadSummary = useCallback(async (targetPlanId: number) => {
+    setSummaryLoading(true);
+    try {
+      const data = await getWeeklyPlanSummary(targetPlanId);
+      setSummary(data);
+    } finally {
+      setSummaryLoading(false);
+    }
+  }, []);
+
   const fetchData = useCallback(async () => {
     try {
-      const [planData, recipesData, listsData] = await Promise.all([
+      const [planData, summaryData, recipesData, listsData] = await Promise.all([
         getWeeklyPlan(planId),
+        getWeeklyPlanSummary(planId),
         getRecipes(),
         getLists(),
       ]);
       setPlan(planData);
+      setSummary(summaryData);
       setRecipes(recipesData);
       setLists(listsData.filter((item) => !item.is_archived));
       setSelectedListId(listsData.find((item) => !item.is_archived)?.id ?? null);
@@ -110,7 +159,7 @@ export default function WeeklyPlanDetailPage() {
 
   useEffect(() => {
     if (!planId) return;
-    fetchData();
+    void fetchData();
   }, [fetchData, planId]);
 
   const calendarCells = useMemo(() => {
@@ -118,50 +167,24 @@ export default function WeeklyPlanDetailPage() {
     return buildCalendar(plan.start_date, plan.days_count);
   }, [plan]);
 
-  const handleSlotChange = (
-    dayIndex: number,
-    mealSlot: 'desayuno' | 'comida' | 'cena',
-    recipeId: number | null
-  ) => {
-    if (!plan) return;
-    let updated = false;
-    const nextDays = plan.days.map((day) => {
-      if (day.day_index === dayIndex && day.meal_slot === mealSlot) {
-        updated = true;
-        return {
-          ...day,
-          recipe_id: recipeId,
-          recipe_title: recipes.find((recipe) => recipe.id === recipeId)?.title ?? null,
-        };
-      }
-      return day;
-    });
+  const recipesById = useMemo(() => new Map(recipes.map((recipe) => [recipe.id, recipe])), [recipes]);
 
-    if (!updated) {
-      nextDays.push({
-        id: dayIndex * -10,
-        day_index: dayIndex,
-        meal_slot: mealSlot,
-        recipe_id: recipeId,
-        recipe_title: recipes.find((recipe) => recipe.id === recipeId)?.title ?? null,
-        meal_type: null,
-      });
+  const persistPlan = async (nextPlan: WeeklyPlan, mode: 'picker' | 'manual' = 'manual') => {
+    if (mode === 'picker') {
+      setPickerSaving(true);
+    } else {
+      setSaving(true);
     }
 
-    setPlan({ ...plan, days: nextDays });
-  };
-
-  const handleSave = async () => {
-    if (!plan) return;
-    setSaving(true);
     try {
-      const updated = await updateWeeklyPlan(plan.id, {
-        title: plan.title,
-        people_count: plan.people_count,
-        days_count: plan.days_count,
-        start_date: plan.start_date,
-        budget_target: plan.budget_target,
-        days: plan.days.map<WeeklyPlanDayPayload>((day) => ({
+      const updated = await updateWeeklyPlan(nextPlan.id, {
+        title: nextPlan.title,
+        people_count: nextPlan.people_count,
+        days_count: nextPlan.days_count,
+        start_date: nextPlan.start_date,
+        budget_target: nextPlan.budget_target,
+        preferences: nextPlan.preferences,
+        days: nextPlan.days.map<WeeklyPlanDayPayload>((day) => ({
           day_index: day.day_index,
           meal_slot: day.meal_slot,
           recipe_id: day.recipe_id,
@@ -171,14 +194,42 @@ export default function WeeklyPlanDetailPage() {
       setPlan(updated);
       setResult(null);
       setError('');
+      await loadSummary(updated.id);
+      return updated;
     } catch {
-      setError('No se pudo guardar el plan');
+      setError(mode === 'picker' ? 'No se pudo asignar la receta' : 'No se pudo guardar el plan');
+      throw new Error('save_failed');
     } finally {
-      setSaving(false);
+      if (mode === 'picker') {
+        setPickerSaving(false);
+      } else {
+        setSaving(false);
+      }
     }
   };
 
-  const handleGenerate = async () => {
+  const handleSave = async () => {
+    if (!plan) return;
+    await persistPlan(plan, 'manual');
+  };
+
+  const handleGenerateMenu = async () => {
+    if (!plan) return;
+    setGeneratingMenu(true);
+    try {
+      const generated = await generateWeeklyPlan(plan.id);
+      setPlan(generated);
+      await loadSummary(generated.id);
+      setError('');
+      setResult(null);
+    } catch {
+      setError('No se pudo generar el menu semanal');
+    } finally {
+      setGeneratingMenu(false);
+    }
+  };
+
+  const handleGenerateShoppingList = async () => {
     if (!plan) return;
     try {
       const generated = await generateWeeklyPlanShoppingList(plan.id, {
@@ -186,22 +237,30 @@ export default function WeeklyPlanDetailPage() {
         new_list_name: generateMode === 'new' ? newListName : null,
       });
       setResult(generated);
-      setShowGenerate(false);
+      setShowGenerateList(false);
+      setError('');
     } catch {
       setError('No se pudo generar la lista de compra');
     }
   };
 
   if (loading) {
-    return <div className="loading-overlay"><span className="loading-spinner" /><span>Cargando plan...</span></div>;
+    return (
+      <div className="loading-overlay">
+        <span className="loading-spinner" />
+        <span>Cargando plan...</span>
+      </div>
+    );
   }
 
   if (!plan) {
     return (
       <div className="empty-state">
-        <div className="empty-icon">📅</div>
+        <div className="empty-icon">P</div>
         <p>Plan no encontrado</p>
-        <button className="btn btn-secondary" onClick={() => navigate('/weekly-plans')}>Volver</button>
+        <button className="btn btn-secondary" onClick={() => navigate('/weekly-plans')}>
+          Volver
+        </button>
       </div>
     );
   }
@@ -211,6 +270,62 @@ export default function WeeklyPlanDetailPage() {
     year: 'numeric',
   });
 
+  const openPicker = (dayIndex: number, mealSlot: MealSlot = 'comida') => {
+    setPickerState({ dayIndex, mealSlot });
+  };
+
+  const pickerDay = pickerState ? pickerState.dayIndex : null;
+  const pickerMealSlot = pickerState?.mealSlot ?? 'comida';
+  const pickerSelectedRecipe = pickerDay != null ? getSlotDay(plan, pickerDay, pickerMealSlot)?.recipe_id ?? null : null;
+  const pickerDayLabel =
+    pickerDay != null
+      ? `${calendarCells.find((cell) => cell.dayIndex === pickerDay)?.dayNumber ?? ''} ${monthLabel}`
+      : '';
+
+  const assignRecipeFromPicker = async (recipeId: number | null) => {
+    if (!plan || pickerState == null) return;
+    const previousPlan = plan;
+    const previousPicker = pickerState;
+
+    let updated = false;
+    const nextDays = plan.days.map((day) => {
+      if (day.day_index === pickerState.dayIndex && day.meal_slot === pickerState.mealSlot) {
+        updated = true;
+        return {
+          ...day,
+          recipe_id: recipeId,
+          recipe_title: recipeId != null ? recipesById.get(recipeId)?.title ?? null : null,
+          meal_type: pickerState.mealSlot,
+        };
+      }
+      return day;
+    });
+
+    if (!updated) {
+      nextDays.push({
+        id: pickerState.dayIndex * -10,
+        day_index: pickerState.dayIndex,
+        meal_slot: pickerState.mealSlot,
+        recipe_id: recipeId,
+        recipe_title: recipeId != null ? recipesById.get(recipeId)?.title ?? null : null,
+        meal_type: pickerState.mealSlot,
+      });
+    }
+
+    const nextPlan = { ...plan, days: nextDays };
+    setPlan(nextPlan);
+
+    try {
+      await persistPlan(nextPlan, 'picker');
+      setPickerState(null);
+    } catch {
+      setPlan(previousPlan);
+      setPickerState(previousPicker);
+    }
+  };
+
+  const totalAssignedMeals = plan.days.filter((day) => day.recipe_id != null).length;
+
   return (
     <div>
       <div className="page-header">
@@ -218,128 +333,327 @@ export default function WeeklyPlanDetailPage() {
           <input
             className="inline-edit-input"
             value={plan.title}
-            onChange={(e) => setPlan({ ...plan, title: e.target.value })}
+            onChange={(event) => setPlan({ ...plan, title: event.target.value })}
             style={{ fontSize: 28, fontWeight: 700, width: '100%' }}
           />
-          <p>{plan.people_count} personas · {plan.days_count} días · desde {plan.start_date}</p>
+          <p>
+            {plan.people_count} personas · {plan.days_count} dias · desde {plan.start_date}
+          </p>
         </div>
         <div className="actions-row">
-          <button className="btn btn-secondary" onClick={() => navigate('/weekly-plans')}>← Volver</button>
-          <button className="btn btn-secondary" onClick={() => setShowGenerate(true)}>Generar lista</button>
-          <button className="btn btn-primary" onClick={handleSave} disabled={saving}>{saving ? 'Guardando...' : 'Guardar plan'}</button>
+          <button className="btn btn-secondary" onClick={() => navigate('/weekly-plans')}>
+            Volver
+          </button>
+          <button className="btn btn-secondary" onClick={() => setShowGenerateList(true)}>
+            Generar lista
+          </button>
+          <button className="btn btn-secondary" onClick={() => void handleGenerateMenu()} disabled={generatingMenu}>
+            {generatingMenu ? 'Generando...' : 'Generar menu'}
+          </button>
+          <button className="btn btn-primary" onClick={() => void handleSave()} disabled={saving}>
+            {saving ? 'Guardando...' : 'Guardar plan'}
+          </button>
         </div>
       </div>
 
       {error && <div className="alert alert-error" style={{ marginBottom: 16 }}>{error}</div>}
       {result && (
         <div className="alert alert-success" style={{ marginBottom: 16 }}>
-          Lista generada: {result.list_name}. Añadidos {result.added}, reales {result.resolved_real ?? 0}, fallback {result.resolved_fallback ?? 0}, pendientes {result.unresolved ?? 0}, cubiertos por despensa {result.pantry_covered ?? 0}, ajustados por despensa {result.pantry_reduced ?? 0}.
+          Lista generada: {result.list_name}. Anadidos {result.added}, reales {result.resolved_real ?? 0}, fallback{' '}
+          {result.resolved_fallback ?? 0}, pendientes {result.unresolved ?? 0}, cubiertos por despensa{' '}
+          {result.pantry_covered ?? 0}, ajustados por despensa {result.pantry_reduced ?? 0}.
         </div>
       )}
 
       <div className="card" style={{ marginBottom: 16 }}>
-        <div className="card-body" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 12 }}>
-          <div>
-            <label className="form-label">Personas</label>
-            <input className="form-input" type="number" min={1} max={20} value={plan.people_count} onChange={(e) => setPlan({ ...plan, people_count: Number(e.target.value) })} />
+        <div className="card-body plan-summary-grid">
+          <div className="plan-summary-item">
+            <span className="plan-summary-label">Personas</span>
+            <input
+              className="form-input plan-summary-input"
+              type="number"
+              min={1}
+              max={20}
+              value={plan.people_count}
+              onChange={(event) => setPlan({ ...plan, people_count: Number(event.target.value), preferences: plan.preferences ?? defaultPreferences })}
+            />
           </div>
-          <div>
-            <label className="form-label">Días</label>
-            <input className="form-input" type="number" min={1} max={31} value={plan.days_count} onChange={(e) => setPlan({ ...plan, days_count: Number(e.target.value) })} />
+          <div className="plan-summary-item">
+            <span className="plan-summary-label">Dias</span>
+            <input
+              className="form-input plan-summary-input"
+              type="number"
+              min={1}
+              max={31}
+              value={plan.days_count}
+              onChange={(event) => setPlan({ ...plan, days_count: Number(event.target.value), preferences: plan.preferences ?? defaultPreferences })}
+            />
           </div>
-          <div>
-            <label className="form-label">Fecha de inicio</label>
-            <input className="form-input" type="date" value={plan.start_date} onChange={(e) => setPlan({ ...plan, start_date: e.target.value })} />
+          <div className="plan-summary-item">
+            <span className="plan-summary-label">Fecha de inicio</span>
+            <input
+              className="form-input plan-summary-input"
+              type="date"
+              value={plan.start_date}
+              onChange={(event) => setPlan({ ...plan, start_date: event.target.value, preferences: plan.preferences ?? defaultPreferences })}
+            />
           </div>
-          <div>
-            <label className="form-label">Presupuesto objetivo</label>
-            <input className="form-input" type="number" min={0} value={plan.budget_target ?? ''} onChange={(e) => setPlan({ ...plan, budget_target: e.target.value ? Number(e.target.value) : null })} />
+          <div className="plan-summary-item plan-summary-item-accent">
+            <span className="plan-summary-label">Presupuesto semanal</span>
+            <input
+              className="form-input plan-summary-input"
+              type="number"
+              min={0}
+              value={plan.budget_target ?? ''}
+              onChange={(event) =>
+                setPlan({
+                  ...plan,
+                  budget_target: event.target.value ? Number(event.target.value) : null,
+                  preferences: plan.preferences ?? defaultPreferences,
+                })
+              }
+            />
+          </div>
+        </div>
+        <div className="card-body" style={{ paddingTop: 0 }}>
+          <div className="form-label">Preferencias del generador</div>
+          <div className="recipe-form-toggle-grid">
+            {PREFERENCE_LABELS.map(({ key, label }) => {
+              const active = Boolean((plan.preferences ?? defaultPreferences)[key]);
+              return (
+                <button
+                  key={key}
+                  type="button"
+                  className={`recipe-toggle-chip${active ? ' is-active' : ''}`}
+                  onClick={() =>
+                    setPlan({
+                      ...plan,
+                      preferences: {
+                        ...(plan.preferences ?? defaultPreferences),
+                        [key]: !active,
+                      },
+                    })
+                  }
+                >
+                  {label}
+                </button>
+              );
+            })}
           </div>
         </div>
       </div>
 
-      <div className="card">
-        <div className="card-header">
-          <h2>Calendario de {monthLabel}</h2>
-        </div>
-        <div className="card-body">
-          <div className="meal-calendar-weekdays">
-            {WEEKDAY_LABELS.map((label) => (
-              <div key={label} className="meal-calendar-weekday">{label}</div>
-            ))}
-          </div>
-          <div className="meal-calendar-grid">
-            {calendarCells.map((cell) => (
-              <div
-                key={cell.isoDate}
-                className={[
-                  'meal-calendar-cell',
-                  cell.isCurrentMonth ? '' : 'is-outside',
-                  cell.isActivePlanDay ? 'is-active' : 'is-inactive',
-                ].join(' ').trim()}
-              >
-                <div className="meal-calendar-date">
-                  <span>{cell.dayNumber}</span>
-                  {cell.isActivePlanDay && <small>Día {cell.dayIndex! + 1}</small>}
-                </div>
-
-                {cell.isActivePlanDay ? (
-                  <div className="meal-calendar-slots">
-                    {SLOT_LABELS.map((slot) => {
-                      const day = getSlotDay(plan, cell.dayIndex!, slot.key);
-                      return (
-                        <label key={`${cell.isoDate}-${slot.key}`} className="meal-slot">
-                          <span>{slot.label}</span>
-                          <select
-                            className="form-input"
-                            value={day?.recipe_id ?? ''}
-                            onChange={(e) => handleSlotChange(cell.dayIndex!, slot.key, e.target.value ? Number(e.target.value) : null)}
-                          >
-                            <option value="">Sin receta</option>
-                            {recipes.map((recipe) => (
-                              <option key={recipe.id} value={recipe.id}>{recipe.title}</option>
-                            ))}
-                          </select>
-                        </label>
-                      );
-                    })}
-                  </div>
-                ) : (
-                  <div className="meal-calendar-disabled">Fuera del rango del plan</div>
-                )}
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      {showGenerate && (
-        <div className="modal-overlay" onClick={(event) => event.target === event.currentTarget && setShowGenerate(false)}>
-          <div className="modal-content" style={{ maxWidth: 460 }}>
-            <div className="modal-header">
-              <h2>Generar lista de compra</h2>
-              <button className="btn-icon" onClick={() => setShowGenerate(false)}>×</button>
+      {summary && (
+        <div className="card" style={{ marginBottom: 16 }}>
+          <div className="card-body meal-plan-metrics-grid">
+            <div className="meal-plan-metric-card">
+              <span className="meal-plan-metric-label">Coste semanal</span>
+              <strong>{summary.total_estimated_cost.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</strong>
+              <small>
+                Media diaria {summary.average_daily_cost.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}
+              </small>
             </div>
-            <div style={{ padding: '8px 4px 16px', display: 'grid', gap: 12 }}>
-              <div style={{ display: 'flex', gap: 8 }}>
-                <button className={`btn btn-sm ${generateMode === 'new' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => setGenerateMode('new')}>Nueva lista</button>
-                {lists.length > 0 && <button className={`btn btn-sm ${generateMode === 'existing' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => setGenerateMode('existing')}>Lista existente</button>}
-              </div>
-              {generateMode === 'new' ? (
-                <input className="form-input" value={newListName} onChange={(e) => setNewListName(e.target.value)} />
-              ) : (
-                <select className="form-input" value={selectedListId ?? ''} onChange={(e) => setSelectedListId(Number(e.target.value))}>
-                  {lists.map((list) => <option key={list.id} value={list.id}>{list.name}</option>)}
-                </select>
-              )}
+            <div className="meal-plan-metric-card">
+              <span className="meal-plan-metric-label">Calorias semanales</span>
+              <strong>{Math.round(summary.total_estimated_calories)} kcal</strong>
+              <small>Media diaria {Math.round(summary.average_daily_calories)} kcal</small>
             </div>
-            <div className="modal-footer">
-              <button className="btn btn-secondary" onClick={() => setShowGenerate(false)}>Cancelar</button>
-              <button className="btn btn-primary" onClick={handleGenerate}>Generar</button>
+            <div className="meal-plan-metric-card">
+              <span className="meal-plan-metric-label">Macros semanales</span>
+              <strong>
+                P {Math.round(summary.total_protein_g)} g · C {Math.round(summary.total_carbs_g)} g · G {Math.round(summary.total_fat_g)} g
+              </strong>
+              <small>{totalAssignedMeals} comidas asignadas</small>
+            </div>
+            <div className={`meal-plan-metric-card${summary.within_budget === false ? ' is-warning' : ''}`}>
+              <span className="meal-plan-metric-label">Presupuesto</span>
+              <strong>
+                {summary.budget_target != null
+                  ? summary.budget_target.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })
+                  : 'Sin limite'}
+              </strong>
+              <small>
+                {summary.budget_remaining != null
+                  ? summary.budget_remaining >= 0
+                    ? `Restan ${summary.budget_remaining.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}`
+                    : `Se supera en ${Math.abs(summary.budget_remaining).toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}`
+                  : 'Sin control de presupuesto'}
+              </small>
             </div>
           </div>
         </div>
       )}
+
+      <div className="card">
+        <div className="card-header">
+          <div>
+            <h2 style={{ marginBottom: 4 }}>Calendario de {monthLabel}</h2>
+            <p style={{ margin: 0, color: 'var(--color-text-secondary)' }}>
+              Motor por reglas determinista: ideal para, coste, tiempo, nutricion, variedad, despensa y habitos.
+            </p>
+          </div>
+          {summaryLoading && <span className="loading-spinner" />}
+        </div>
+        <div className="card-body">
+          <div className="meal-calendar-weekdays">
+            {WEEKDAY_LABELS.map((label, index) => (
+              <div key={label} className={`meal-calendar-weekday${index >= 5 ? ' is-weekend' : ''}`}>
+                {label}
+              </div>
+            ))}
+          </div>
+          <div className="meal-calendar-grid">
+            {calendarCells.map((cell) => {
+              const daySummary = cell.isActivePlanDay ? getDaySummary(summary, cell.dayIndex!) : null;
+
+              return (
+                <div
+                  key={cell.isoDate}
+                  className={[
+                    'meal-calendar-cell',
+                    cell.isCurrentMonth ? '' : 'is-outside',
+                    cell.isActivePlanDay ? 'is-active' : 'is-inactive',
+                    cell.weekdayIndex >= 5 ? 'is-weekend' : '',
+                  ].join(' ').trim()}
+                >
+                  <button
+                    type="button"
+                    className="meal-calendar-date"
+                    onClick={() => cell.isActivePlanDay && openPicker(cell.dayIndex!, 'comida')}
+                  >
+                    <span>{cell.dayNumber}</span>
+                    {cell.isActivePlanDay && <small>Dia {cell.dayIndex! + 1}</small>}
+                  </button>
+
+                  {cell.isActivePlanDay ? (
+                    <>
+                      <div className="meal-calendar-day-summary">
+                        <strong>{Math.round(daySummary?.estimated_day_calories ?? 0)} kcal</strong>
+                        <span>
+                          P {Math.round(daySummary?.protein_g ?? 0)} g · C {Math.round(daySummary?.carbs_g ?? 0)} g · G {Math.round(daySummary?.fat_g ?? 0)} g
+                        </span>
+                        <small>
+                          {(daySummary?.estimated_day_cost ?? 0).toLocaleString('es-ES', {
+                            style: 'currency',
+                            currency: 'EUR',
+                          })}
+                        </small>
+                      </div>
+
+                      <div className="meal-calendar-slots">
+                        {SLOT_LABELS.map((slot) => {
+                          const day = getSlotDay(plan, cell.dayIndex!, slot.key);
+                          const recipe = day?.recipe_id != null ? recipesById.get(day.recipe_id) ?? null : null;
+                          const recipeImage = recipe?.image_url ? resolveBackendUrl(recipe.image_url) : null;
+                          const mealSummary = daySummary?.meals.find((meal) => meal.meal_slot === slot.key) ?? null;
+
+                          return (
+                            <button
+                              key={`${cell.isoDate}-${slot.key}`}
+                              type="button"
+                              className={`meal-slot-card${day?.recipe_id ? ' has-selection' : ''}`}
+                              onClick={() => openPicker(cell.dayIndex!, slot.key)}
+                            >
+                              <span>{slot.label}</span>
+                              {recipe ? (
+                                <div className="meal-slot-card-content">
+                                  <div className="meal-slot-card-media">
+                                    {recipeImage ? (
+                                      <img src={recipeImage} alt={recipe.title} className="meal-slot-card-image" />
+                                    ) : (
+                                      <div className="meal-slot-card-placeholder">Sin imagen</div>
+                                    )}
+                                  </div>
+                                  <div className="meal-slot-card-text">
+                                    <strong>{recipe.title}</strong>
+                                    <small>
+                                      {Math.round(mealSummary?.calories ?? recipe.calories_per_serving ?? 0)} kcal
+                                      {recipe.estimated_minutes ? ` · ${recipe.estimated_minutes} min` : ''}
+                                      {mealSummary ? ` · ${mealSummary.estimated_cost.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}` : ''}
+                                    </small>
+                                    {(recipe.meal_types ?? []).length > 0 && (
+                                      <div className="meal-slot-card-tags">
+                                        {(recipe.meal_types ?? []).map((mealType) => (
+                                          <span key={mealType} className={`recipe-tag recipe-tag-meal recipe-tag-${mealType}`}>
+                                            {mealType}
+                                          </span>
+                                        ))}
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                              ) : (
+                                <div className="meal-slot-card-empty">Tocar para elegir receta</div>
+                              )}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </>
+                  ) : (
+                    <div className="meal-calendar-disabled">Fuera del rango del plan</div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+
+      {showGenerateList && (
+        <div className="modal-overlay" onClick={(event) => event.target === event.currentTarget && setShowGenerateList(false)}>
+          <div className="modal-content" style={{ maxWidth: 460 }}>
+            <div className="modal-header">
+              <h2>Generar lista de compra</h2>
+              <button className="btn-icon" onClick={() => setShowGenerateList(false)}>x</button>
+            </div>
+            <div style={{ padding: '8px 4px 16px', display: 'grid', gap: 12 }}>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <button className={`btn btn-sm ${generateMode === 'new' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => setGenerateMode('new')}>
+                  Nueva lista
+                </button>
+                {lists.length > 0 && (
+                  <button className={`btn btn-sm ${generateMode === 'existing' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => setGenerateMode('existing')}>
+                    Lista existente
+                  </button>
+                )}
+              </div>
+              {generateMode === 'new' ? (
+                <input className="form-input" value={newListName} onChange={(event) => setNewListName(event.target.value)} />
+              ) : (
+                <select className="form-input" value={selectedListId ?? ''} onChange={(event) => setSelectedListId(Number(event.target.value))}>
+                  {lists.map((list) => (
+                    <option key={list.id} value={list.id}>
+                      {list.name}
+                    </option>
+                  ))}
+                </select>
+              )}
+            </div>
+            <div className="modal-footer">
+              <button className="btn btn-secondary" onClick={() => setShowGenerateList(false)}>Cancelar</button>
+              <button className="btn btn-primary" onClick={() => void handleGenerateShoppingList()}>Generar</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <MealSlotPickerModal
+        open={pickerState != null}
+        dayLabel={pickerDayLabel}
+        mealSlot={pickerMealSlot}
+        selectedRecipeId={pickerSelectedRecipe}
+        recipes={recipes}
+        saving={pickerSaving}
+        onClose={() => setPickerState(null)}
+        onSelectMealSlot={(slot) => setPickerState((current) => (current ? { ...current, mealSlot: slot } : current))}
+        onAssignRecipe={(recipeId) => {
+          void assignRecipeFromPicker(recipeId);
+        }}
+        onClearRecipe={() => {
+          void assignRecipeFromPicker(null);
+        }}
+      />
     </div>
   );
 }

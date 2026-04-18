@@ -11,7 +11,20 @@ import {
 import RecipeCard from '../components/recipes/RecipeCard';
 import RecipeForm from '../components/recipes/RecipeForm';
 import AddToListModal from '../components/recipes/AddToListModal';
-import type { RecipeSummary, CreateRecipePayload, AddToListPayload, PantryRecipeSuggestion } from '../types';
+import type {
+  RecipeSummary,
+  CreateRecipePayload,
+  AddToListPayload,
+  PantryRecipeSuggestion,
+  RecipeMealType,
+} from '../types';
+import { resolveBackendUrl } from '../api/client';
+
+const MEAL_TYPE_OPTIONS: Array<{ value: RecipeMealType; label: string }> = [
+  { value: 'desayuno', label: 'Desayuno' },
+  { value: 'comida', label: 'Comida' },
+  { value: 'cena', label: 'Cena' },
+];
 
 export default function RecipesPage() {
   const navigate = useNavigate();
@@ -21,6 +34,7 @@ export default function RecipesPage() {
   const [error, setError] = useState('');
   const [search, setSearch] = useState('');
   const [filterTag, setFilterTag] = useState('');
+  const [filterMealType, setFilterMealType] = useState<RecipeMealType | ''>('');
   const [showForm, setShowForm] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState<RecipeSummary | null>(null);
   const [addToListTarget, setAddToListTarget] = useState<RecipeSummary | null>(null);
@@ -66,16 +80,17 @@ export default function RecipesPage() {
     if (filterTag) {
       list = list.filter((r) => (r.tags ?? []).includes(filterTag));
     }
+    if (filterMealType) {
+      list = list.filter((r) => (r.meal_types ?? []).includes(filterMealType));
+    }
     return list;
-  }, [recipes, search, filterTag]);
+  }, [recipes, search, filterTag, filterMealType]);
 
   const suggested = filtered.filter((r) => r.is_public);
   const mine = filtered.filter((r) => !r.is_public);
 
   const handleCreate = async (payload: CreateRecipePayload) => {
-    await createRecipe(payload);
-    await fetchRecipes();
-    setShowForm(false);
+    return await createRecipe(payload);
   };
 
   const handleDelete = async () => {
@@ -159,6 +174,17 @@ export default function RecipesPage() {
           <div className="recipes-grid">
             {suggestions.map((s) => (
               <div key={s.recipe.id} className="card" style={{ position: 'relative' }}>
+                <div className="recipe-card-media">
+                  {resolveBackendUrl(s.recipe.image_url) ? (
+                    <img
+                      src={resolveBackendUrl(s.recipe.image_url) ?? undefined}
+                      alt={s.recipe.title}
+                      className="recipe-card-image"
+                    />
+                  ) : (
+                    <div className="recipe-card-placeholder">Sin imagen</div>
+                  )}
+                </div>
                 <div style={{
                   position: 'absolute',
                   top: 10,
@@ -182,6 +208,14 @@ export default function RecipesPage() {
                   <div style={{ fontSize: 13, color: 'var(--color-text-muted)', marginBottom: 8 }}>
                     ✅ {s.matched_count} ingredientes disponibles
                     {s.missing_count > 0 && ` · ❌ faltan ${s.missing_count}`}
+                  </div>
+                  <div className="recipe-card-meta" style={{ marginBottom: 8 }}>
+                    {s.recipe.calories_per_serving != null && <span>{Math.round(s.recipe.calories_per_serving)} kcal</span>}
+                    {(s.recipe.meal_types ?? []).map((mealType) => (
+                      <span key={mealType} className={`recipe-tag recipe-tag-meal recipe-tag-${mealType}`}>
+                        {mealType}
+                      </span>
+                    ))}
                   </div>
                   {s.missing_count > 0 && (
                     <div style={{ fontSize: 12, color: 'var(--color-text-muted)', marginBottom: 8 }}>
@@ -233,6 +267,25 @@ export default function RecipesPage() {
             ))}
           </select>
         )}
+        <div className="recipe-filter-chips">
+          <button
+            type="button"
+            className={`recipe-filter-chip${filterMealType === '' ? ' is-active' : ''}`}
+            onClick={() => setFilterMealType('')}
+          >
+            Todo
+          </button>
+          {MEAL_TYPE_OPTIONS.map((option) => (
+            <button
+              key={option.value}
+              type="button"
+              className={`recipe-filter-chip${filterMealType === option.value ? ' is-active' : ''}`}
+              onClick={() => setFilterMealType(option.value)}
+            >
+              {option.label}
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* My recipes */}
@@ -269,7 +322,9 @@ export default function RecipesPage() {
                 key={r.id}
                 recipe={r}
                 onView={(id) => navigate(`/recipes/${id}`)}
+                onEdit={(id) => navigate(`/recipes/${id}`)}
                 onDuplicate={handleDuplicate}
+                onDelete={(id) => setDeleteConfirm(recipes.find((x) => x.id === id) ?? null)}
                 onAddToList={(id) => setAddToListTarget(recipes.find((x) => x.id === id) ?? null)}
               />
             ))}
@@ -284,7 +339,7 @@ export default function RecipesPage() {
           <p style={{ marginBottom: 16 }}>
             {search || filterTag ? 'No hay recetas que coincidan con tu búsqueda' : 'Aún no tienes recetas'}
           </p>
-          {!search && !filterTag && (
+          {!search && !filterTag && !filterMealType && (
             <button className="btn btn-primary" onClick={() => setShowForm(true)}>
               Crear primera receta
             </button>
@@ -296,6 +351,10 @@ export default function RecipesPage() {
       {showForm && (
         <RecipeForm
           onSubmit={handleCreate}
+          onSaved={async () => {
+            await fetchRecipes();
+            setShowForm(false);
+          }}
           onCancel={() => setShowForm(false)}
           title="Nueva receta"
         />

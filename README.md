@@ -1,140 +1,103 @@
 # MercaCompra
 
-Aplicación full-stack para gestión de listas de la compra con automatización de Mercadona.
+Aplicacion full-stack para listas de la compra, recetas, despensa y planificacion semanal de comidas.
 
-## Características
+## Caracteristicas
 
-- Autenticación real (registro + login con JWT)
-- Múltiples listas de la compra por usuario
-- Búsqueda de productos en tiempo real vía API de Mercadona
-- Presupuesto por lista con alertas
-- Sugerencias inteligentes (heurísticas, sin IA de pago)
+- Autenticacion real con JWT
+- Listas de la compra por usuario
+- Catalogo de productos con integracion Mercadona y fallback local
+- Favoritos y recetas editables
+- Recetas con ingredientes, pasos, imagen y nutricion por racion
+- Selector `ideal para`: desayuno, comida y cena
+- Planificacion semanal con calendario visual y selector de recetas por tarjeta
+- Planificador semanal por reglas, sin IA ni Ollama
+- Resumen nutricional y de coste dentro del calendario semanal
+- Despensa conectada con recetas, planes y optimizacion de listas
 - Bot Playwright para automatizar la compra en Mercadona
-- Resultados de automatización persistidos y consultables
-- **Modo supermercado** — vista agrupada por categoría para hacer la compra in-situ
-- **Gestión de despensa** — inventario con fechas de caducidad y control de consumo
-- **Control de gasto** — historial de compras con métricas semanales y mensuales
-- **Recetas avanzadas** — checklist de ingredientes y sugerencias desde la despensa
-- **Panel de control** — resumen de gasto, listas, despensa, recetas y estado del sistema
-- **Modo básico/avanzado** — la interfaz se adapta al nivel del usuario (toggle en sidebar)
-- **Modo demo** — flag `DEMO_MODE` + endpoint para poblar datos de ejemplo
-- Funciona sin ninguna API de pago (IA opcional con Claude)
+- Compatible con movil y PWA
+- Funciona sin APIs de pago obligatorias
 
 ## Stack
 
-| Capa | Tecnología |
-|------|-----------|
+| Capa | Tecnologia |
+|------|------------|
 | Backend | FastAPI + SQLAlchemy + Alembic |
 | Base de datos | SQLite (dev) / PostgreSQL (prod) |
 | Frontend | React + Vite + TypeScript |
-| Automatización | Playwright |
+| Automatizacion | Playwright |
 | Contenedores | Docker + docker-compose |
 
-## Arranque rápido (local)
+## Arranque rapido
 
-### Prerrequisitos
-
-- Python 3.11+
-- Node.js 18+
-- (Opcional) Docker + docker-compose
-
-### Opción A — Script automático
-
-```bash
-git clone https://github.com/jmobispo/mercacompra
-cd mercacompra
-./scripts/start-dev.sh
-```
-
-Abre http://localhost:5173
-
-### Opción B — Manual
-
-**Backend:**
+### Backend
 
 ```bash
 cd backend
-cp .env.example .env       # edita si quieres
 python -m venv .venv
-source .venv/bin/activate  # Windows: .venv\Scripts\activate
+source .venv/bin/activate
 pip install -r requirements.txt
-alembic upgrade head       # crea la base de datos
+alembic upgrade head
 uvicorn app.main:app --reload
 ```
 
-**Frontend:**
+En Windows:
+
+```powershell
+cd backend
+.venv\Scripts\activate
+alembic upgrade head
+uvicorn app.main:app --reload
+```
+
+### Frontend
 
 ```bash
 cd frontend
-cp .env.example .env
 npm install
 npm run dev
 ```
 
-### Opción C — Docker
+## Recetas con nutricion
 
-```bash
-cp .env.example .env       # edita SECRET_KEY al menos
-docker compose up --build
-```
+Cada receta puede incluir:
 
-Acceso: http://localhost:5173  
-API docs: http://localhost:8000/docs
+- calorias por racion
+- proteina, carbohidratos y grasas
+- fibra, azucares y sodio
+- imagen
+- pasos de elaboracion
+- uno o varios tipos de comida en `ideal para`
 
-## Variables de entorno
+Estos datos se muestran en:
 
-### Backend (`backend/.env`)
+- cards de recetas
+- detalle de receta
+- selector de recetas del calendario
+- slots del plan semanal
 
-| Variable | Por defecto | Descripción |
-|----------|-------------|-------------|
-| `SECRET_KEY` | `change-me...` | Clave JWT — **cámbiala** |
-| `DATABASE_URL` | `sqlite+aiosqlite:///./mercacompra.db` | URL de base de datos |
-| `AI_MODE` | `heuristics` | Modo IA: heuristics / local_free / claude_optional |
-| `ANTHROPIC_API_KEY` | vacío | Solo si AI_MODE=claude_optional |
-| `CORS_ORIGINS` | localhost | Orígenes permitidos |
-| `DEMO_MODE` | `false` | Activa el banner demo y endpoint `/demo/seed` |
+## Planificacion semanal
 
-Ver `backend/.env.example` para la lista completa.
+El calendario semanal reutiliza la informacion nutricional de las recetas y un motor de reglas determinista para:
 
-### Bot (`bot/.env`)
+- generar menus automaticamente sin IA externa
+- priorizar recetas segun desayuno, comida o cena
+- aplicar preferencias: economico, rapido, saludable y familiar
+- penalizar repeticiones y mejorar variedad
+- aprovechar despensa y habitos si existen
+- mostrar calorias y tipo de comida dentro de cada slot
+- mostrar un resumen diario de calorias, macros y coste
+- generar listas de compra a partir del plan
 
-| Variable | Por defecto | Descripción |
-|----------|-------------|-------------|
-| `MERCADONA_EMAIL` | vacío | Email de tu cuenta Mercadona |
-| `MERCADONA_PASSWORD` | vacío | Contraseña |
-| `HEADLESS` | `true` | `false` para ver el navegador |
-
-## Modos de IA
-
-La app **nunca requiere IA de pago**. El modo por defecto es `heuristics` (ranking por similitud de texto).
-
-Ver [docs/ai-modes.md](docs/ai-modes.md) para detalles.
-
-## Automatización Mercadona
-
-El bot Playwright busca cada producto de tu lista en la web de Mercadona e intenta añadirlo al carrito.
-
-Limitaciones importantes: ver [docs/automation-limitations.md](docs/automation-limitations.md).
-
-## Estructura del proyecto
-
-Ver [docs/architecture.md](docs/architecture.md).
-
-## Migraciones de base de datos
+## Migraciones
 
 ```bash
 cd backend
-# Crear nueva migración tras cambiar models/
-alembic revision --autogenerate -m "descripcion"
-# Aplicar migraciones
 alembic upgrade head
-# Revertir última migración
-alembic downgrade -1
 ```
 
-## Verificación del sistema
+## Verificacion rapida
 
-- La app funciona sin Claude: ✅ (modo heuristics por defecto)
-- Claude es opcional: ✅ (AI_MODE=claude_optional + ANTHROPIC_API_KEY)
-- Sin APIs de pago obligatorias: ✅
-- Backend + frontend + bot integrados: ✅
+- Backend saludable en `http://localhost:8000/health`
+- Frontend en `http://localhost:5173`
+- API docs en `http://localhost:8000/docs`

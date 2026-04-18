@@ -21,6 +21,7 @@ from app.schemas.recipe import (
     AddToListPayload, AddToListResult, PantryRecipeSuggestion,
 )
 from app.services.habit_service import HabitService
+from app.services.recipe_seed_nutrition import SEED_RECIPE_NUTRITION, LEGACY_RECIPE_NUTRITION
 from app.services.pantry_support import (
     convert_amount,
     names_match,
@@ -30,6 +31,12 @@ from app.services.pantry_support import (
     units_compatible,
 )
 from app.services.product_service import ProductService
+from app.utils.recipe_images import (
+    build_recipe_image_url,
+    delete_recipe_image_file,
+    get_recipe_upload_dir,
+    is_local_recipe_image_url,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -592,6 +599,24 @@ def _seed_title_key(value: str) -> str:
     return normalized
 
 
+def _placeholder_recipe_image_url(title: str) -> str:
+    slug = _seed_title_key(title)
+    slug = re.sub(r"[^a-z0-9]+", "-", slug).strip("-")
+    slug = slug or "recipe"
+    return f"/uploads/recipes/seed-{slug}.svg"
+
+
+def _default_seed_image_url(title: str) -> str:
+    slug = _seed_title_key(title)
+    slug = re.sub(r"[^a-z0-9]+", "-", slug).strip("-")
+    slug = slug or "recipe"
+    jpg_name = f"seed-{slug}.jpg"
+    jpg_path = get_recipe_upload_dir() / jpg_name
+    if jpg_path.exists():
+        return build_recipe_image_url(jpg_name)
+    return _placeholder_recipe_image_url(title)
+
+
 def _step_objects(step_texts: list[str]) -> list[dict]:
     return [{"position": index, "text": text} for index, text in enumerate(step_texts)]
 
@@ -601,9 +626,37 @@ _SEED_STEP_MAP = {
     for title, steps in SEED_RECIPE_STEPS.items()
 }
 
+_SEED_NUTRITION_MAP = {
+    _seed_title_key(title): data
+    for title, data in SEED_RECIPE_NUTRITION.items()
+}
+
+_LEGACY_NUTRITION_MAP = {
+    _seed_title_key(title): data
+    for title, data in LEGACY_RECIPE_NUTRITION.items()
+}
+
+SEED_RECIPE_IMAGES = {
+    _seed_title_key("Tortilla de Patatas"): build_recipe_image_url("seed-tortilla-patatas.jpg"),
+    _seed_title_key("Pasta Boloñesa"): build_recipe_image_url("seed-pasta-bolonesa.jpg"),
+    _seed_title_key("Pollo al Curry con Arroz"): build_recipe_image_url("seed-pollo-curry-arroz.jpg"),
+    _seed_title_key("Fajitas de Pollo"): build_recipe_image_url("seed-fajitas-pollo.jpg"),
+    _seed_title_key("Chili con Carne"): build_recipe_image_url("seed-chili-con-carne.jpg"),
+    _seed_title_key("Macarrones con Tomate y Queso"): build_recipe_image_url("seed-macarrones-tomate-queso.jpg"),
+}
+
+PROTECTED_SEED_IMAGE_URLS = set(SEED_RECIPE_IMAGES.values())
+
 
 for seed in SEED_RECIPES + ADDITIONAL_SEED_RECIPES:
-    seed["steps"] = list(_SEED_STEP_MAP.get(_seed_title_key(seed["title"]), []))
+    key = _seed_title_key(seed["title"])
+    seed["steps"] = list(_SEED_STEP_MAP.get(key, []))
+    if key in SEED_RECIPE_IMAGES:
+        seed["image_url"] = SEED_RECIPE_IMAGES[key]
+    elif not seed.get("image_url"):
+        seed["image_url"] = _default_seed_image_url(seed["title"])
+    if key in _SEED_NUTRITION_MAP:
+        seed.update(_SEED_NUTRITION_MAP[key])
 
 SEED_RECIPES.extend(ADDITIONAL_SEED_RECIPES)
 
@@ -615,20 +668,19 @@ class RecipeService:
     # ── Seed ──────────────────────────────────────────────────────────────────
 
     async def ensure_seeds(self) -> None:
-        """Insert missing public seed/template recipes and backfill seed steps safely."""
+        """Insert public seed/template recipes once on first bootstrap."""
         result = await self.db.execute(
             select(Recipe).where(Recipe.is_public == True).options(selectinload(Recipe.ingredients))
         )
         existing_recipes = list(result.scalars().all())
         existing_by_key = {_seed_title_key(recipe.title): recipe for recipe in existing_recipes}
-        changed = False
         created = 0
 
         for seed in SEED_RECIPES:
             key = _seed_title_key(seed["title"])
-            recipe = existing_by_key.get(key)
             seed_steps = list(seed.get("steps", []))
-
+            seed_image_url = seed.get("image_url")
+            recipe = existing_by_key.get(key)
             if recipe is None:
                 recipe = Recipe(
                     user_id=None,
@@ -637,8 +689,17 @@ class RecipeService:
                     servings=seed.get("servings", 4),
                     estimated_minutes=seed.get("estimated_minutes"),
                     estimated_cost=seed.get("estimated_cost"),
+                    calories_per_serving=seed.get("calories_per_serving"),
+                    protein_g=seed.get("protein_g"),
+                    carbs_g=seed.get("carbs_g"),
+                    fat_g=seed.get("fat_g"),
+                    fiber_g=seed.get("fiber_g"),
+                    sugar_g=seed.get("sugar_g"),
+                    sodium_mg=seed.get("sodium_mg"),
+                    meal_types=_normalize_meal_types(seed.get("meal_types")),
                     tags=seed.get("tags"),
                     steps=seed_steps,
+                    image_url=seed_image_url,
                     is_public=True,
                 )
                 self.db.add(recipe)
@@ -655,18 +716,80 @@ class RecipeService:
                         position=pos,
                     ))
                 created += 1
-                changed = True
                 continue
 
-            if (recipe.steps or []) != seed_steps:
+            changed = False
+            nutrition_fields = (
+                "calories_per_serving",
+                "protein_g",
+                "carbs_g",
+                "fat_g",
+                "fiber_g",
+                "sugar_g",
+                "sodium_mg",
+            )
+            for field_name in nutrition_fields:
+                if getattr(recipe, field_name) is None and seed.get(field_name) is not None:
+                    setattr(recipe, field_name, seed.get(field_name))
+                    changed = True
+
+            if not recipe.meal_types and seed.get("meal_types"):
+                recipe.meal_types = _normalize_meal_types(seed.get("meal_types"))
+                changed = True
+            if not recipe.steps and seed_steps:
                 recipe.steps = seed_steps
                 changed = True
+            if not recipe.image_url and seed_image_url:
+                recipe.image_url = seed_image_url
+                changed = True
+            elif (
+                recipe.image_url
+                and recipe.image_url.endswith(".svg")
+                and seed_image_url
+                and seed_image_url.endswith(".jpg")
+            ):
+                recipe.image_url = seed_image_url
+                changed = True
+            if changed:
+                recipe.updated_at = datetime.now(timezone.utc)
 
-        if not changed:
-            return
+        legacy_titles = list(LEGACY_RECIPE_NUTRITION.keys())
+        if legacy_titles:
+            legacy_result = await self.db.execute(
+                select(Recipe).where(Recipe.title.in_(legacy_titles))
+            )
+            for recipe in legacy_result.scalars().all():
+                legacy_data = _LEGACY_NUTRITION_MAP.get(_seed_title_key(recipe.title))
+                if not legacy_data:
+                    continue
+                changed = False
+                for field_name in (
+                    "calories_per_serving",
+                    "protein_g",
+                    "carbs_g",
+                    "fat_g",
+                    "fiber_g",
+                    "sugar_g",
+                    "sodium_mg",
+                ):
+                    if getattr(recipe, field_name) is None and legacy_data.get(field_name) is not None:
+                        setattr(recipe, field_name, legacy_data.get(field_name))
+                        changed = True
+                if not recipe.meal_types and legacy_data.get("meal_types"):
+                    recipe.meal_types = _normalize_meal_types(legacy_data.get("meal_types"))
+                    changed = True
+                desired_image_url = _default_seed_image_url(recipe.title)
+                if not recipe.image_url:
+                    recipe.image_url = desired_image_url
+                    changed = True
+                elif recipe.image_url.endswith(".svg") and desired_image_url.endswith(".jpg"):
+                    recipe.image_url = desired_image_url
+                    changed = True
+                if changed:
+                    recipe.updated_at = datetime.now(timezone.utc)
 
         await self.db.commit()
-        logger.info(f"Seed sync complete. Created {created} recipes and updated seed steps.")
+        logger.info(f"Seed bootstrap complete. Created {created} public recipes and backfilled nutrition.")
 
     # ── Helpers ───────────────────────────────────────────────────────────────
 
@@ -684,11 +807,14 @@ class RecipeService:
             raise HTTPException(status_code=404, detail="Receta no encontrada")
         return recipe
 
-    async def _get_own_recipe_or_404(self, recipe_id: int, user_id: int) -> Recipe:
-        """Get recipe that belongs to this user (for mutations)."""
+    async def _get_mutable_recipe_or_404(self, recipe_id: int, user_id: int) -> Recipe:
+        """Get any visible recipe for mutations."""
         result = await self.db.execute(
             select(Recipe)
-            .where(Recipe.id == recipe_id, Recipe.user_id == user_id)
+            .where(
+                Recipe.id == recipe_id,
+                (Recipe.user_id == user_id) | (Recipe.is_public == True),
+            )
             .options(selectinload(Recipe.ingredients))
         )
         recipe = result.scalar_one_or_none()
@@ -705,6 +831,14 @@ class RecipeService:
             servings=recipe.servings,
             estimated_minutes=recipe.estimated_minutes,
             estimated_cost=recipe.estimated_cost,
+            calories_per_serving=recipe.calories_per_serving,
+            protein_g=recipe.protein_g,
+            carbs_g=recipe.carbs_g,
+            fat_g=recipe.fat_g,
+            fiber_g=recipe.fiber_g,
+            sugar_g=recipe.sugar_g,
+            sodium_mg=recipe.sodium_mg,
+            meal_types=_normalize_meal_types(recipe.meal_types),
             tags=recipe.tags,
             steps=_normalize_steps(recipe.steps),
             image_url=recipe.image_url,
@@ -816,6 +950,14 @@ class RecipeService:
             servings=data.servings,
             estimated_minutes=data.estimated_minutes,
             estimated_cost=data.estimated_cost,
+            calories_per_serving=data.calories_per_serving,
+            protein_g=data.protein_g,
+            carbs_g=data.carbs_g,
+            fat_g=data.fat_g,
+            fiber_g=data.fiber_g,
+            sugar_g=data.sugar_g,
+            sodium_mg=data.sodium_mg,
+            meal_types=_normalize_meal_types(data.meal_types),
             tags=data.tags,
             steps=_normalize_steps(data.steps),
             image_url=data.image_url,
@@ -840,28 +982,48 @@ class RecipeService:
 
         # Reload with ingredients
         result = await self.db.execute(
-            select(Recipe).where(Recipe.id == recipe.id).options(selectinload(Recipe.ingredients))
+            select(Recipe)
+            .where(Recipe.id == recipe.id)
+            .options(selectinload(Recipe.ingredients))
+            .execution_options(populate_existing=True)
         )
         return _to_recipe_read(result.scalar_one())
 
     async def update_recipe(self, recipe_id: int, user_id: int, data: RecipeUpdate) -> RecipeRead:
-        recipe = await self._get_own_recipe_or_404(recipe_id, user_id)
+        recipe = await self._get_mutable_recipe_or_404(recipe_id, user_id)
+        provided = data.model_fields_set
 
         if data.title is not None:
             recipe.title = data.title
-        if data.description is not None:
+        if "description" in provided:
             recipe.description = data.description
-        if data.servings is not None:
+        if "servings" in provided and data.servings is not None:
             recipe.servings = data.servings
-        if data.estimated_minutes is not None:
+        if "estimated_minutes" in provided:
             recipe.estimated_minutes = data.estimated_minutes
-        if data.estimated_cost is not None:
+        if "estimated_cost" in provided:
             recipe.estimated_cost = data.estimated_cost
-        if data.tags is not None:
+        if "calories_per_serving" in provided:
+            recipe.calories_per_serving = data.calories_per_serving
+        if "protein_g" in provided:
+            recipe.protein_g = data.protein_g
+        if "carbs_g" in provided:
+            recipe.carbs_g = data.carbs_g
+        if "fat_g" in provided:
+            recipe.fat_g = data.fat_g
+        if "fiber_g" in provided:
+            recipe.fiber_g = data.fiber_g
+        if "sugar_g" in provided:
+            recipe.sugar_g = data.sugar_g
+        if "sodium_mg" in provided:
+            recipe.sodium_mg = data.sodium_mg
+        if "meal_types" in provided:
+            recipe.meal_types = _normalize_meal_types(data.meal_types)
+        if "tags" in provided:
             recipe.tags = data.tags
         if data.steps is not None:
             recipe.steps = _normalize_steps(data.steps)
-        if data.image_url is not None:
+        if "image_url" in provided:
             recipe.image_url = data.image_url
 
         if data.ingredients is not None:
@@ -885,14 +1047,59 @@ class RecipeService:
         await self.db.commit()
 
         result = await self.db.execute(
-            select(Recipe).where(Recipe.id == recipe.id).options(selectinload(Recipe.ingredients))
+            select(Recipe)
+            .where(Recipe.id == recipe.id)
+            .options(selectinload(Recipe.ingredients))
+            .execution_options(populate_existing=True)
         )
         return _to_recipe_read(result.scalar_one())
 
     async def delete_recipe(self, recipe_id: int, user_id: int) -> None:
-        recipe = await self._get_own_recipe_or_404(recipe_id, user_id)
+        recipe = await self._get_mutable_recipe_or_404(recipe_id, user_id)
+        previous_image_url = recipe.image_url
         await self.db.delete(recipe)
         await self.db.commit()
+        if is_local_recipe_image_url(previous_image_url) and previous_image_url not in PROTECTED_SEED_IMAGE_URLS:
+            delete_recipe_image_file(previous_image_url)
+
+    async def set_recipe_image(self, recipe_id: int, user_id: int, image_url: str) -> RecipeRead:
+        recipe = await self._get_mutable_recipe_or_404(recipe_id, user_id)
+        previous_image_url = recipe.image_url
+        recipe.image_url = image_url
+        recipe.updated_at = datetime.now(timezone.utc)
+        await self.db.commit()
+
+        result = await self.db.execute(
+            select(Recipe)
+            .where(Recipe.id == recipe.id)
+            .options(selectinload(Recipe.ingredients))
+            .execution_options(populate_existing=True)
+        )
+        if (
+            previous_image_url
+            and previous_image_url != image_url
+            and is_local_recipe_image_url(previous_image_url)
+            and previous_image_url not in PROTECTED_SEED_IMAGE_URLS
+        ):
+            delete_recipe_image_file(previous_image_url)
+        return _to_recipe_read(result.scalar_one())
+
+    async def delete_recipe_image(self, recipe_id: int, user_id: int) -> RecipeRead:
+        recipe = await self._get_mutable_recipe_or_404(recipe_id, user_id)
+        previous_image_url = recipe.image_url
+        recipe.image_url = None
+        recipe.updated_at = datetime.now(timezone.utc)
+        await self.db.commit()
+
+        result = await self.db.execute(
+            select(Recipe)
+            .where(Recipe.id == recipe.id)
+            .options(selectinload(Recipe.ingredients))
+            .execution_options(populate_existing=True)
+        )
+        if is_local_recipe_image_url(previous_image_url) and previous_image_url not in PROTECTED_SEED_IMAGE_URLS:
+            delete_recipe_image_file(previous_image_url)
+        return _to_recipe_read(result.scalar_one())
 
     async def duplicate_recipe(self, recipe_id: int, user_id: int) -> RecipeRead:
         """Copy a recipe (own or public) to the user's collection."""
@@ -903,13 +1110,26 @@ class RecipeService:
             servings=source.servings,
             estimated_minutes=source.estimated_minutes,
             estimated_cost=source.estimated_cost,
+            calories_per_serving=source.calories_per_serving,
+            protein_g=source.protein_g,
+            carbs_g=source.carbs_g,
+            fat_g=source.fat_g,
+            fiber_g=source.fiber_g,
+            sugar_g=source.sugar_g,
+            sodium_mg=source.sodium_mg,
+            meal_types=_normalize_meal_types(source.meal_types),
             tags=source.tags,
             steps=_normalize_steps(source.steps),
+            image_url=source.image_url,
             ingredients=[
-                type("IngCreate", (), {
-                    "name": i.name, "quantity": i.quantity, "unit": i.unit,
-                    "notes": i.notes, "product_query": i.product_query, "position": i.position,
-                })()
+                {
+                    "name": i.name,
+                    "quantity": i.quantity,
+                    "unit": i.unit,
+                    "notes": i.notes,
+                    "product_query": i.product_query,
+                    "position": i.position,
+                }
                 for i in source.ingredients
             ],
         )
@@ -1355,6 +1575,19 @@ def _normalize_steps(steps) -> list[dict]:
     ]
 
 
+def _normalize_meal_types(meal_types) -> list[str]:
+    if not meal_types:
+        return []
+    seen: set[str] = set()
+    normalized: list[str] = []
+    for meal_type in meal_types:
+        value = str(meal_type).strip().lower()
+        if value in {"desayuno", "comida", "cena"} and value not in seen:
+            seen.add(value)
+            normalized.append(value)
+    return normalized
+
+
 def _to_recipe_read(recipe: Recipe) -> RecipeRead:
     return RecipeRead(
         id=recipe.id,
@@ -1364,6 +1597,14 @@ def _to_recipe_read(recipe: Recipe) -> RecipeRead:
         servings=recipe.servings,
         estimated_minutes=recipe.estimated_minutes,
         estimated_cost=recipe.estimated_cost,
+        calories_per_serving=recipe.calories_per_serving,
+        protein_g=recipe.protein_g,
+        carbs_g=recipe.carbs_g,
+        fat_g=recipe.fat_g,
+        fiber_g=recipe.fiber_g,
+        sugar_g=recipe.sugar_g,
+        sodium_mg=recipe.sodium_mg,
+        meal_types=_normalize_meal_types(recipe.meal_types),
         tags=recipe.tags,
         steps=_normalize_steps(recipe.steps),
         image_url=recipe.image_url,

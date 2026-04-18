@@ -10,6 +10,7 @@ from app.schemas.weekly_plan import (
     WeeklyPlanGeneratePayload,
     WeeklyPlanRead,
     WeeklyPlanSummary,
+    WeeklyPlanSummaryRead,
     WeeklyPlanUpdate,
 )
 from app.services.weekly_plan_service import WeeklyPlanService
@@ -62,6 +63,24 @@ async def delete_weekly_plan(
 ):
     await WeeklyPlanService(db).delete_plan(plan_id, current_user.id)
     return Response(status_code=204)
+
+
+@router.post("/{plan_id}/generate", response_model=WeeklyPlanRead)
+async def generate_weekly_plan(
+    plan_id: int,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    return await WeeklyPlanService(db).generate_plan(plan_id, current_user.id)
+
+
+@router.get("/{plan_id}/summary", response_model=WeeklyPlanSummaryRead)
+async def get_weekly_plan_summary(
+    plan_id: int,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    return await WeeklyPlanService(db).get_summary(plan_id, current_user.id)
 
 
 @router.post("/{plan_id}/generate-shopping-list", response_model=AddToListResult)

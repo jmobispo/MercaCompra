@@ -23,6 +23,14 @@ class Recipe(Base):
     servings = Column(Integer, default=4)
     estimated_minutes = Column(Integer, nullable=True)
     estimated_cost = Column(Float, nullable=True)
+    calories_per_serving = Column(Float, nullable=True)
+    protein_g = Column(Float, nullable=True)
+    carbs_g = Column(Float, nullable=True)
+    fat_g = Column(Float, nullable=True)
+    fiber_g = Column(Float, nullable=True)
+    sugar_g = Column(Float, nullable=True)
+    sodium_mg = Column(Float, nullable=True)
+    meal_types = Column(JSON, nullable=True)    # list["desayuno"|"comida"|"cena"]
     tags = Column(JSON, nullable=True)          # list[str]
     steps = Column(JSON, nullable=True)         # list[{position:int,text:str}]
     image_url = Column(String(500), nullable=True)

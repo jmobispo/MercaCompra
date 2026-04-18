@@ -61,6 +61,22 @@ AI_MODE=claude_optional             — Claude API (fallback a heuristics si no 
 
 No hay API de pago obligatoria. La app funciona completamente con `heuristics`.
 
+## Planificador semanal por reglas
+
+La generacion de menus semanales no usa IA generativa ni Ollama. Se basa en:
+
+- recetas visibles del usuario y recetas publicas
+- `meal_types` (`desayuno`, `comida`, `cena`)
+- coste y tiempo estimado
+- nutricion por racion
+- presupuesto semanal opcional
+- preferencias (`economico`, `rapido`, `saludable`, `familiar`)
+- variedad y penalizacion de repeticiones
+- despensa disponible
+- habitos de compra como factor suave
+
+El backend genera el menu dia a dia, slot a slot, y persiste la asignacion sobre `weekly_plan_days`.
+
 ## Flujo de automatización
 
 ```

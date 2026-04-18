@@ -237,6 +237,8 @@ export interface RecipeStep {
   text: string;
 }
 
+export type RecipeMealType = 'desayuno' | 'comida' | 'cena';
+
 export interface Recipe {
   id: number;
   user_id: number | null;
@@ -245,6 +247,14 @@ export interface Recipe {
   servings: number;
   estimated_minutes: number | null;
   estimated_cost: number | null;
+  calories_per_serving: number | null;
+  protein_g: number | null;
+  carbs_g: number | null;
+  fat_g: number | null;
+  fiber_g: number | null;
+  sugar_g: number | null;
+  sodium_mg: number | null;
+  meal_types: RecipeMealType[];
   tags: string[] | null;
   steps: RecipeStep[];
   image_url: string | null;
@@ -262,6 +272,14 @@ export interface RecipeSummary {
   servings: number;
   estimated_minutes: number | null;
   estimated_cost: number | null;
+  calories_per_serving: number | null;
+  protein_g: number | null;
+  carbs_g: number | null;
+  fat_g: number | null;
+  fiber_g: number | null;
+  sugar_g: number | null;
+  sodium_mg: number | null;
+  meal_types: RecipeMealType[];
   tags: string[] | null;
   steps: RecipeStep[];
   image_url: string | null;
@@ -291,6 +309,14 @@ export interface CreateRecipePayload {
   servings?: number;
   estimated_minutes?: number | null;
   estimated_cost?: number | null;
+  calories_per_serving?: number | null;
+  protein_g?: number | null;
+  carbs_g?: number | null;
+  fat_g?: number | null;
+  fiber_g?: number | null;
+  sugar_g?: number | null;
+  sodium_mg?: number | null;
+  meal_types?: RecipeMealType[];
   tags?: string[] | null;
   ingredients: RecipeIngredientPayload[];
   steps?: RecipeStepPayload[];
@@ -302,6 +328,14 @@ export interface UpdateRecipePayload {
   servings?: number;
   estimated_minutes?: number | null;
   estimated_cost?: number | null;
+  calories_per_serving?: number | null;
+  protein_g?: number | null;
+  carbs_g?: number | null;
+  fat_g?: number | null;
+  fiber_g?: number | null;
+  sugar_g?: number | null;
+  sodium_mg?: number | null;
+  meal_types?: RecipeMealType[];
   tags?: string[] | null;
   ingredients?: RecipeIngredientPayload[];
   steps?: RecipeStepPayload[];
@@ -334,6 +368,13 @@ export interface WeeklyPlanDay {
   recipe_id: number | null;
   recipe_title?: string | null;
   meal_type: string | null;
+}
+
+export interface WeeklyPlanPreferences {
+  economico: boolean;
+  rapido: boolean;
+  saludable: boolean;
+  familiar: boolean;
 }
 
 export interface WeeklyPlanSummary {
@@ -486,7 +527,7 @@ export interface WeeklyPlan {
   days_count: number;
   start_date: string;
   budget_target: number | null;
-  preferences?: Record<string, unknown> | null;
+  preferences: WeeklyPlanPreferences;
   created_at: string;
   updated_at: string;
   days: WeeklyPlanDay[];
@@ -505,7 +546,7 @@ export interface CreateWeeklyPlanPayload {
   days_count: number;
   start_date?: string;
   budget_target?: number | null;
-  preferences?: Record<string, unknown> | null;
+  preferences?: WeeklyPlanPreferences | null;
   days?: WeeklyPlanDayPayload[];
 }
 
@@ -515,11 +556,53 @@ export interface UpdateWeeklyPlanPayload {
   days_count?: number;
   start_date?: string;
   budget_target?: number | null;
-  preferences?: Record<string, unknown> | null;
+  preferences?: WeeklyPlanPreferences | null;
   days?: WeeklyPlanDayPayload[];
 }
 
 export interface GenerateWeeklyPlanListPayload {
   list_id?: number | null;
   new_list_name?: string | null;
+}
+
+export interface WeeklyPlanMealSummary {
+  meal_slot: 'desayuno' | 'comida' | 'cena';
+  recipe_id: number | null;
+  recipe_title: string | null;
+  calories: number;
+  protein_g: number;
+  carbs_g: number;
+  fat_g: number;
+  estimated_cost: number;
+  meal_types: RecipeMealType[];
+}
+
+export interface WeeklyPlanDaySummary {
+  day_index: number;
+  date: string;
+  estimated_day_cost: number;
+  estimated_day_calories: number;
+  protein_g: number;
+  carbs_g: number;
+  fat_g: number;
+  meals: WeeklyPlanMealSummary[];
+}
+
+export interface WeeklyPlanGeneratedSummary {
+  plan_id: number;
+  title: string;
+  people_count: number;
+  days_count: number;
+  budget_target: number | null;
+  preferences: WeeklyPlanPreferences;
+  total_estimated_cost: number;
+  total_estimated_calories: number;
+  total_protein_g: number;
+  total_carbs_g: number;
+  total_fat_g: number;
+  average_daily_calories: number;
+  average_daily_cost: number;
+  budget_remaining: number | null;
+  within_budget: boolean | null;
+  days: WeeklyPlanDaySummary[];
 }

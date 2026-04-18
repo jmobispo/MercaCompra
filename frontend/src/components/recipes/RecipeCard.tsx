@@ -1,4 +1,5 @@
 import type { RecipeSummary } from '../../types';
+import { resolveBackendUrl } from '../../api/client';
 
 interface RecipeCardProps {
   recipe: RecipeSummary;
@@ -17,10 +18,11 @@ export default function RecipeCard({
   onDelete,
   onAddToList,
 }: RecipeCardProps) {
-  const formatCost = (c: number | null) =>
-    c != null ? c.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' }) : null;
+  const formatCost = (cost: number | null) =>
+    cost != null ? cost.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' }) : null;
 
-  const isOwn = recipe.user_id !== null && !recipe.is_public;
+  const imageUrl = resolveBackendUrl(recipe.image_url);
+  const mealTypes = recipe.meal_types ?? [];
 
   return (
     <div
@@ -29,16 +31,21 @@ export default function RecipeCard({
       onClick={() => onView(recipe.id)}
       role="button"
       tabIndex={0}
-      onKeyDown={(e) => e.key === 'Enter' && onView(recipe.id)}
+      onKeyDown={(event) => event.key === 'Enter' && onView(recipe.id)}
     >
+      <div className="recipe-card-media">
+        {imageUrl ? (
+          <img src={imageUrl} alt={recipe.title} className="recipe-card-image" />
+        ) : (
+          <div className="recipe-card-placeholder">Sin imagen</div>
+        )}
+      </div>
+
       <div className="recipe-card-body">
         <div className="recipe-card-header">
           <h3 className="recipe-card-title">{recipe.title}</h3>
           {recipe.is_public && (
-            <span
-              className="badge"
-              style={{ background: 'var(--color-success)', color: '#fff', fontSize: 10 }}
-            >
+            <span className="badge" style={{ background: 'var(--color-success)', color: '#fff', fontSize: 10 }}>
               Sugerida
             </span>
           )}
@@ -49,15 +56,20 @@ export default function RecipeCard({
         )}
 
         <div className="recipe-card-meta">
-          {recipe.estimated_minutes && (
-            <span title="Tiempo de preparación">⏱ {recipe.estimated_minutes} min</span>
-          )}
-          <span title="Raciones">👥 {recipe.servings} raciones</span>
-          <span title="Ingredientes">🥕 {recipe.ingredient_count} ingredientes</span>
-          {formatCost(recipe.estimated_cost) && (
-            <span title="Coste estimado">💶 {formatCost(recipe.estimated_cost)}</span>
-          )}
+          {recipe.estimated_minutes && <span title="Tiempo">{recipe.estimated_minutes} min</span>}
+          <span title="Raciones">{recipe.servings} raciones</span>
+          <span title="Ingredientes">{recipe.ingredient_count} ingredientes</span>
+          {formatCost(recipe.estimated_cost) && <span title="Coste">{formatCost(recipe.estimated_cost)}</span>}
+          {recipe.calories_per_serving != null && <span title="Calorias">{Math.round(recipe.calories_per_serving)} kcal</span>}
         </div>
+
+        {mealTypes.length > 0 && (
+          <div className="recipe-tags">
+            {mealTypes.map((mealType) => (
+              <span key={mealType} className={`recipe-tag recipe-tag-meal recipe-tag-${mealType}`}>{mealType}</span>
+            ))}
+          </div>
+        )}
 
         {recipe.tags && recipe.tags.length > 0 && (
           <div className="recipe-tags">
@@ -68,45 +80,29 @@ export default function RecipeCard({
         )}
       </div>
 
-      <div
-        className="recipe-card-actions"
-        onClick={(e) => e.stopPropagation()}
-      >
+      <div className="recipe-card-actions" onClick={(event) => event.stopPropagation()}>
         {onAddToList && (
-          <button
-            className="btn btn-primary btn-sm"
-            onClick={() => onAddToList(recipe.id)}
-            title="Añadir ingredientes a una lista"
-          >
+          <button className="btn btn-primary btn-sm" onClick={() => onAddToList(recipe.id)}>
             + Lista
           </button>
         )}
         {onDuplicate && (
-          <button
-            className="btn btn-secondary btn-sm"
-            onClick={() => onDuplicate(recipe.id)}
-            title="Duplicar receta"
-          >
+          <button className="btn btn-secondary btn-sm" onClick={() => onDuplicate(recipe.id)}>
             Copiar
           </button>
         )}
-        {onEdit && isOwn && (
-          <button
-            className="btn btn-ghost btn-sm"
-            onClick={() => onEdit(recipe.id)}
-            title="Editar receta"
-          >
-            ✏️
+        {onEdit && (
+          <button className="btn btn-ghost btn-sm" onClick={() => onEdit(recipe.id)}>
+            Editar
           </button>
         )}
-        {onDelete && isOwn && (
+        {onDelete && (
           <button
             className="btn btn-ghost btn-sm"
             onClick={() => onDelete(recipe.id)}
-            title="Eliminar receta"
             style={{ color: 'var(--color-danger)' }}
           >
-            🗑
+            Eliminar
           </button>
         )}
       </div>

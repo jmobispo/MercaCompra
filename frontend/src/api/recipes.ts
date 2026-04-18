@@ -8,6 +8,7 @@ import type {
   AddToListResult,
   PantryRecipeSuggestion,
   RecipeIngredient,
+  RecipeMealType,
   RecipeStep,
 } from '../types';
 
@@ -53,14 +54,41 @@ function normalizeIngredients(value: unknown): RecipeIngredient[] {
     .filter((ingredient): ingredient is RecipeIngredient => ingredient !== null);
 }
 
+function normalizeMealTypes(value: unknown): RecipeMealType[] {
+  if (!Array.isArray(value)) return [];
+  const seen = new Set<RecipeMealType>();
+  const normalized: RecipeMealType[] = [];
+  value.forEach((item) => {
+    if (item === 'desayuno' || item === 'comida' || item === 'cena') {
+      if (!seen.has(item)) {
+        seen.add(item);
+        normalized.push(item);
+      }
+    }
+  });
+  return normalized;
+}
+
+function normalizeNumber(value: unknown): number | null {
+  return typeof value === 'number' && Number.isFinite(value) ? value : null;
+}
+
 function normalizeRecipeSummary(recipe: RecipeSummary): RecipeSummary {
   return {
     ...recipe,
     tags: Array.isArray(recipe.tags) ? recipe.tags : [],
+    meal_types: normalizeMealTypes(recipe.meal_types),
     steps: normalizeSteps(recipe.steps),
     description: recipe.description ?? null,
     estimated_minutes: recipe.estimated_minutes ?? null,
     estimated_cost: recipe.estimated_cost ?? null,
+    calories_per_serving: normalizeNumber(recipe.calories_per_serving),
+    protein_g: normalizeNumber(recipe.protein_g),
+    carbs_g: normalizeNumber(recipe.carbs_g),
+    fat_g: normalizeNumber(recipe.fat_g),
+    fiber_g: normalizeNumber(recipe.fiber_g),
+    sugar_g: normalizeNumber(recipe.sugar_g),
+    sodium_mg: normalizeNumber(recipe.sodium_mg),
     image_url: recipe.image_url ?? null,
     ingredient_count: typeof recipe.ingredient_count === 'number' ? recipe.ingredient_count : 0,
   };
@@ -70,11 +98,19 @@ function normalizeRecipe(recipe: Recipe): Recipe {
   return {
     ...recipe,
     tags: Array.isArray(recipe.tags) ? recipe.tags : [],
+    meal_types: normalizeMealTypes(recipe.meal_types),
     steps: normalizeSteps(recipe.steps),
     ingredients: normalizeIngredients(recipe.ingredients),
     description: recipe.description ?? null,
     estimated_minutes: recipe.estimated_minutes ?? null,
     estimated_cost: recipe.estimated_cost ?? null,
+    calories_per_serving: normalizeNumber(recipe.calories_per_serving),
+    protein_g: normalizeNumber(recipe.protein_g),
+    carbs_g: normalizeNumber(recipe.carbs_g),
+    fat_g: normalizeNumber(recipe.fat_g),
+    fiber_g: normalizeNumber(recipe.fiber_g),
+    sugar_g: normalizeNumber(recipe.sugar_g),
+    sodium_mg: normalizeNumber(recipe.sodium_mg),
     image_url: recipe.image_url ?? null,
   };
 }
@@ -116,6 +152,20 @@ export const deleteRecipe = async (id: number): Promise<void> => {
 
 export const duplicateRecipe = async (id: number): Promise<Recipe> => {
   const r = await apiClient.post<Recipe>(`/recipes/${id}/duplicate`);
+  return normalizeRecipe(r.data);
+};
+
+export const uploadRecipeImage = async (id: number, file: File): Promise<Recipe> => {
+  const formData = new FormData();
+  formData.append('image', file);
+  const r = await apiClient.post<Recipe>(`/recipes/${id}/image`, formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  });
+  return normalizeRecipe(r.data);
+};
+
+export const deleteRecipeImage = async (id: number): Promise<Recipe> => {
+  const r = await apiClient.delete<Recipe>(`/recipes/${id}/image`);
   return normalizeRecipe(r.data);
 };
 

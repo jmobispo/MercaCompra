@@ -10,6 +10,7 @@ import {
 import RecipeForm from '../components/recipes/RecipeForm';
 import AddToListModal from '../components/recipes/AddToListModal';
 import type { Recipe, UpdateRecipePayload, AddToListPayload } from '../types';
+import { resolveBackendUrl } from '../api/client';
 
 export default function RecipeDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -41,10 +42,10 @@ export default function RecipeDetailPage() {
   }, [fetchRecipe]);
 
   const handleUpdate = async (payload: UpdateRecipePayload) => {
-    if (!recipe) return;
-    const updated = await updateRecipe(recipe.id, payload);
-    setRecipe(updated);
-    setShowEditForm(false);
+    if (!recipe) {
+      throw new Error('Receta no disponible');
+    }
+    return await updateRecipe(recipe.id, payload);
   };
 
   const handleDelete = async () => {
@@ -77,20 +78,20 @@ export default function RecipeDetailPage() {
     const result = await addRecipeToList(recipe.id, payload);
     setShowAddToList(false);
     setSuccessMsg(
-      `${result.added} ingrediente(s) añadido(s) a "${result.list_name}"` +
-        (result.skipped > 0 ? ` (${result.skipped} ya existían)` : '')
+      `${result.added} ingrediente(s) anadido(s) a "${result.list_name}"` +
+        (result.skipped > 0 ? ` (${result.skipped} ya existian)` : '')
     );
     setTimeout(() => setSuccessMsg(''), 4000);
   };
 
-  const formatCost = (c: number | null) =>
-    c != null ? c.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' }) : null;
+  const formatCost = (cost: number | null) =>
+    cost != null ? cost.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' }) : null;
 
   if (loading) {
     return (
       <div className="loading-overlay">
         <span className="loading-spinner" />
-        <span>Cargando receta…</span>
+        <span>Cargando receta...</span>
       </div>
     );
   }
@@ -98,7 +99,7 @@ export default function RecipeDetailPage() {
   if (!recipe) {
     return (
       <div className="empty-state">
-        <div className="empty-icon">❌</div>
+        <div className="empty-icon">X</div>
         <p>Receta no encontrada</p>
         <button className="btn btn-secondary" onClick={() => navigate('/recipes')}>
           Volver a recetas
@@ -107,16 +108,18 @@ export default function RecipeDetailPage() {
     );
   }
 
-  const isOwn = recipe.user_id !== null && !recipe.is_public;
   const steps = Array.isArray(recipe.steps) ? recipe.steps : [];
+  const imageUrl = resolveBackendUrl(recipe.image_url);
+  const mealTypes = recipe.meal_types ?? [];
 
   return (
     <div>
-      {/* Alerts */}
       {error && (
         <div className="alert alert-error" style={{ marginBottom: 16 }}>
           {error}
-          <button className="btn btn-ghost btn-sm" style={{ marginLeft: 8 }} onClick={() => setError('')}>×</button>
+          <button className="btn btn-ghost btn-sm" style={{ marginLeft: 8 }} onClick={() => setError('')}>
+            x
+          </button>
         </div>
       )}
       {successMsg && (
@@ -125,7 +128,12 @@ export default function RecipeDetailPage() {
         </div>
       )}
 
-      {/* Header */}
+      {imageUrl && (
+        <div className="recipe-detail-hero">
+          <img src={imageUrl} alt={recipe.title} className="recipe-detail-image" />
+        </div>
+      )}
+
       <div className="page-header" style={{ alignItems: 'flex-start', gap: 12 }}>
         <div style={{ flex: 1 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
@@ -142,11 +150,19 @@ export default function RecipeDetailPage() {
             </p>
           )}
           <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', fontSize: 14, color: 'var(--color-text-muted)' }}>
-            <span>👥 {recipe.servings} raciones</span>
-            {recipe.estimated_minutes && <span>⏱ {recipe.estimated_minutes} min</span>}
-            {formatCost(recipe.estimated_cost) && <span>💶 {formatCost(recipe.estimated_cost)}</span>}
-            <span>🥕 {recipe.ingredients.length} ingredientes</span>
+            <span>{recipe.servings} raciones</span>
+            {recipe.estimated_minutes && <span>{recipe.estimated_minutes} min</span>}
+            {formatCost(recipe.estimated_cost) && <span>{formatCost(recipe.estimated_cost)}</span>}
+            <span>{recipe.ingredients.length} ingredientes</span>
+            {recipe.calories_per_serving != null && <span>{Math.round(recipe.calories_per_serving)} kcal/racion</span>}
           </div>
+          {mealTypes.length > 0 && (
+            <div className="recipe-tags" style={{ marginTop: 8 }}>
+              {mealTypes.map((mealType) => (
+                <span key={mealType} className={`recipe-tag recipe-tag-meal recipe-tag-${mealType}`}>{mealType}</span>
+              ))}
+            </div>
+          )}
           {recipe.tags && recipe.tags.length > 0 && (
             <div className="recipe-tags" style={{ marginTop: 8 }}>
               {recipe.tags.map((tag) => (
@@ -157,52 +173,81 @@ export default function RecipeDetailPage() {
         </div>
 
         <div className="actions-row" style={{ flexShrink: 0 }}>
-          <button
-            className="btn btn-primary"
-            onClick={() => setShowAddToList(true)}
-            disabled={actionLoading}
-          >
-            + Añadir a lista
+          <button className="btn btn-primary" onClick={() => setShowAddToList(true)} disabled={actionLoading}>
+            + Anadir a lista
+          </button>
+          <button className="btn btn-secondary btn-sm" onClick={handleDuplicate} disabled={actionLoading}>
+            Copiar
           </button>
           <button
             className="btn btn-secondary btn-sm"
-            onClick={handleDuplicate}
+            onClick={() => setShowEditForm(true)}
             disabled={actionLoading}
-            title="Duplicar receta"
           >
-            Copiar
+            Editar receta
           </button>
-          {isOwn && (
-            <>
-              <button
-                className="btn btn-ghost btn-sm"
-                onClick={() => setShowEditForm(true)}
-                disabled={actionLoading}
-                title="Editar receta"
-              >
-                ✏️
-              </button>
-              <button
-                className="btn btn-ghost btn-sm"
-                onClick={handleDelete}
-                disabled={actionLoading}
-                style={{ color: 'var(--color-danger)' }}
-                title="Eliminar receta"
-              >
-                🗑
-              </button>
-            </>
-          )}
           <button
             className="btn btn-ghost btn-sm"
-            onClick={() => navigate('/recipes')}
+            onClick={handleDelete}
+            disabled={actionLoading}
+            style={{ color: 'var(--color-danger)' }}
           >
-            ← Volver
+            Eliminar
+          </button>
+          <button className="btn btn-ghost btn-sm" onClick={() => navigate('/recipes')}>
+            Volver
           </button>
         </div>
       </div>
 
-      {/* Ingredients */}
+      <div className="recipe-edit-hint">
+        <strong>Edicion completa disponible.</strong> Pulsa <em>Editar receta</em> para cambiar
+        ingredientes, pasos y tambien anadir, reemplazar o eliminar la imagen.
+      </div>
+
+      <div className="card recipe-nutrition-card" style={{ marginTop: 24 }}>
+        <div className="card-header">
+          <h2>Nutricion por racion</h2>
+          <span style={{ fontSize: 13, color: 'var(--color-text-muted)' }}>
+            Ideal para {mealTypes.length > 0 ? mealTypes.join(', ') : 'sin definir'}
+          </span>
+        </div>
+        <div className="card-body recipe-nutrition-grid">
+          <div className="recipe-nutrition-item">
+            <span className="recipe-nutrition-label">Calorias</span>
+            <strong>{recipe.calories_per_serving != null ? `${Math.round(recipe.calories_per_serving)} kcal` : 'Sin dato'}</strong>
+          </div>
+          <div className="recipe-nutrition-item">
+            <span className="recipe-nutrition-label">Proteina</span>
+            <strong>{recipe.protein_g != null ? `${recipe.protein_g.toFixed(1)} g` : 'Sin dato'}</strong>
+          </div>
+          <div className="recipe-nutrition-item">
+            <span className="recipe-nutrition-label">Carbohidratos</span>
+            <strong>{recipe.carbs_g != null ? `${recipe.carbs_g.toFixed(1)} g` : 'Sin dato'}</strong>
+          </div>
+          <div className="recipe-nutrition-item">
+            <span className="recipe-nutrition-label">Grasas</span>
+            <strong>{recipe.fat_g != null ? `${recipe.fat_g.toFixed(1)} g` : 'Sin dato'}</strong>
+          </div>
+          <div className="recipe-nutrition-item">
+            <span className="recipe-nutrition-label">Fibra</span>
+            <strong>{recipe.fiber_g != null ? `${recipe.fiber_g.toFixed(1)} g` : 'Sin dato'}</strong>
+          </div>
+          <div className="recipe-nutrition-item">
+            <span className="recipe-nutrition-label">Azucares</span>
+            <strong>{recipe.sugar_g != null ? `${recipe.sugar_g.toFixed(1)} g` : 'Sin dato'}</strong>
+          </div>
+          <div className="recipe-nutrition-item">
+            <span className="recipe-nutrition-label">Sodio</span>
+            <strong>{recipe.sodium_mg != null ? `${Math.round(recipe.sodium_mg)} mg` : 'Sin dato'}</strong>
+          </div>
+          <div className="recipe-nutrition-item">
+            <span className="recipe-nutrition-label">Raciones</span>
+            <strong>{recipe.servings}</strong>
+          </div>
+        </div>
+      </div>
+
       <div className="card" style={{ marginTop: 24 }}>
         <div className="card-header">
           <h2>Ingredientes</h2>
@@ -218,9 +263,9 @@ export default function RecipeDetailPage() {
               {recipe.ingredients
                 .slice()
                 .sort((a, b) => a.position - b.position)
-                .map((ing) => (
+                .map((ingredient) => (
                   <li
-                    key={ing.id}
+                    key={ingredient.id}
                     style={{
                       display: 'flex',
                       alignItems: 'baseline',
@@ -229,16 +274,16 @@ export default function RecipeDetailPage() {
                       borderBottom: '1px solid var(--color-border)',
                     }}
                   >
-                    <span style={{ flex: 1, fontWeight: 500 }}>{ing.name}</span>
-                    {(ing.quantity != null || ing.unit) && (
+                    <span style={{ flex: 1, fontWeight: 500 }}>{ingredient.name}</span>
+                    {(ingredient.quantity != null || ingredient.unit) && (
                       <span style={{ color: 'var(--color-text-muted)', fontSize: 14, whiteSpace: 'nowrap' }}>
-                        {ing.quantity != null ? ing.quantity : ''}
-                        {ing.unit ? ` ${ing.unit}` : ''}
+                        {ingredient.quantity != null ? ingredient.quantity : ''}
+                        {ingredient.unit ? ` ${ingredient.unit}` : ''}
                       </span>
                     )}
-                    {ing.notes && (
+                    {ingredient.notes && (
                       <span style={{ color: 'var(--color-text-muted)', fontSize: 13, fontStyle: 'italic' }}>
-                        ({ing.notes})
+                        ({ingredient.notes})
                       </span>
                     )}
                   </li>
@@ -250,7 +295,7 @@ export default function RecipeDetailPage() {
 
       <div className="card" style={{ marginTop: 24 }}>
         <div className="card-header">
-          <h2>Elaboración</h2>
+          <h2>Elaboracion</h2>
           <span style={{ fontSize: 13, color: 'var(--color-text-muted)' }}>
             {steps.length} paso(s)
           </span>
@@ -273,17 +318,19 @@ export default function RecipeDetailPage() {
         </div>
       </div>
 
-      {/* Edit form modal */}
       {showEditForm && (
         <RecipeForm
           initial={recipe}
           onSubmit={handleUpdate}
+          onSaved={(updatedRecipe) => {
+            setRecipe(updatedRecipe);
+            setShowEditForm(false);
+          }}
           onCancel={() => setShowEditForm(false)}
           title="Editar receta"
         />
       )}
 
-      {/* Add to list modal */}
       {showAddToList && (
         <AddToListModal
           recipeTitle={recipe.title}

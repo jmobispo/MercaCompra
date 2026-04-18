@@ -1,6 +1,23 @@
 from pydantic import BaseModel, Field, field_validator, model_validator
-from typing import Optional, List
+from typing import Optional, List, Literal
 from datetime import datetime
+import re
+
+
+MealType = Literal["desayuno", "comida", "cena"]
+
+
+def _normalize_meal_types(value: list[str] | None) -> list[str]:
+    if not value:
+        return []
+    seen: set[str] = set()
+    normalized: list[str] = []
+    for item in value:
+        text = str(item).strip().lower()
+        if text in {"desayuno", "comida", "cena"} and text not in seen:
+            seen.add(text)
+            normalized.append(text)
+    return normalized
 
 
 class RecipeStepBase(BaseModel):
@@ -13,6 +30,8 @@ class RecipeStepBase(BaseModel):
         text = value.strip()
         if not text:
             raise ValueError("El texto del paso no puede estar vacio")
+        if re.search(r"<[^>]+>", text):
+            raise ValueError("Los pasos no pueden contener HTML")
         return text
 
 
@@ -62,6 +81,14 @@ class RecipeCreate(BaseModel):
     servings: int = Field(default=4, ge=1, le=100)
     estimated_minutes: Optional[int] = Field(None, ge=1)
     estimated_cost: Optional[float] = Field(None, ge=0)
+    calories_per_serving: Optional[float] = Field(None, ge=0)
+    protein_g: Optional[float] = Field(None, ge=0)
+    carbs_g: Optional[float] = Field(None, ge=0)
+    fat_g: Optional[float] = Field(None, ge=0)
+    fiber_g: Optional[float] = Field(None, ge=0)
+    sugar_g: Optional[float] = Field(None, ge=0)
+    sodium_mg: Optional[float] = Field(None, ge=0)
+    meal_types: List[MealType] = Field(default_factory=list)
     tags: Optional[List[str]] = None
     image_url: Optional[str] = None
     ingredients: List[RecipeIngredientCreate] = Field(default_factory=list)
@@ -69,9 +96,14 @@ class RecipeCreate(BaseModel):
 
     @model_validator(mode="after")
     def validate_steps_count(self):
-        if len(self.steps) > 20:
-            raise ValueError("Una receta no puede tener mas de 20 pasos")
+        if len(self.steps) > 50:
+            raise ValueError("Una receta no puede tener mas de 50 pasos")
         return self
+
+    @field_validator("meal_types", mode="before")
+    @classmethod
+    def normalize_meal_types(cls, value):
+        return _normalize_meal_types(value)
 
 
 class RecipeUpdate(BaseModel):
@@ -80,6 +112,14 @@ class RecipeUpdate(BaseModel):
     servings: Optional[int] = Field(None, ge=1, le=100)
     estimated_minutes: Optional[int] = Field(None, ge=1)
     estimated_cost: Optional[float] = Field(None, ge=0)
+    calories_per_serving: Optional[float] = Field(None, ge=0)
+    protein_g: Optional[float] = Field(None, ge=0)
+    carbs_g: Optional[float] = Field(None, ge=0)
+    fat_g: Optional[float] = Field(None, ge=0)
+    fiber_g: Optional[float] = Field(None, ge=0)
+    sugar_g: Optional[float] = Field(None, ge=0)
+    sodium_mg: Optional[float] = Field(None, ge=0)
+    meal_types: Optional[List[MealType]] = None
     tags: Optional[List[str]] = None
     image_url: Optional[str] = None
     ingredients: Optional[List[RecipeIngredientCreate]] = None  # replaces all ingredients
@@ -87,9 +127,16 @@ class RecipeUpdate(BaseModel):
 
     @model_validator(mode="after")
     def validate_steps_count(self):
-        if self.steps is not None and len(self.steps) > 20:
-            raise ValueError("Una receta no puede tener mas de 20 pasos")
+        if self.steps is not None and len(self.steps) > 50:
+            raise ValueError("Una receta no puede tener mas de 50 pasos")
         return self
+
+    @field_validator("meal_types", mode="before")
+    @classmethod
+    def normalize_meal_types(cls, value):
+        if value is None:
+            return None
+        return _normalize_meal_types(value)
 
 
 class RecipeRead(BaseModel):
@@ -100,6 +147,14 @@ class RecipeRead(BaseModel):
     servings: int
     estimated_minutes: Optional[int]
     estimated_cost: Optional[float]
+    calories_per_serving: Optional[float]
+    protein_g: Optional[float]
+    carbs_g: Optional[float]
+    fat_g: Optional[float]
+    fiber_g: Optional[float]
+    sugar_g: Optional[float]
+    sodium_mg: Optional[float]
+    meal_types: List[MealType] = Field(default_factory=list)
     tags: Optional[List[str]]
     steps: List[RecipeStepRead] = Field(default_factory=list)
     image_url: Optional[str]
@@ -116,6 +171,11 @@ class RecipeRead(BaseModel):
     def default_steps(cls, value):
         return value or []
 
+    @field_validator("meal_types", mode="before")
+    @classmethod
+    def default_meal_types(cls, value):
+        return _normalize_meal_types(value)
+
 
 class RecipeSummary(BaseModel):
     """Lightweight version for list views."""
@@ -126,6 +186,14 @@ class RecipeSummary(BaseModel):
     servings: int
     estimated_minutes: Optional[int]
     estimated_cost: Optional[float]
+    calories_per_serving: Optional[float]
+    protein_g: Optional[float]
+    carbs_g: Optional[float]
+    fat_g: Optional[float]
+    fiber_g: Optional[float]
+    sugar_g: Optional[float]
+    sodium_mg: Optional[float]
+    meal_types: List[MealType] = Field(default_factory=list)
     tags: Optional[List[str]]
     steps: List[RecipeStepRead] = Field(default_factory=list)
     image_url: Optional[str]
@@ -141,6 +209,11 @@ class RecipeSummary(BaseModel):
     @classmethod
     def default_steps(cls, value):
         return value or []
+
+    @field_validator("meal_types", mode="before")
+    @classmethod
+    def default_meal_types(cls, value):
+        return _normalize_meal_types(value)
 
 
 class AddToListPayload(BaseModel):
