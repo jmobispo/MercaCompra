@@ -4,7 +4,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.deps import get_current_user
 from app.db.session import get_db
 from app.models.user import User
-from app.schemas.pantry import PantryItemCreate, PantryItemUpdate, PantryItemRead
+from app.schemas.pantry import PantryFromListPayload, PantryItemCreate, PantryItemRead, PantryItemUpdate
 from app.services.pantry_service import PantryService
 
 router = APIRouter(prefix="/pantry", tags=["pantry"])
@@ -50,7 +50,12 @@ async def delete_pantry_item(
 @router.post("/from-list/{list_id}", response_model=list[PantryItemRead], status_code=201)
 async def pantry_from_list(
     list_id: int,
+    payload: PantryFromListPayload | None = None,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    return await PantryService(db).from_list(current_user.id, list_id)
+    return await PantryService(db).from_list(
+        current_user.id,
+        list_id,
+        checked_only=payload.checked_only if payload is not None else True,
+    )

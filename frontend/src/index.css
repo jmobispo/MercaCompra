@@ -95,7 +95,10 @@ input, select, textarea {
   display: flex;
   flex-direction: column;
   flex-shrink: 0;
-  overflow-y: auto;
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  overflow: hidden;
   border-right: 1px solid var(--color-sidebar-border);
   backdrop-filter: blur(24px);
   box-shadow: 16px 0 40px rgba(15, 23, 42, 0.04);
@@ -203,6 +206,8 @@ input, select, textarea {
 .sidebar-nav {
   flex: 1;
   padding: 18px 14px;
+  overflow-y: auto;
+  min-height: 0;
 }
 
 .sidebar-nav a {
@@ -253,6 +258,8 @@ input, select, textarea {
   border-top: 1px solid var(--color-sidebar-border);
   display: grid;
   gap: 8px;
+  margin-top: auto;
+  background: linear-gradient(180deg, rgba(247,251,255,0.82), rgba(255,255,255,0.94));
 }
 
 .sidebar-footer button {

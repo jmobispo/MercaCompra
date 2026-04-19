@@ -1,6 +1,9 @@
-import { useState, useEffect } from 'react';
-import { getPantry, addToPantry, updatePantryItem, deletePantryItem } from '../api/pantry';
-import type { PantryItem, CreatePantryItemPayload, UpdatePantryItemPayload } from '../types';
+import { useEffect, useState } from 'react';
+
+import ProductSearch from '../components/products/ProductSearch';
+import { addToPantry, deletePantryItem, getPantry, updatePantryItem } from '../api/pantry';
+import { useAuthStore } from '../store/authStore';
+import type { CreatePantryItemPayload, PantryItem, Product, UpdatePantryItemPayload } from '../types';
 
 const UNITS = ['ud', 'kg', 'g', 'l', 'ml', 'bolsa', 'caja', 'lata', 'bote'];
 
@@ -22,8 +25,8 @@ function PantryForm({
   const [notes, setNotes] = useState(initial?.notes ?? '');
   const [saving, setSaving] = useState(false);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = async (event: React.FormEvent) => {
+    event.preventDefault();
     if (!name.trim()) return;
     setSaving(true);
     try {
@@ -42,7 +45,7 @@ function PantryForm({
   return (
     <div
       className="modal-overlay"
-      onClick={(e) => { if (e.target === e.currentTarget) onCancel(); }}
+      onClick={(event) => { if (event.target === event.currentTarget) onCancel(); }}
     >
       <div className="modal" style={{ maxWidth: 440 }}>
         <div className="modal-header">
@@ -56,7 +59,7 @@ function PantryForm({
               <input
                 className="form-input"
                 value={name}
-                onChange={(e) => setName(e.target.value)}
+                onChange={(event) => setName(event.target.value)}
                 placeholder="Nombre del producto"
                 autoFocus
                 required
@@ -72,7 +75,7 @@ function PantryForm({
                   min="0"
                   step="0.1"
                   value={quantity}
-                  onChange={(e) => setQuantity(e.target.value)}
+                  onChange={(event) => setQuantity(event.target.value)}
                 />
               </div>
               <div className="form-group" style={{ flex: 1 }}>
@@ -80,10 +83,10 @@ function PantryForm({
                 <select
                   className="form-input"
                   value={unit}
-                  onChange={(e) => setUnit(e.target.value)}
+                  onChange={(event) => setUnit(event.target.value)}
                 >
                   <option value="">—</option>
-                  {UNITS.map((u) => <option key={u} value={u}>{u}</option>)}
+                  {UNITS.map((value) => <option key={value} value={value}>{value}</option>)}
                 </select>
               </div>
             </div>
@@ -94,7 +97,7 @@ function PantryForm({
                 className="form-input"
                 type="date"
                 value={expiryDate}
-                onChange={(e) => setExpiryDate(e.target.value)}
+                onChange={(event) => setExpiryDate(event.target.value)}
               />
             </div>
 
@@ -103,7 +106,7 @@ function PantryForm({
               <input
                 className="form-input"
                 value={notes}
-                onChange={(e) => setNotes(e.target.value)}
+                onChange={(event) => setNotes(event.target.value)}
                 placeholder="Opcional"
               />
             </div>
@@ -114,7 +117,7 @@ function PantryForm({
               Cancelar
             </button>
             <button type="submit" className="btn btn-primary" disabled={saving || !name.trim()}>
-              {saving ? 'Guardando…' : 'Guardar'}
+              {saving ? 'Guardando...' : 'Guardar'}
             </button>
           </div>
         </form>
@@ -131,15 +134,15 @@ function ExpiryBadge({ date }: { date: string }) {
 
   if (diffDays < 0) {
     return (
-      <span style={{ fontSize: 11, color: '#ef4444', fontWeight: 600, background: 'rgba(239,68,68,0.1)', borderRadius: 4, padding: '1px 6px' }}>
+      <span style={{ fontSize: 11, color: '#ef4444', fontWeight: 700, background: 'rgba(239,68,68,0.1)', borderRadius: 999, padding: '3px 8px' }}>
         Caducado
       </span>
     );
   }
   if (diffDays <= 3) {
     return (
-      <span style={{ fontSize: 11, color: '#f59e0b', fontWeight: 600, background: 'rgba(245,158,11,0.1)', borderRadius: 4, padding: '1px 6px' }}>
-        Caduca en {diffDays}d
+      <span style={{ fontSize: 11, color: '#f59e0b', fontWeight: 700, background: 'rgba(245,158,11,0.1)', borderRadius: 999, padding: '3px 8px' }}>
+        Caduca en {diffDays} d
       </span>
     );
   }
@@ -151,9 +154,11 @@ function ExpiryBadge({ date }: { date: string }) {
 }
 
 export default function PantryPage() {
+  const user = useAuthStore((state) => state.user);
   const [items, setItems] = useState<PantryItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
   const [showForm, setShowForm] = useState(false);
   const [editTarget, setEditTarget] = useState<PantryItem | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<PantryItem | null>(null);
@@ -171,26 +176,51 @@ export default function PantryPage() {
   };
 
   useEffect(() => {
-    fetchPantry();
+    void fetchPantry();
   }, []);
+
+  const upsertItem = (item: PantryItem) => {
+    setItems((prev) => {
+      const filtered = prev.filter((entry) => entry.id !== item.id);
+      return [item, ...filtered];
+    });
+  };
 
   const handleAdd = async (payload: CreatePantryItemPayload) => {
     const item = await addToPantry(payload);
-    setItems((prev) => [item, ...prev]);
+    upsertItem(item);
     setShowForm(false);
+    setSuccess(`"${item.name}" añadido a la despensa`);
+  };
+
+  const handleAddFromCatalog = async (product: Product) => {
+    try {
+      const item = await addToPantry({
+        name: product.display_name ?? product.name,
+        product_id: product.id,
+        quantity: 1,
+        unit: product.unit_size ?? null,
+      });
+      upsertItem(item);
+      setSuccess(`"${item.name}" añadido desde catálogo`);
+      setError('');
+    } catch {
+      setError('No se pudo añadir el producto desde el catálogo');
+    }
   };
 
   const handleEdit = async (payload: UpdatePantryItemPayload) => {
     if (!editTarget) return;
     const updated = await updatePantryItem(editTarget.id, payload);
-    setItems((prev) => prev.map((i) => (i.id === updated.id ? updated : i)));
+    setItems((prev) => prev.map((item) => (item.id === updated.id ? updated : item)));
     setEditTarget(null);
+    setSuccess(`"${updated.name}" actualizado`);
   };
 
   const handleToggleConsumed = async (item: PantryItem) => {
     try {
       const updated = await updatePantryItem(item.id, { is_consumed: !item.is_consumed });
-      setItems((prev) => prev.map((i) => (i.id === updated.id ? updated : i)));
+      setItems((prev) => prev.map((entry) => (entry.id === updated.id ? updated : entry)));
     } catch {
       setError('Error al actualizar el producto');
     }
@@ -200,28 +230,34 @@ export default function PantryPage() {
     if (!deleteConfirm) return;
     try {
       await deletePantryItem(deleteConfirm.id);
-      setItems((prev) => prev.filter((i) => i.id !== deleteConfirm.id));
+      setItems((prev) => prev.filter((item) => item.id !== deleteConfirm.id));
       setDeleteConfirm(null);
     } catch {
       setError('Error al eliminar el producto');
     }
   };
 
-  const active = items.filter((i) => !i.is_consumed);
-  const consumed = items.filter((i) => i.is_consumed);
+  const active = items.filter((item) => !item.is_consumed);
+  const consumed = items.filter((item) => item.is_consumed);
   const displayed = showConsumed ? items : active;
 
   if (loading) {
     return (
       <div className="loading-overlay">
         <span className="loading-spinner" />
-        <span>Cargando despensa…</span>
+        <span>Cargando despensa...</span>
       </div>
     );
   }
 
   return (
     <div>
+      {success && (
+        <div className="alert alert-success" style={{ marginBottom: 16 }}>
+          {success}
+          <button className="btn btn-ghost btn-sm" style={{ marginLeft: 8 }} onClick={() => setSuccess('')}>×</button>
+        </div>
+      )}
       {error && (
         <div className="alert alert-error" style={{ marginBottom: 16 }}>
           {error}
@@ -229,7 +265,6 @@ export default function PantryPage() {
         </div>
       )}
 
-      {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20, flexWrap: 'wrap' }}>
         <div style={{ flex: 1 }}>
           <h1 style={{ marginBottom: 2 }}>Despensa</h1>
@@ -240,16 +275,27 @@ export default function PantryPage() {
         </div>
         <button
           className={`btn btn-sm ${showConsumed ? 'btn-secondary' : 'btn-ghost'}`}
-          onClick={() => setShowConsumed((v) => !v)}
+          onClick={() => setShowConsumed((value) => !value)}
         >
           {showConsumed ? 'Ocultar consumidos' : 'Ver consumidos'}
         </button>
         <button className="btn btn-primary" onClick={() => setShowForm(true)}>
-          + Añadir
+          + Añadir manual
         </button>
       </div>
 
-      {/* Items list */}
+      <div className="card" style={{ marginBottom: 16 }}>
+        <div className="card-header">
+          <h2>Añadir desde catálogo</h2>
+        </div>
+        <div className="card-body">
+          <p style={{ color: 'var(--color-text-muted)', marginBottom: 12 }}>
+            Busca un producto real y añádelo directamente a la despensa con un toque.
+          </p>
+          <ProductSearch onAddProduct={handleAddFromCatalog} postalCode={user?.postal_code} />
+        </div>
+      </div>
+
       {displayed.length === 0 ? (
         <div className="empty-state">
           <div className="empty-icon">🥫</div>
@@ -260,7 +306,7 @@ export default function PantryPage() {
         </div>
       ) : (
         <div className="card">
-          {displayed.map((item, idx) => (
+          {displayed.map((item, index) => (
             <div
               key={item.id}
               style={{
@@ -268,13 +314,12 @@ export default function PantryPage() {
                 alignItems: 'center',
                 gap: 12,
                 padding: '14px 16px',
-                borderBottom: idx < displayed.length - 1 ? '1px solid var(--color-border)' : 'none',
+                borderBottom: index < displayed.length - 1 ? '1px solid var(--color-border)' : 'none',
                 opacity: item.is_consumed ? 0.5 : 1,
               }}
             >
-              {/* Consumed checkbox */}
               <button
-                onClick={() => handleToggleConsumed(item)}
+                onClick={() => void handleToggleConsumed(item)}
                 title={item.is_consumed ? 'Marcar disponible' : 'Marcar consumido'}
                 style={{
                   width: 24,
@@ -297,12 +342,11 @@ export default function PantryPage() {
                 )}
               </button>
 
-              {/* Info */}
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div
                   style={{
                     fontSize: 15,
-                    fontWeight: 500,
+                    fontWeight: 600,
                     textDecoration: item.is_consumed ? 'line-through' : 'none',
                     overflow: 'hidden',
                     textOverflow: 'ellipsis',
@@ -324,14 +368,9 @@ export default function PantryPage() {
                 </div>
               </div>
 
-              {/* Actions */}
               <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
-                <button
-                  className="btn btn-ghost btn-sm"
-                  onClick={() => setEditTarget(item)}
-                  title="Editar"
-                >
-                  ✏️
+                <button className="btn btn-ghost btn-sm" onClick={() => setEditTarget(item)} title="Editar">
+                  ✎
                 </button>
                 <button
                   className="btn btn-ghost btn-sm"
@@ -347,7 +386,6 @@ export default function PantryPage() {
         </div>
       )}
 
-      {/* Add form modal */}
       {showForm && (
         <PantryForm
           title="Añadir a despensa"
@@ -356,7 +394,6 @@ export default function PantryPage() {
         />
       )}
 
-      {/* Edit form modal */}
       {editTarget && (
         <PantryForm
           title="Editar producto"
@@ -366,11 +403,10 @@ export default function PantryPage() {
         />
       )}
 
-      {/* Delete confirm */}
       {deleteConfirm && (
         <div
           className="modal-overlay"
-          onClick={(e) => { if (e.target === e.currentTarget) setDeleteConfirm(null); }}
+          onClick={(event) => { if (event.target === event.currentTarget) setDeleteConfirm(null); }}
         >
           <div className="modal" style={{ maxWidth: 380 }}>
             <div className="modal-header">
@@ -383,7 +419,7 @@ export default function PantryPage() {
               <button className="btn btn-secondary" onClick={() => setDeleteConfirm(null)}>
                 Cancelar
               </button>
-              <button className="btn btn-danger" onClick={handleDelete}>
+              <button className="btn btn-danger" onClick={() => void handleDelete()}>
                 Eliminar
               </button>
             </div>

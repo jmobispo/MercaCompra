@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 
 import { getSupermarketView, updateItem } from '../api/lists';
+import { pantryFromList } from '../api/pantry';
 import type { ShoppingListItem, SupermarketView } from '../types';
 
 export default function SupermarketModePage() {
@@ -12,8 +13,10 @@ export default function SupermarketModePage() {
   const [view, setView] = useState<SupermarketView | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
   const [hideChecked, setHideChecked] = useState(false);
   const [toggling, setToggling] = useState<number | null>(null);
+  const [sendingToPantry, setSendingToPantry] = useState(false);
 
   const fetchView = useCallback(async () => {
     if (!listId) return;
@@ -58,6 +61,25 @@ export default function SupermarketModePage() {
     }
   };
 
+  const handleSendToPantry = async () => {
+    setSendingToPantry(true);
+    try {
+      const added = await pantryFromList(listId, { checked_only: true });
+      if (added.length === 0) {
+        setError('Marca primero los artículos comprados para poder pasarlos a la despensa');
+        setSuccess('');
+      } else {
+        setSuccess(`${added.length} producto(s) enviados a la despensa`);
+        setError('');
+      }
+    } catch {
+      setError('No se pudo pasar la compra a la despensa');
+      setSuccess('');
+    } finally {
+      setSendingToPantry(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="loading-overlay">
@@ -89,6 +111,14 @@ export default function SupermarketModePage() {
 
   return (
     <div className="supermarket-shell">
+      {success && (
+        <div className="alert alert-success" style={{ marginBottom: 12 }}>
+          {success}
+          <button className="btn btn-ghost btn-sm" style={{ marginLeft: 8 }} onClick={() => setSuccess('')}>
+            ×
+          </button>
+        </div>
+      )}
       {error && (
         <div className="alert alert-error" style={{ marginBottom: 12 }}>
           {error}
@@ -116,6 +146,14 @@ export default function SupermarketModePage() {
             style={{ whiteSpace: 'nowrap', fontSize: 12 }}
           >
             {hideChecked ? 'Mostrar todo' : 'Ocultar comprados'}
+          </button>
+          <button
+            className="btn btn-primary btn-sm"
+            onClick={() => void handleSendToPantry()}
+            disabled={sendingToPantry || view.checked_items === 0}
+            style={{ whiteSpace: 'nowrap', fontSize: 12 }}
+          >
+            {sendingToPantry ? 'Pasando...' : 'Pasar a despensa'}
           </button>
         </div>
 
@@ -174,12 +212,21 @@ export default function SupermarketModePage() {
         <div className="empty-state" style={{ marginTop: 32 }}>
           <div className="empty-icon">✓</div>
           <p style={{ fontWeight: 700 }}>¡Lista completada!</p>
-          <button
-            className="btn btn-primary"
-            onClick={() => navigate(`/lists/${listId}`)}
-          >
-            Volver a la lista
-          </button>
+          <div style={{ display: 'flex', gap: 10, justifyContent: 'center', flexWrap: 'wrap' }}>
+            <button
+              className="btn btn-primary"
+              onClick={() => void handleSendToPantry()}
+              disabled={sendingToPantry || view.checked_items === 0}
+            >
+              {sendingToPantry ? 'Pasando...' : 'Guardar compra en despensa'}
+            </button>
+            <button
+              className="btn btn-secondary"
+              onClick={() => navigate(`/lists/${listId}`)}
+            >
+              Volver a la lista
+            </button>
+          </div>
         </div>
       )}
     </div>

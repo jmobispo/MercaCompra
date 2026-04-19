@@ -20,7 +20,12 @@ export const deletePantryItem = async (id: number): Promise<void> => {
   await apiClient.delete(`/pantry/${id}`);
 };
 
-export const pantryFromList = async (listId: number): Promise<PantryItem[]> => {
-  const response = await apiClient.post<PantryItem[]>(`/pantry/from-list/${listId}`);
+export const pantryFromList = async (
+  listId: number,
+  options?: { checked_only?: boolean }
+): Promise<PantryItem[]> => {
+  const response = await apiClient.post<PantryItem[]>(`/pantry/from-list/${listId}`, {
+    checked_only: options?.checked_only ?? true,
+  });
   return response.data;
 };
