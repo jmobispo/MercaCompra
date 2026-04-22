@@ -325,6 +325,11 @@ export default function WeeklyPlanDetailPage() {
   };
 
   const totalAssignedMeals = plan.days.filter((day) => day.recipe_id != null).length;
+  const totalPlannedMeals = Math.max(plan.days_count * SLOT_LABELS.length, 1);
+  const assignedPct = Math.round((totalAssignedMeals / totalPlannedMeals) * 100);
+  const weeklyCost = summary?.total_estimated_cost ?? 0;
+  const budgetTarget = plan.budget_target ?? summary?.budget_target ?? null;
+  const budgetPct = budgetTarget && budgetTarget > 0 ? Math.min(100, Math.round((weeklyCost / budgetTarget) * 100)) : 0;
 
   return (
     <div>
@@ -364,6 +369,43 @@ export default function WeeklyPlanDetailPage() {
           {result.pantry_covered ?? 0}, ajustados por despensa {result.pantry_reduced ?? 0}.
         </div>
       )}
+
+      <div className="plan-overview-strip">
+        <div className="plan-overview-card">
+          <span className="plan-overview-label">Cobertura del plan</span>
+          <strong>{assignedPct}%</strong>
+          <small>{totalAssignedMeals}/{totalPlannedMeals} comidas asignadas</small>
+          <div className="progress-bar-container">
+            <div className="progress-bar" style={{ width: `${assignedPct}%` }} />
+          </div>
+        </div>
+        <div className="plan-overview-card">
+          <span className="plan-overview-label">Coste estimado</span>
+          <strong>{weeklyCost.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</strong>
+          <small>
+            {budgetTarget
+              ? `Presupuesto ${budgetTarget.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}`
+              : 'Sin presupuesto semanal'}
+          </small>
+          {budgetTarget ? (
+            <div className="progress-bar-container">
+              <div
+                className={`progress-bar${summary?.within_budget === false ? ' over-budget' : ''}`}
+                style={{ width: `${budgetPct}%` }}
+              />
+            </div>
+          ) : null}
+        </div>
+        <div className="plan-overview-card">
+          <span className="plan-overview-label">Nutricion media</span>
+          <strong>{Math.round(summary?.average_daily_calories ?? 0)} kcal/dia</strong>
+          <small>
+            P {Math.round((summary?.total_protein_g ?? 0) / Math.max(plan.days_count, 1))} g · C{' '}
+            {Math.round((summary?.total_carbs_g ?? 0) / Math.max(plan.days_count, 1))} g · G{' '}
+            {Math.round((summary?.total_fat_g ?? 0) / Math.max(plan.days_count, 1))} g
+          </small>
+        </div>
+      </div>
 
       <div className="card" style={{ marginBottom: 16 }}>
         <div className="card-body plan-summary-grid">

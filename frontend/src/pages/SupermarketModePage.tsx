@@ -17,6 +17,7 @@ export default function SupermarketModePage() {
   const [hideChecked, setHideChecked] = useState(false);
   const [toggling, setToggling] = useState<number | null>(null);
   const [sendingToPantry, setSendingToPantry] = useState(false);
+  const [lastPantrySyncKey, setLastPantrySyncKey] = useState('');
 
   const fetchView = useCallback(async () => {
     if (!listId) return;
@@ -39,6 +40,7 @@ export default function SupermarketModePage() {
     setToggling(item.id);
     try {
       await updateItem(listId, item.id, { is_checked: !item.is_checked });
+      setLastPantrySyncKey('');
       setView((prev) => {
         if (!prev) return prev;
         const newGroups = prev.groups.map((group) => ({
@@ -62,6 +64,18 @@ export default function SupermarketModePage() {
   };
 
   const handleSendToPantry = async () => {
+    if (!view) return;
+    const syncKey = view.groups
+      .flatMap((group) => group.items)
+      .filter((item) => item.is_checked)
+      .map((item) => `${item.id}:${item.quantity}`)
+      .sort()
+      .join('|');
+    if (syncKey && syncKey === lastPantrySyncKey) {
+      setSuccess('Esta compra ya se habia pasado a la despensa');
+      setError('');
+      return;
+    }
     setSendingToPantry(true);
     try {
       const added = await pantryFromList(listId, { checked_only: true });
@@ -70,6 +84,7 @@ export default function SupermarketModePage() {
         setSuccess('');
       } else {
         setSuccess(`${added.length} producto(s) enviados a la despensa`);
+        setLastPantrySyncKey(syncKey);
         setError('');
       }
     } catch {
