@@ -16,7 +16,9 @@ import app.models  # noqa — registers all models
 
 settings = get_settings()
 config = context.config
-config.set_main_option("sqlalchemy.url", settings.DATABASE_URL)
+# Alembic usa configparser internamente y trata "%" como interpolación.
+# Escapamos la URL para soportar contraseñas con caracteres codificados (%24, %22, etc.).
+config.set_main_option("sqlalchemy.url", settings.DATABASE_URL.replace("%", "%%"))
 
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
