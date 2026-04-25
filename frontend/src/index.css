@@ -996,6 +996,37 @@ input, select, textarea {
   font-size: 14px;
 }
 
+.qty-input {
+  width: 52px;
+  min-width: 52px;
+  height: 30px;
+  border-radius: 999px;
+  border: 1px solid var(--color-border);
+  background: rgba(255, 255, 255, 0.92);
+  text-align: center;
+  font-weight: 700;
+  font-size: 13px;
+  color: var(--color-text);
+  box-shadow: var(--shadow-inset);
+  padding: 0 8px;
+}
+
+.qty-input:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px rgba(52, 211, 153, 0.12);
+}
+
+.qty-input::-webkit-outer-spin-button,
+.qty-input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.qty-input[type='number'] {
+  -moz-appearance: textfield;
+}
+
 .item-price {
   font-size: 13px;
   font-weight: 600;

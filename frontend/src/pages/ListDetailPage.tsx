@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, KeyboardEvent } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import {
   getList,
@@ -15,81 +15,11 @@ import BudgetPanel from '../components/budget/BudgetPanel';
 import AutomationPanel from '../components/automation/AutomationPanel';
 import ListForm from '../components/lists/ListForm';
 import type { ShoppingList, ShoppingListItem, Product, CreateListPayload } from '../types';
+import { buildInlineFallbackThumbnail, hasRealHttpImage } from '../utils/productThumbnails';
 
 const THUMBNAIL_LOOKUP_LIMIT = 4;
 const THUMBNAIL_LOOKUP_DELAY_MS = 250;
 const thumbnailSearchCache = new Map<string, string | null>();
-
-const FALLBACK_THUMB_THEME: Record<
-  string,
-  { icon: string; top: string; bottom: string; accent: string }
-> = {
-  verduras: { icon: '🥬', top: '#eefbf2', bottom: '#d7f5df', accent: '#2e8b57' },
-  frutas: { icon: '🍎', top: '#fff4ea', bottom: '#ffe0c9', accent: '#d96b2b' },
-  panaderia: { icon: '🥖', top: '#fff6e8', bottom: '#ffe7c2', accent: '#b7791f' },
-  aceites: { icon: '🫒', top: '#f5f9e8', bottom: '#e4efbe', accent: '#6b8e23' },
-  charcuteria: { icon: '🥓', top: '#fff0f0', bottom: '#ffdada', accent: '#b85c5c' },
-  huevos: { icon: '🥚', top: '#fffdf4', bottom: '#f8f0c7', accent: '#9a7d2e' },
-  quesos: { icon: '🧀', top: '#fffbe8', bottom: '#fff0a8', accent: '#b8860b' },
-  carnes: { icon: '🥩', top: '#fff0f1', bottom: '#ffd8dc', accent: '#b94a62' },
-  pescado: { icon: '🐟', top: '#eef7ff', bottom: '#d8ebff', accent: '#357ab8' },
-  lacteos: { icon: '🥛', top: '#f4f8ff', bottom: '#dde7ff', accent: '#4c6fbf' },
-  bebidas: { icon: '🥤', top: '#eefcff', bottom: '#d6f5fb', accent: '#2d8ca3' },
-  congelados: { icon: '❄️', top: '#f1fbff', bottom: '#dbf3ff', accent: '#3e86b3' },
-  conservas: { icon: '🥫', top: '#f9f2ff', bottom: '#eadbff', accent: '#7a58b3' },
-  default: { icon: '🛒', top: '#f3f7fb', bottom: '#e2ebf5', accent: '#55708f' },
-};
-
-function normalizeCategoryKey(value: string | null | undefined) {
-  return (value || '')
-    .toLowerCase()
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .trim();
-}
-
-function buildInlineFallbackThumbnail(name: string, category: string | null | undefined) {
-  const normalizedCategory = normalizeCategoryKey(category);
-  const theme =
-    FALLBACK_THUMB_THEME[normalizedCategory] ||
-    (normalizedCategory.includes('verdur') ? FALLBACK_THUMB_THEME.verduras : null) ||
-    (normalizedCategory.includes('frut') ? FALLBACK_THUMB_THEME.frutas : null) ||
-    (normalizedCategory.includes('pan') ? FALLBACK_THUMB_THEME.panaderia : null) ||
-    (normalizedCategory.includes('aceite') ? FALLBACK_THUMB_THEME.aceites : null) ||
-    (normalizedCategory.includes('charcut') ? FALLBACK_THUMB_THEME.charcuteria : null) ||
-    (normalizedCategory.includes('huevo') ? FALLBACK_THUMB_THEME.huevos : null) ||
-    (normalizedCategory.includes('ques') ? FALLBACK_THUMB_THEME.quesos : null) ||
-    (normalizedCategory.includes('carne') ? FALLBACK_THUMB_THEME.carnes : null) ||
-    (normalizedCategory.includes('pesc') ? FALLBACK_THUMB_THEME.pescado : null) ||
-    (normalizedCategory.includes('lact') ? FALLBACK_THUMB_THEME.lacteos : null) ||
-    (normalizedCategory.includes('bebid') ? FALLBACK_THUMB_THEME.bebidas : null) ||
-    (normalizedCategory.includes('congel') ? FALLBACK_THUMB_THEME.congelados : null) ||
-    (normalizedCategory.includes('conserv') ? FALLBACK_THUMB_THEME.conservas : null) ||
-    FALLBACK_THUMB_THEME.default;
-
-  const shortName = (name || 'Producto').trim().split(/\s+/).slice(0, 2).join(' ').slice(0, 22);
-  const safeName = shortName
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;');
-
-  const svg = `
-<svg xmlns="http://www.w3.org/2000/svg" width="96" height="96" viewBox="0 0 96 96">
-  <defs>
-    <linearGradient id="g" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="${theme.top}"/>
-      <stop offset="100%" stop-color="${theme.bottom}"/>
-    </linearGradient>
-  </defs>
-  <rect x="3" y="3" width="90" height="90" rx="18" fill="url(#g)"/>
-  <rect x="10" y="10" width="76" height="76" rx="14" fill="rgba(255,255,255,0.52)"/>
-  <circle cx="48" cy="34" r="18" fill="${theme.accent}" opacity="0.14"/>
-  <text x="48" y="42" text-anchor="middle" font-family="Segoe UI Emoji, Apple Color Emoji, Segoe UI, Arial, sans-serif" font-size="22">${theme.icon}</text>
-  <text x="48" y="68" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="9" font-weight="700" fill="${theme.accent}">${safeName}</text>
-</svg>`.trim();
-
-  return `data:image/svg+xml;base64,${btoa(unescape(encodeURIComponent(svg)))}`;
-}
 
 export default function ListDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -133,9 +63,6 @@ export default function ListDetailPage() {
   useEffect(() => {
     let cancelled = false;
 
-    const hasRealImage = (value: string | null | undefined) =>
-      typeof value === 'string' && /^https?:\/\//i.test(value);
-
     const cacheKeyFor = (name: string, postalCode: string) =>
       `${postalCode.toLowerCase()}::${name.trim().toLowerCase()}`;
 
@@ -145,7 +72,7 @@ export default function ListDetailPage() {
 
       const pendingItems = list.items
         .filter(
-          (item) => !hasRealImage(thumbnailOverrides[item.id] ?? item.product_thumbnail)
+          (item) => !hasRealHttpImage(thumbnailOverrides[item.id] ?? item.product_thumbnail)
         );
       if (!pendingItems.length) {
         setEnrichedListId(list.id);
@@ -264,6 +191,18 @@ export default function ListDetailPage() {
   const handleQuantityChange = async (item: ShoppingListItem, delta: number) => {
     if (!list) return;
     const newQty = Math.max(1, item.quantity + delta);
+    if (newQty === item.quantity) return;
+    try {
+      const updatedList = await updateItem(list.id, item.id, { quantity: newQty });
+      setList(updatedList);
+    } catch {
+      setError('Error al actualizar la cantidad');
+    }
+  };
+
+  const handleQuantitySet = async (item: ShoppingListItem, quantity: number) => {
+    if (!list) return;
+    const newQty = Math.max(1, Math.round(quantity * 100) / 100);
     if (newQty === item.quantity) return;
     try {
       const updatedList = await updateItem(list.id, item.id, { quantity: newQty });
@@ -456,6 +395,7 @@ export default function ListDetailPage() {
                     thumbnail={thumbnailOverrides[item.id] ?? item.product_thumbnail}
                     onToggle={() => handleToggleCheck(item)}
                     onQtyChange={(delta) => handleQuantityChange(item, delta)}
+                    onQtySet={(quantity) => handleQuantitySet(item, quantity)}
                     onDelete={() => handleDeleteItem(item)}
                     formatCurrency={formatCurrency}
                   />
@@ -482,6 +422,7 @@ export default function ListDetailPage() {
                         thumbnail={thumbnailOverrides[item.id] ?? item.product_thumbnail}
                         onToggle={() => handleToggleCheck(item)}
                         onQtyChange={(delta) => handleQuantityChange(item, delta)}
+                        onQtySet={(quantity) => handleQuantitySet(item, quantity)}
                         onDelete={() => handleDeleteItem(item)}
                         formatCurrency={formatCurrency}
                       />
@@ -532,6 +473,7 @@ function ItemRow({
   thumbnail,
   onToggle,
   onQtyChange,
+  onQtySet,
   onDelete,
   formatCurrency,
 }: {
@@ -539,15 +481,47 @@ function ItemRow({
   thumbnail: string | null;
   onToggle: () => void;
   onQtyChange: (delta: number) => void;
+  onQtySet: (quantity: number) => void;
   onDelete: () => void;
   formatCurrency: (v: number | null) => string;
 }) {
+  const [quantityInput, setQuantityInput] = useState(String(item.quantity));
+
+  useEffect(() => {
+    setQuantityInput(String(item.quantity));
+  }, [item.quantity]);
+
   const lineTotal =
     item.product_price != null ? item.product_price * item.quantity : null;
   const displayThumbnail =
     typeof thumbnail === 'string' && /^https?:\/\//i.test(thumbnail)
       ? thumbnail
       : buildInlineFallbackThumbnail(item.product_name, item.product_category);
+
+  const commitQuantity = () => {
+    const parsed = Number(quantityInput);
+    if (!Number.isFinite(parsed) || parsed <= 0) {
+      setQuantityInput(String(item.quantity));
+      return;
+    }
+
+    const normalized = Math.round(parsed * 100) / 100;
+    if (normalized !== item.quantity) {
+      onQtySet(normalized);
+    } else {
+      setQuantityInput(String(item.quantity));
+    }
+  };
+
+  const handleQuantityKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
+    if (event.key === 'Enter') {
+      event.preventDefault();
+      commitQuantity();
+    }
+    if (event.key === 'Escape') {
+      setQuantityInput(String(item.quantity));
+    }
+  };
 
   return (
     <div className={`item-row ${item.is_checked ? 'checked' : ''}`}>
@@ -568,32 +542,42 @@ function ItemRow({
           }}
         />
       ) : (
-        <div className="item-thumb-placeholder">🛒</div>
+        <div className="item-thumb-placeholder">??</div>
       )}
 
       <div className="item-info">
         <div className="item-name">{item.product_name}</div>
         <div className="item-meta">
           {item.product_category && <span>{item.product_category}</span>}
-          {item.product_unit && <span> · {item.product_unit}</span>}
+          {item.product_unit && <span> ? {item.product_unit}</span>}
           {item.product_price != null && (
-            <span> · {formatCurrency(item.product_price)}/ud</span>
+            <span> ? {formatCurrency(item.product_price)}/ud</span>
           )}
         </div>
       </div>
 
       <div className="item-quantity-controls">
         <button className="qty-btn" onClick={() => onQtyChange(-1)} title="Restar">
-          −
+          -
         </button>
-        <span className="qty-value">{item.quantity}</span>
+        <input
+          className="qty-input"
+          type="number"
+          min="1"
+          step="0.1"
+          value={quantityInput}
+          onChange={(event) => setQuantityInput(event.target.value)}
+          onBlur={commitQuantity}
+          onKeyDown={handleQuantityKeyDown}
+          aria-label={`Cantidad de ${item.product_name}`}
+        />
         <button className="qty-btn" onClick={() => onQtyChange(1)} title="Sumar">
           +
         </button>
       </div>
 
       <div className="item-price">
-        {lineTotal != null ? formatCurrency(lineTotal) : '—'}
+        {lineTotal != null ? formatCurrency(lineTotal) : '?'}
       </div>
 
       <button
@@ -601,7 +585,7 @@ function ItemRow({
         onClick={onDelete}
         title="Eliminar"
       >
-        ×
+        ?
       </button>
     </div>
   );

@@ -3,12 +3,20 @@ import { useParams, useNavigate } from 'react-router-dom';
 
 import { getSupermarketView, updateItem } from '../api/lists';
 import { pantryFromList } from '../api/pantry';
+import { searchProducts } from '../api/products';
+import { useAuthStore } from '../store/authStore';
 import type { ShoppingListItem, SupermarketView } from '../types';
+import { buildInlineFallbackThumbnail, hasRealHttpImage } from '../utils/productThumbnails';
+
+const THUMBNAIL_LOOKUP_LIMIT = 4;
+const THUMBNAIL_LOOKUP_DELAY_MS = 250;
+const supermarketThumbnailCache = new Map<string, string | null>();
 
 export default function SupermarketModePage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const listId = parseInt(id ?? '0', 10);
+  const user = useAuthStore((s) => s.user);
 
   const [view, setView] = useState<SupermarketView | null>(null);
   const [loading, setLoading] = useState(true);
@@ -18,6 +26,9 @@ export default function SupermarketModePage() {
   const [toggling, setToggling] = useState<number | null>(null);
   const [sendingToPantry, setSendingToPantry] = useState(false);
   const [lastPantrySyncKey, setLastPantrySyncKey] = useState('');
+  const [thumbnailOverrides, setThumbnailOverrides] = useState<Record<number, string>>({});
+  const [thumbnailBatchCursor, setThumbnailBatchCursor] = useState(0);
+  const [enrichedViewKey, setEnrichedViewKey] = useState<string | null>(null);
 
   const fetchView = useCallback(async () => {
     if (!listId) return;
@@ -34,6 +45,96 @@ export default function SupermarketModePage() {
   useEffect(() => {
     void fetchView();
   }, [fetchView]);
+
+  useEffect(() => {
+    setThumbnailOverrides({});
+    setThumbnailBatchCursor(0);
+    setEnrichedViewKey(null);
+  }, [view?.list_name, view?.groups.length]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const cacheKeyFor = (name: string, postalCode: string) =>
+      `${postalCode.toLowerCase()}::${name.trim().toLowerCase()}`;
+
+    const enrichThumbnails = async () => {
+      if (!view?.groups.length || !user?.postal_code) return;
+
+      const viewKey = `${listId}:${view.groups.length}:${view.total_items}`;
+      if (enrichedViewKey === viewKey) return;
+
+      const allItems = view.groups.flatMap((group) => group.items);
+      const pendingItems = allItems.filter(
+        (item) => !hasRealHttpImage(thumbnailOverrides[item.id] ?? item.product_thumbnail)
+      );
+
+      if (!pendingItems.length) {
+        setEnrichedViewKey(viewKey);
+        return;
+      }
+
+      const candidates = pendingItems.slice(
+        thumbnailBatchCursor,
+        thumbnailBatchCursor + THUMBNAIL_LOOKUP_LIMIT
+      );
+      if (!candidates.length) return;
+
+      const nextOverrides: Record<number, string> = {};
+
+      for (const item of candidates) {
+        if (cancelled) return;
+
+        const cacheKey = cacheKeyFor(item.product_name, user.postal_code);
+        const cachedImage = supermarketThumbnailCache.get(cacheKey);
+        if (typeof cachedImage === 'string' && cachedImage.length > 0) {
+          nextOverrides[item.id] = cachedImage;
+          continue;
+        }
+        if (cachedImage === null) {
+          continue;
+        }
+
+        try {
+          const result = await searchProducts(item.product_name, user.postal_code);
+          const realImageProduct = result.products.find(
+            (product) =>
+              hasRealHttpImage(product.thumbnail) || hasRealHttpImage(product.image)
+          );
+          const image = realImageProduct?.thumbnail || realImageProduct?.image || null;
+          supermarketThumbnailCache.set(cacheKey, image);
+          if (image) {
+            nextOverrides[item.id] = image;
+          }
+        } catch {
+          supermarketThumbnailCache.set(cacheKey, null);
+        }
+      }
+
+      if (cancelled) return;
+
+      if (Object.keys(nextOverrides).length > 0) {
+        setThumbnailOverrides((current) => ({ ...current, ...nextOverrides }));
+      }
+
+      if (thumbnailBatchCursor + THUMBNAIL_LOOKUP_LIMIT >= pendingItems.length) {
+        setEnrichedViewKey(viewKey);
+        return;
+      }
+
+      window.setTimeout(() => {
+        if (!cancelled) {
+          setThumbnailBatchCursor((current) => current + THUMBNAIL_LOOKUP_LIMIT);
+        }
+      }, THUMBNAIL_LOOKUP_DELAY_MS);
+    };
+
+    void enrichThumbnails();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [enrichedViewKey, listId, thumbnailBatchCursor, thumbnailOverrides, user?.postal_code, view]);
 
   const handleToggle = async (item: ShoppingListItem) => {
     if (toggling) return;
@@ -215,6 +316,7 @@ export default function SupermarketModePage() {
               <SupermarketItemRow
                 key={item.id}
                 item={item}
+                thumbnail={thumbnailOverrides[item.id] ?? item.product_thumbnail}
                 onToggle={() => handleToggle(item)}
                 disabled={toggling === item.id}
               />
@@ -250,13 +352,20 @@ export default function SupermarketModePage() {
 
 function SupermarketItemRow({
   item,
+  thumbnail,
   onToggle,
   disabled,
 }: {
   item: ShoppingListItem;
+  thumbnail: string | null;
   onToggle: () => void;
   disabled: boolean;
 }) {
+  const displayThumbnail =
+    hasRealHttpImage(thumbnail)
+      ? thumbnail
+      : buildInlineFallbackThumbnail(item.product_name, item.product_category);
+
   return (
     <button
       onClick={onToggle}
@@ -271,9 +380,9 @@ function SupermarketItemRow({
         )}
       </div>
 
-      {item.product_thumbnail ? (
+      {displayThumbnail ? (
         <img
-          src={item.product_thumbnail}
+          src={displayThumbnail}
           alt={item.product_name}
           className="supermarket-thumb"
           onError={(event) => { (event.target as HTMLImageElement).style.display = 'none'; }}

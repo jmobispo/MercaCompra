@@ -1,11 +1,16 @@
 import { useEffect, useState } from 'react';
 
 import ProductSearch from '../components/products/ProductSearch';
+import { searchProducts } from '../api/products';
 import { addToPantry, deletePantryItem, getPantry, updatePantryItem } from '../api/pantry';
 import { useAuthStore } from '../store/authStore';
 import type { CreatePantryItemPayload, PantryItem, Product, UpdatePantryItemPayload } from '../types';
+import { buildInlineFallbackThumbnail, hasRealHttpImage } from '../utils/productThumbnails';
 
 const UNITS = ['ud', 'kg', 'g', 'l', 'ml', 'bolsa', 'caja', 'lata', 'bote'];
+const THUMBNAIL_LOOKUP_LIMIT = 4;
+const THUMBNAIL_LOOKUP_DELAY_MS = 250;
+const pantryThumbnailCache = new Map<string, string | null>();
 
 function PantryForm({
   initial,
@@ -163,6 +168,9 @@ export default function PantryPage() {
   const [editTarget, setEditTarget] = useState<PantryItem | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<PantryItem | null>(null);
   const [showConsumed, setShowConsumed] = useState(false);
+  const [thumbnailOverrides, setThumbnailOverrides] = useState<Record<number, string>>({});
+  const [thumbnailBatchCursor, setThumbnailBatchCursor] = useState(0);
+  const [enrichedPantryKey, setEnrichedPantryKey] = useState<string | null>(null);
 
   const fetchPantry = async () => {
     try {
@@ -178,6 +186,95 @@ export default function PantryPage() {
   useEffect(() => {
     void fetchPantry();
   }, []);
+
+  useEffect(() => {
+    setThumbnailOverrides({});
+    setThumbnailBatchCursor(0);
+    setEnrichedPantryKey(null);
+  }, [items.length]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const cacheKeyFor = (name: string, postalCode: string) =>
+      `${postalCode.toLowerCase()}::${name.trim().toLowerCase()}`;
+
+    const enrichThumbnails = async () => {
+      if (!items.length || !user?.postal_code) return;
+
+      const pantryKey = `${items.length}:${items.map((item) => item.id).join(',')}`;
+      if (enrichedPantryKey === pantryKey) return;
+
+      const pendingItems = items.filter(
+        (item) => !hasRealHttpImage(thumbnailOverrides[item.id])
+      );
+
+      if (!pendingItems.length) {
+        setEnrichedPantryKey(pantryKey);
+        return;
+      }
+
+      const candidates = pendingItems.slice(
+        thumbnailBatchCursor,
+        thumbnailBatchCursor + THUMBNAIL_LOOKUP_LIMIT
+      );
+      if (!candidates.length) return;
+
+      const nextOverrides: Record<number, string> = {};
+
+      for (const item of candidates) {
+        if (cancelled) return;
+
+        const cacheKey = cacheKeyFor(item.name, user.postal_code);
+        const cachedImage = pantryThumbnailCache.get(cacheKey);
+        if (typeof cachedImage === 'string' && cachedImage.length > 0) {
+          nextOverrides[item.id] = cachedImage;
+          continue;
+        }
+        if (cachedImage === null) {
+          continue;
+        }
+
+        try {
+          const result = await searchProducts(item.name, user.postal_code);
+          const realImageProduct = result.products.find(
+            (product) =>
+              hasRealHttpImage(product.thumbnail) || hasRealHttpImage(product.image)
+          );
+          const image = realImageProduct?.thumbnail || realImageProduct?.image || null;
+          pantryThumbnailCache.set(cacheKey, image);
+          if (image) {
+            nextOverrides[item.id] = image;
+          }
+        } catch {
+          pantryThumbnailCache.set(cacheKey, null);
+        }
+      }
+
+      if (cancelled) return;
+
+      if (Object.keys(nextOverrides).length > 0) {
+        setThumbnailOverrides((current) => ({ ...current, ...nextOverrides }));
+      }
+
+      if (thumbnailBatchCursor + THUMBNAIL_LOOKUP_LIMIT >= pendingItems.length) {
+        setEnrichedPantryKey(pantryKey);
+        return;
+      }
+
+      window.setTimeout(() => {
+        if (!cancelled) {
+          setThumbnailBatchCursor((current) => current + THUMBNAIL_LOOKUP_LIMIT);
+        }
+      }, THUMBNAIL_LOOKUP_DELAY_MS);
+    };
+
+    void enrichThumbnails();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [enrichedPantryKey, items, thumbnailBatchCursor, thumbnailOverrides, user?.postal_code]);
 
   const upsertItem = (item: PantryItem) => {
     setItems((prev) => {
@@ -316,8 +413,8 @@ export default function PantryPage() {
                 padding: '14px 16px',
                 borderBottom: index < displayed.length - 1 ? '1px solid var(--color-border)' : 'none',
                 opacity: item.is_consumed ? 0.5 : 1,
-              }}
-            >
+                }}
+              >
               <button
                 onClick={() => void handleToggleConsumed(item)}
                 title={item.is_consumed ? 'Marcar disponible' : 'Marcar consumido'}
@@ -341,6 +438,15 @@ export default function PantryPage() {
                   </svg>
                 )}
               </button>
+
+              <img
+                src={thumbnailOverrides[item.id] || buildInlineFallbackThumbnail(item.name, item.unit)}
+                alt={item.name}
+                className="item-thumb"
+                onError={(event) => {
+                  (event.target as HTMLImageElement).src = buildInlineFallbackThumbnail(item.name, item.unit);
+                }}
+              />
 
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div
