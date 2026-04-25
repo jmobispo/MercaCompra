@@ -1,3 +1,4 @@
+import asyncio
 from dataclasses import asdict
 from datetime import date, datetime, timezone
 from typing import Optional
@@ -188,6 +189,7 @@ class WeeklyPlanService:
         pantry_reduced = 0
         consolidated: dict[str, dict] = {}
         optimization_applied = 0
+        product_cache: dict[str, object | None] = {}
 
         for day in plan.days:
             if not day.recipe:
@@ -195,7 +197,16 @@ class WeeklyPlanService:
 
             servings_multiplier = plan.people_count / max(day.recipe.servings or 1, 1)
             for ingredient in day.recipe.ingredients:
-                product = await recipe_service._resolve_product_for_ingredient(ingredient, postal_code)
+                query_key = ((ingredient.product_query or ingredient.name or "").strip().lower())
+                if query_key in product_cache:
+                    product = product_cache[query_key]
+                else:
+                    product = await recipe_service._resolve_product_for_ingredient(
+                        ingredient,
+                        postal_code,
+                        allow_remote=False,
+                    )
+                    product_cache[query_key] = product
                 product_id = product.id if product else f"weekly_{plan.id}_{ingredient.id}"
                 note = _build_ingredient_note(ingredient, servings_multiplier)
                 key = product_id if product else ingredient.name.strip().lower()
@@ -296,23 +307,33 @@ class WeeklyPlanService:
         await self.db.flush()
 
         list_service = ListService(self.db)
-        optimization_preview = await list_service.optimize_list_preview(target_list.id, user_id)
-        optimization_applied = len(optimization_preview["suggestions"])
-        if optimization_applied:
-            optimized_list = await list_service.apply_optimization(
-                target_list.id,
-                user_id,
-                [suggestion["id"] for suggestion in optimization_preview["suggestions"]],
+        try:
+            optimization_preview = await asyncio.wait_for(
+                list_service.optimize_list_preview(target_list.id, user_id, include_fuzzy=False),
+                timeout=6.0,
             )
-            added_items = [
-                {
-                    "name": item.product_name,
-                    "quantity": item.quantity,
-                    "price": item.product_price,
-                    "resolved": not item.product_id.startswith(("weekly_", "recipe_")),
-                }
-                for item in optimized_list.items
-            ]
+            optimization_applied = len(optimization_preview["suggestions"])
+            if optimization_applied:
+                optimized_list = await asyncio.wait_for(
+                    list_service.apply_optimization(
+                        target_list.id,
+                        user_id,
+                        [suggestion["id"] for suggestion in optimization_preview["suggestions"]],
+                        include_fuzzy=False,
+                    ),
+                    timeout=6.0,
+                )
+                added_items = [
+                    {
+                        "name": item.product_name,
+                        "quantity": item.quantity,
+                        "price": item.product_price,
+                        "resolved": not str(item.product_id or "").startswith(("weekly_", "recipe_")),
+                    }
+                    for item in optimized_list.items
+                ]
+        except TimeoutError:
+            optimization_applied = 0
 
         await self.db.commit()
 

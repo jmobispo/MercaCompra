@@ -3522,6 +3522,63 @@ textarea.form-input {
   border-radius: 32px;
 }
 
+.generation-status-card {
+  display: grid;
+  gap: 10px;
+  padding: 14px 16px;
+  border-radius: 18px;
+  background: linear-gradient(180deg, rgba(247, 251, 255, 0.96), rgba(241, 249, 245, 0.92));
+  border: 1px solid rgba(114, 131, 154, 0.16);
+  box-shadow: 0 12px 28px rgba(15, 23, 42, 0.06);
+}
+
+.generation-status-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--color-primary-dark);
+}
+
+.generation-status-card p {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font-size: 0.94rem;
+}
+
+.success-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 999px;
+  background: linear-gradient(135deg, #1fa84f 0%, #77db1b 100%);
+  box-shadow: 0 0 0 4px rgba(31, 168, 79, 0.12);
+}
+
+.generation-status-bar {
+  position: relative;
+  overflow: hidden;
+  height: 8px;
+  border-radius: 999px;
+  background: rgba(31, 168, 79, 0.12);
+}
+
+.generation-status-bar-fill {
+  position: absolute;
+  inset: 0;
+  width: 44%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #1fa84f 0%, #77db1b 100%);
+  animation: generation-status-slide 1.2s ease-in-out infinite;
+}
+
+@keyframes generation-status-slide {
+  0% {
+    transform: translateX(-110%);
+  }
+  100% {
+    transform: translateX(240%);
+  }
+}
+
 .meal-slot-tabs {
   background: rgba(243, 247, 245, 0.92);
   border: 1px solid rgba(114, 131, 154, 0.1);

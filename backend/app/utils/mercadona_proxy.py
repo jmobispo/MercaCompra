@@ -191,8 +191,8 @@ def search_fallback_catalog(query: str, limit: int = 30) -> List[Dict]:
 
     scored = []
     for product in catalog:
-        name = (product.get("display_name") or product.get("name") or "").lower()
-        category = (product.get("category") or "").lower()
+        name = _normalize_search_text(product.get("display_name") or product.get("name") or "")
+        category = _normalize_search_text(product.get("category") or "")
         combined = f"{name} {category}"
 
         # Score: how many query words appear in the product
@@ -207,10 +207,15 @@ def search_fallback_catalog(query: str, limit: int = 30) -> List[Dict]:
 
 def _tokenize_query(query: str) -> List[str]:
     """Split query into lowercase tokens, remove accents for better matching."""
-    import unicodedata
-    normalized = unicodedata.normalize("NFKD", query.lower())
-    normalized = "".join(c for c in normalized if not unicodedata.combining(c))
+    normalized = _normalize_search_text(query)
     return [w for w in re.split(r"\W+", normalized) if len(w) >= 2]
+
+
+def _normalize_search_text(value: str) -> str:
+    import unicodedata
+
+    normalized = unicodedata.normalize("NFKD", (value or "").lower())
+    return "".join(c for c in normalized if not unicodedata.combining(c))
 
 
 def get_warehouse(postal_code: str) -> str:

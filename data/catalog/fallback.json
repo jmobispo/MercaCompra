@@ -98,5 +98,18 @@
   {"id":"fallback-097","name":"Azafrán","display_name":"Azafrán hebras Hacendado 0.1g","price":1.89,"unit_size":"0.1 g","category":"Sal y especias","thumbnail":null,"source":"fallback"},
   {"id":"fallback-098","name":"Pimentón ahumado","display_name":"Pimentón de la Vera dulce 75g","price":1.29,"unit_size":"75 g","category":"Sal y especias","thumbnail":null,"source":"fallback"},
   {"id":"fallback-099","name":"Queso crema","display_name":"Queso crema Philadelphia 200g","price":1.99,"unit_size":"200 g","category":"Quesos","thumbnail":null,"source":"fallback"},
-  {"id":"fallback-100","name":"Patatas fritas chips","display_name":"Patatas fritas onduladas Hacendado 170g","price":1.29,"unit_size":"170 g","category":"Snacks","thumbnail":null,"source":"fallback"}
+  {"id":"fallback-100","name":"Patatas fritas chips","display_name":"Patatas fritas onduladas Hacendado 170g","price":1.29,"unit_size":"170 g","category":"Snacks","thumbnail":null,"source":"fallback"},
+  {"id":"fallback-101","name":"Lomos de bacalao","display_name":"Lomos de bacalao congelado 400g","price":4.95,"unit_size":"400 g","category":"Pescado y marisco","thumbnail":null,"source":"fallback"},
+  {"id":"fallback-102","name":"Pasta fusilli","display_name":"Fusilli Hacendado 500g","price":0.69,"unit_size":"500 g","category":"Pasta","thumbnail":null,"source":"fallback"},
+  {"id":"fallback-103","name":"Piñones","display_name":"Piñones nacionales 50g","price":2.75,"unit_size":"50 g","category":"Frutos secos","thumbnail":null,"source":"fallback"},
+  {"id":"fallback-104","name":"Fiambre de pavo","display_name":"Fiambre de pechuga de pavo lonchas 150g","price":1.79,"unit_size":"150 g","category":"Charcutería","thumbnail":null,"source":"fallback"},
+  {"id":"fallback-105","name":"Aguacate","display_name":"Aguacate unidad","price":1.25,"unit_size":"1 ud","category":"Frutas","thumbnail":null,"source":"fallback"},
+  {"id":"fallback-106","name":"Masa empanada","display_name":"Masa para empanada refrigerada 2 obleas","price":1.59,"unit_size":"2 uds","category":"Refrigerados","thumbnail":null,"source":"fallback"},
+  {"id":"fallback-107","name":"Sazonador fajitas","display_name":"Sazonador para fajitas 30g","price":1.15,"unit_size":"30 g","category":"Sal y especias","thumbnail":null,"source":"fallback"},
+  {"id":"fallback-108","name":"Masa quebrada","display_name":"Masa quebrada refrigerada 230g","price":1.35,"unit_size":"230 g","category":"Refrigerados","thumbnail":null,"source":"fallback"},
+  {"id":"fallback-109","name":"Champiñones","display_name":"Champiñones laminados 250g","price":1.39,"unit_size":"250 g","category":"Verduras","thumbnail":null,"source":"fallback"},
+  {"id":"fallback-110","name":"Calabacín","display_name":"Calabacín 1kg","price":1.69,"unit_size":"1 kg","category":"Verduras","thumbnail":null,"source":"fallback"},
+  {"id":"fallback-111","name":"Albóndigas de carne","display_name":"Albóndigas de carne preparadas 500g","price":3.45,"unit_size":"500 g","category":"Carne","thumbnail":null,"source":"fallback"},
+  {"id":"fallback-112","name":"Curry en polvo","display_name":"Curry en polvo Hacendado 50g","price":0.95,"unit_size":"50 g","category":"Sal y especias","thumbnail":null,"source":"fallback"},
+  {"id":"fallback-113","name":"Comino molido","display_name":"Comino molido Hacendado 45g","price":0.79,"unit_size":"45 g","category":"Sal y especias","thumbnail":null,"source":"fallback"}
 ]

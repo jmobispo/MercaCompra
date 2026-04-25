@@ -196,10 +196,10 @@ class ListService:
             raise HTTPException(status_code=404, detail="Lista no encontrada")
         return sl
 
-    async def optimize_list_preview(self, list_id: int, user_id: int) -> dict:
+    async def optimize_list_preview(self, list_id: int, user_id: int, include_fuzzy: bool = True) -> dict:
         sl = await self.get_list_entity(list_id, user_id)
         pantry_items = await self._get_active_pantry_items(user_id)
-        suggestions = self._build_optimization_suggestions(sl.items, pantry_items)
+        suggestions = self._build_optimization_suggestions(sl.items, pantry_items, include_fuzzy=include_fuzzy)
         return {
             "list_id": sl.id,
             "list_name": sl.name,
@@ -208,12 +208,18 @@ class ListService:
             "suggestions": suggestions,
         }
 
-    async def apply_optimization(self, list_id: int, user_id: int, suggestion_ids: list[str]) -> ShoppingListRead:
+    async def apply_optimization(
+        self,
+        list_id: int,
+        user_id: int,
+        suggestion_ids: list[str],
+        include_fuzzy: bool = True,
+    ) -> ShoppingListRead:
         sl = await self.get_list_entity(list_id, user_id)
         pantry_items = await self._get_active_pantry_items(user_id)
         suggestion_map = {
             suggestion["id"]: suggestion
-            for suggestion in self._build_optimization_suggestions(sl.items, pantry_items)
+            for suggestion in self._build_optimization_suggestions(sl.items, pantry_items, include_fuzzy=include_fuzzy)
         }
         if not suggestion_ids:
             return ShoppingListRead.model_validate(sl)
@@ -265,6 +271,7 @@ class ListService:
         self,
         items: list[ShoppingListItem],
         pantry_items: list[PantryItem] | None = None,
+        include_fuzzy: bool = True,
     ) -> list[dict]:
         groups: dict[str, list[ShoppingListItem]] = {}
         suggestions: list[dict] = []
@@ -281,10 +288,11 @@ class ListService:
 
         for item in items:
             normalized = self._normalize_name(item.product_name)
-            if item.product_id.startswith("recipe_") or item.product_id.startswith("weekly_"):
+            product_id = str(item.product_id or "")
+            if product_id.startswith("recipe_") or product_id.startswith("weekly_"):
                 key = f"name:{normalized}"
             else:
-                key = f"product:{item.product_id}"
+                key = f"product:{product_id}"
             groups.setdefault(key, []).append(item)
 
         for key, group in groups.items():
@@ -297,15 +305,16 @@ class ListService:
                 suggestions.append(suggestion)
                 seen_groups.add(tuple(sorted(suggestion["item_ids"])))
 
-        fuzzy_groups = self._build_fuzzy_groups(items)
-        for group, reason in fuzzy_groups:
-            ids_key = tuple(sorted(item.id for item in group))
-            if len(ids_key) < 2 or ids_key in seen_groups:
-                continue
-            suggestion = self._build_group_suggestion(group, reason)
-            if suggestion:
-                suggestions.append(suggestion)
-                seen_groups.add(ids_key)
+        if include_fuzzy:
+            fuzzy_groups = self._build_fuzzy_groups(items)
+            for group, reason in fuzzy_groups:
+                ids_key = tuple(sorted(item.id for item in group))
+                if len(ids_key) < 2 or ids_key in seen_groups:
+                    continue
+                suggestion = self._build_group_suggestion(group, reason)
+                if suggestion:
+                    suggestions.append(suggestion)
+                    seen_groups.add(ids_key)
 
         return suggestions
 

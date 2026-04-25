@@ -1,5 +1,8 @@
 import logging
 from typing import List, Optional, Any
+from difflib import SequenceMatcher
+import re
+import unicodedata
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -195,7 +198,14 @@ class ProductService:
         self.db = db
         self.ai = get_ai_service()
 
-    async def search(self, query: str, postal_code: str = "28001", limit: int = 30) -> ProductSearchResult:
+    async def search(
+        self,
+        query: str,
+        postal_code: str = "28001",
+        limit: int = 30,
+        mode: Optional[str] = None,
+        rank_with_ai: bool = True,
+    ) -> ProductSearchResult:
         error_detail: Optional[str] = None
         raw_products: List[dict] = []
         warehouse = get_warehouse(postal_code)
@@ -205,7 +215,7 @@ class ProductService:
                 query,
                 postal_code=postal_code,
                 limit=limit,
-                mode=settings.PRODUCT_SEARCH_MODE,
+                mode=mode or settings.PRODUCT_SEARCH_MODE,
             )
         except Exception as e:
             error_detail = f"Search error: {type(e).__name__}: {str(e)[:200]}"
@@ -218,11 +228,13 @@ class ProductService:
         if not raw_products and not error_detail:
             logger.info(f"No results found for '{query}' (postal={postal_code}, mode={settings.PRODUCT_SEARCH_MODE})")
 
-        try:
-            ranked = await self.ai.suggest_products(query, raw_products)
-        except Exception as e:
-            logger.warning(f"AI ranking failed: {e}")
-            ranked = raw_products
+        ranked = raw_products
+        if raw_products and rank_with_ai:
+            try:
+                ranked = await self.ai.suggest_products(query, raw_products)
+            except Exception as e:
+                logger.warning(f"AI ranking failed: {e}")
+                ranked = raw_products
 
         products = [_to_product_read(p, postal_code, warehouse) for p in ranked]
 
@@ -235,6 +247,53 @@ class ProductService:
             warehouse=warehouse,
             postal_code=postal_code,
         )
+
+    @staticmethod
+    def pick_best_match(query: str, products: List[ProductRead]) -> Optional[ProductRead]:
+        def normalize_text(value: str) -> str:
+            normalized = unicodedata.normalize("NFKD", value.lower())
+            return "".join(ch for ch in normalized if not unicodedata.combining(ch))
+
+        stopwords = {"de", "del", "la", "el", "los", "las", "y", "con", "en", "a", "al"}
+        normalized_query = normalize_text(query)
+        tokens = {
+            token for token in re.split(r"\W+", normalized_query)
+            if len(token) >= 2 and token not in stopwords
+        }
+        if not products:
+            return None
+        if not tokens:
+            return products[0]
+
+        def score(product: ProductRead) -> tuple[float, float]:
+            primary_text = " ".join(
+                filter(
+                    None,
+                    [
+                        normalize_text(product.name),
+                        normalize_text(product.display_name or ""),
+                    ],
+                )
+            )
+            secondary_text = " ".join(
+                filter(
+                    None,
+                    [
+                        normalize_text(product.category or ""),
+                        normalize_text(product.subcategory or ""),
+                    ],
+                )
+            )
+            haystack = " ".join(filter(None, [primary_text, secondary_text]))
+            token_hits = sum(1 for token in tokens if token in primary_text)
+            secondary_hits = sum(1 for token in tokens if token in secondary_text)
+            overlap = token_hits / max(len(tokens), 1)
+            similarity = SequenceMatcher(None, normalized_query, primary_text).ratio()
+            has_price = 1.0 if product.price is not None else 0.0
+            exact_phrase = 1.0 if normalized_query and normalized_query in primary_text else 0.0
+            return (exact_phrase * 3.0 + overlap * 2.8 + (secondary_hits / max(len(tokens), 1)) * 0.25 + similarity + has_price * 0.2, similarity)
+
+        return max(products, key=score)
 
     async def get_categories_tree(self, postal_code: str = "28001") -> CategoryTreeResponse:
         warehouse = get_warehouse(postal_code)

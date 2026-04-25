@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import axios from 'axios';
 import { useNavigate, useParams } from 'react-router-dom';
 
 import { resolveBackendUrl } from '../api/client';
@@ -80,6 +81,32 @@ const addDays = (base: Date, amount: number) => {
   return next;
 };
 
+function extractApiError(error: unknown, fallback: string): string {
+  if (axios.isAxiosError(error)) {
+    const detail = error.response?.data?.detail;
+    if (typeof detail === 'string' && detail.trim()) {
+      return detail.trim();
+    }
+    if (Array.isArray(detail) && detail.length > 0) {
+      const firstMessage = detail
+        .map((item) => (typeof item?.msg === 'string' ? item.msg : null))
+        .find(Boolean);
+      if (firstMessage) {
+        return firstMessage;
+      }
+    }
+    if (typeof error.message === 'string' && error.message.trim()) {
+      return error.message.trim();
+    }
+  }
+
+  if (error instanceof Error && error.message.trim()) {
+    return error.message.trim();
+  }
+
+  return fallback;
+}
+
 function buildCalendar(startDateIso: string, daysCount: number): CalendarCell[] {
   const startDate = new Date(`${startDateIso}T00:00:00`);
   const calendarMonth = startDate.getMonth();
@@ -154,6 +181,8 @@ export default function WeeklyPlanDetailPage() {
   const [saving, setSaving] = useState(false);
   const [generatingMenu, setGeneratingMenu] = useState(false);
   const [summaryLoading, setSummaryLoading] = useState(false);
+  const [generatingList, setGeneratingList] = useState(false);
+  const [listGenerationPhase, setListGenerationPhase] = useState(0);
   const [error, setError] = useState('');
   const [showGenerateList, setShowGenerateList] = useState(false);
   const [pickerState, setPickerState] = useState<{ dayIndex: number; mealSlot: WeeklyMealSlot } | null>(null);
@@ -162,6 +191,20 @@ export default function WeeklyPlanDetailPage() {
   const [selectedListId, setSelectedListId] = useState<number | null>(null);
   const [newListName, setNewListName] = useState('Lista semanal');
   const [result, setResult] = useState<AddToListResult | null>(null);
+
+  useEffect(() => {
+    if (!generatingList) {
+      setListGenerationPhase(0);
+      return;
+    }
+
+    setListGenerationPhase(0);
+    const timer = window.setInterval(() => {
+      setListGenerationPhase((current) => Math.min(current + 1, 2));
+    }, 1400);
+
+    return () => window.clearInterval(timer);
+  }, [generatingList]);
 
   const loadSummary = useCallback(async (targetPlanId: number) => {
     setSummaryLoading(true);
@@ -270,16 +313,18 @@ export default function WeeklyPlanDetailPage() {
 
   const handleGenerateShoppingList = async () => {
     if (!plan) return;
+    setGeneratingList(true);
     try {
       const generated = await generateWeeklyPlanShoppingList(plan.id, {
         list_id: generateMode === 'existing' ? selectedListId : null,
         new_list_name: generateMode === 'new' ? newListName : null,
       });
       setResult(generated);
-      setShowGenerateList(false);
       setError('');
-    } catch {
-      setError('No se pudo generar la lista de compra');
+    } catch (error) {
+      setError(extractApiError(error, 'No se pudo generar la lista de compra'));
+    } finally {
+      setGeneratingList(false);
     }
   };
 
@@ -369,6 +414,11 @@ export default function WeeklyPlanDetailPage() {
   const weeklyCost = summary?.total_estimated_cost ?? 0;
   const budgetTarget = plan.budget_target ?? summary?.budget_target ?? null;
   const budgetPct = budgetTarget && budgetTarget > 0 ? Math.min(100, Math.round((weeklyCost / budgetTarget) * 100)) : 0;
+  const generationStatusMessages = [
+    'Preparando ingredientes y consolidando cantidades...',
+    'Buscando productos y reduciendo lo que ya tienes en despensa...',
+    'Optimizando la lista final para que sea mas util...',
+  ];
 
   return (
     <div>
@@ -381,14 +431,21 @@ export default function WeeklyPlanDetailPage() {
             style={{ fontSize: 28, fontWeight: 700, width: '100%' }}
           />
           <p>
-            {plan.people_count} personas · {plan.days_count} dias · desde {plan.start_date}
+            {plan.people_count} personas · {plan.days_count} días · desde {plan.start_date}
           </p>
         </div>
         <div className="actions-row">
           <button className="btn btn-secondary" onClick={() => navigate('/weekly-plans')}>
             Volver
           </button>
-          <button className="btn btn-secondary" onClick={() => setShowGenerateList(true)}>
+          <button
+            className="btn btn-secondary"
+            onClick={() => {
+              setResult(null);
+              setError('');
+              setShowGenerateList(true);
+            }}
+          >
             Generar lista
           </button>
           <button className="btn btn-secondary" onClick={() => void handleGenerateMenu()} disabled={generatingMenu}>
@@ -403,12 +460,19 @@ export default function WeeklyPlanDetailPage() {
       {error && <div className="alert alert-error" style={{ marginBottom: 16 }}>{error}</div>}
       {result && (
         <div className="alert alert-success" style={{ marginBottom: 16 }}>
-          Lista generada: {result.list_name}. Anadidos {result.added}, reales {result.resolved_real ?? 0}, fallback{' '}
-          {result.resolved_fallback ?? 0}, pendientes {result.unresolved ?? 0}, cubiertos por despensa{' '}
-          {result.pantry_covered ?? 0}, ajustados por despensa {result.pantry_reduced ?? 0}
-          {result.optimization_suggestions_applied
-            ? `, optimizaciones aplicadas ${result.optimization_suggestions_applied}.`
-            : '.'}
+          <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
+            <div>
+              Lista generada: {result.list_name}. Añadidos {result.added}, reales {result.resolved_real ?? 0}, fallback{' '}
+              {result.resolved_fallback ?? 0}, pendientes {result.unresolved ?? 0}, cubiertos por despensa{' '}
+              {result.pantry_covered ?? 0}, ajustados por despensa {result.pantry_reduced ?? 0}
+              {result.optimization_suggestions_applied
+                ? `, optimizaciones aplicadas ${result.optimization_suggestions_applied}.`
+                : '.'}
+            </div>
+            <button className="btn btn-secondary" onClick={() => navigate(`/lists/${result.list_id}`)}>
+              Ir a la lista
+            </button>
+          </div>
         </div>
       )}
 
@@ -439,8 +503,8 @@ export default function WeeklyPlanDetailPage() {
           ) : null}
         </div>
         <div className="plan-overview-card">
-          <span className="plan-overview-label">Nutricion media</span>
-          <strong>{Math.round(summary?.average_daily_calories ?? 0)} kcal/dia</strong>
+          <span className="plan-overview-label">Nutrición media</span>
+          <strong>{Math.round(summary?.average_daily_calories ?? 0)} kcal/día</strong>
           <small>
             P {Math.round((summary?.total_protein_g ?? 0) / Math.max(plan.days_count, 1))} g · C{' '}
             {Math.round((summary?.total_carbs_g ?? 0) / Math.max(plan.days_count, 1))} g · G{' '}
@@ -463,7 +527,7 @@ export default function WeeklyPlanDetailPage() {
             />
           </div>
           <div className="plan-summary-item">
-            <span className="plan-summary-label">Dias</span>
+            <span className="plan-summary-label">Días</span>
             <input
               className="form-input plan-summary-input"
               type="number"
@@ -538,7 +602,7 @@ export default function WeeklyPlanDetailPage() {
               </small>
             </div>
             <div className="meal-plan-metric-card">
-              <span className="meal-plan-metric-label">Calorias semanales</span>
+              <span className="meal-plan-metric-label">Calorías semanales</span>
               <strong>{Math.round(summary.total_estimated_calories)} kcal</strong>
               <small>Media diaria {Math.round(summary.average_daily_calories)} kcal</small>
             </div>
@@ -673,7 +737,7 @@ export default function WeeklyPlanDetailPage() {
                                           <small>
                                             {recipeMinutes ? `${recipeMinutes} min` : 'Tiempo libre'}
                                             {recipeCost != null
-                                              ? ` � ${(mealSummary?.estimated_cost ?? recipeCost).toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}`
+                                              ? ` · ${(mealSummary?.estimated_cost ?? recipeCost).toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}`
                                               : ''}
                                           </small>
                                         </div>
@@ -700,38 +764,94 @@ export default function WeeklyPlanDetailPage() {
       </div>
 
       {showGenerateList && (
-        <div className="modal-overlay" onClick={(event) => event.target === event.currentTarget && setShowGenerateList(false)}>
+        <div className="modal-overlay" onClick={(event) => !generatingList && event.target === event.currentTarget && setShowGenerateList(false)}>
           <div className="modal-content" style={{ maxWidth: 460 }}>
             <div className="modal-header">
               <h2>Generar lista de compra</h2>
-              <button className="btn-icon" onClick={() => setShowGenerateList(false)}>x</button>
+              <button className="btn-icon" onClick={() => setShowGenerateList(false)} disabled={generatingList}>x</button>
             </div>
             <div style={{ padding: '8px 4px 16px', display: 'grid', gap: 12 }}>
-              <div style={{ display: 'flex', gap: 8 }}>
-                <button className={`btn btn-sm ${generateMode === 'new' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => setGenerateMode('new')}>
-                  Nueva lista
-                </button>
-                {lists.length > 0 && (
-                  <button className={`btn btn-sm ${generateMode === 'existing' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => setGenerateMode('existing')}>
-                    Lista existente
-                  </button>
-                )}
-              </div>
-              {generateMode === 'new' ? (
-                <input className="form-input" value={newListName} onChange={(event) => setNewListName(event.target.value)} />
+              {result && !generatingList ? (
+                <div className="generation-status-card" style={{ gap: 14 }}>
+                  <div className="generation-status-header">
+                    <span className="success-dot" aria-hidden="true" />
+                    <strong>Lista generada correctamente</strong>
+                  </div>
+                  <p>
+                    {result.list_name}. Añadidos {result.added}, reales {result.resolved_real ?? 0}, fallback {result.resolved_fallback ?? 0},
+                    pendientes {result.unresolved ?? 0}
+                    {result.optimization_suggestions_applied
+                      ? ` y optimizaciones aplicadas ${result.optimization_suggestions_applied}.`
+                      : '.'}
+                  </p>
+                  <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', flexWrap: 'wrap' }}>
+                    <button
+                      className="btn btn-secondary"
+                      onClick={() => {
+                        setResult(null);
+                        setShowGenerateList(false);
+                      }}
+                    >
+                      Cerrar
+                    </button>
+                    <button
+                      className="btn btn-primary"
+                      onClick={() => {
+                        setShowGenerateList(false);
+                        navigate(`/lists/${result.list_id}`);
+                      }}
+                    >
+                      Ir a la lista
+                    </button>
+                  </div>
+                </div>
               ) : (
-                <select className="form-input" value={selectedListId ?? ''} onChange={(event) => setSelectedListId(Number(event.target.value))}>
-                  {lists.map((list) => (
-                    <option key={list.id} value={list.id}>
-                      {list.name}
-                    </option>
-                  ))}
-                </select>
+                <>
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <button className={`btn btn-sm ${generateMode === 'new' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => setGenerateMode('new')} disabled={generatingList}>
+                      Nueva lista
+                    </button>
+                    {lists.length > 0 && (
+                      <button className={`btn btn-sm ${generateMode === 'existing' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => setGenerateMode('existing')} disabled={generatingList}>
+                        Lista existente
+                      </button>
+                    )}
+                  </div>
+                  {generateMode === 'new' ? (
+                    <input className="form-input" value={newListName} onChange={(event) => setNewListName(event.target.value)} disabled={generatingList} />
+                  ) : (
+                    <select className="form-input" value={selectedListId ?? ''} onChange={(event) => setSelectedListId(Number(event.target.value))} disabled={generatingList}>
+                      {lists.map((list) => (
+                        <option key={list.id} value={list.id}>
+                          {list.name}
+                        </option>
+                      ))}
+                    </select>
+                  )}
+                  {generatingList && (
+                    <div className="generation-status-card" role="status" aria-live="polite">
+                      <div className="generation-status-header">
+                        <span className="loading-spinner" />
+                        <strong>Generando lista de compra</strong>
+                      </div>
+                      <p>{generationStatusMessages[listGenerationPhase]}</p>
+                      <div className="generation-status-bar">
+                        <div className="generation-status-bar-fill" />
+                      </div>
+                    </div>
+                  )}
+                </>
               )}
             </div>
             <div className="modal-footer">
-              <button className="btn btn-secondary" onClick={() => setShowGenerateList(false)}>Cancelar</button>
-              <button className="btn btn-primary" onClick={() => void handleGenerateShoppingList()}>Generar</button>
+              {result && !generatingList ? null : (
+                <>
+                  <button className="btn btn-secondary" onClick={() => setShowGenerateList(false)} disabled={generatingList}>Cancelar</button>
+                  <button className="btn btn-primary" onClick={() => void handleGenerateShoppingList()} disabled={generatingList}>
+                    {generatingList ? 'Generando...' : 'Generar'}
+                  </button>
+                </>
+              )}
             </div>
           </div>
         </div>

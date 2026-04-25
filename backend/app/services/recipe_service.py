@@ -1,6 +1,7 @@
 """
 Recipe service — CRUD, add-to-list, and seed data.
 """
+import asyncio
 import logging
 import math
 import re
@@ -859,20 +860,46 @@ class RecipeService:
         self,
         ingredient: RecipeIngredient,
         postal_code: str,
+        allow_remote: bool = True,
     ):
         query = (ingredient.product_query or ingredient.name or "").strip()
         if not query:
             return None
 
-        result = await ProductService(self.db).search(
-            query=query,
-            postal_code=postal_code,
-            limit=5,
-        )
+        try:
+            product_service = ProductService(self.db)
+
+            fallback_result = await product_service.search(
+                query=query,
+                postal_code=postal_code,
+                limit=8,
+                mode="fallback",
+                rank_with_ai=False,
+            )
+            fallback_best = product_service.pick_best_match(query, fallback_result.products)
+            if fallback_best:
+                return fallback_best
+
+            if not allow_remote:
+                return None
+
+            result = await asyncio.wait_for(
+                product_service.search(
+                    query=query,
+                    postal_code=postal_code,
+                    limit=5,
+                    mode="hybrid",
+                    rank_with_ai=False,
+                ),
+                timeout=2.2,
+            )
+        except TimeoutError:
+            logger.warning("Timeout resolviendo ingrediente '%s' para CP %s", query, postal_code)
+            return None
         if not result.products:
             return None
 
-        return result.products[0]
+        return product_service.pick_best_match(query, result.products)
 
     async def _get_active_pantry_items(self, user_id: int) -> list[PantryItem]:
         result = await self.db.execute(
