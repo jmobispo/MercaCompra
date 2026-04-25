@@ -1582,7 +1582,7 @@ def _normalize_meal_types(meal_types) -> list[str]:
     normalized: list[str] = []
     for meal_type in meal_types:
         value = str(meal_type).strip().lower()
-        if value in {"desayuno", "comida", "cena"} and value not in seen:
+        if value in {"desayuno", "comida", "cena", "merienda", "postre"} and value not in seen:
             seen.add(value)
             normalized.append(value)
     return normalized

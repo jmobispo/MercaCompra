@@ -10,7 +10,30 @@ from app.models.pantry import PantryItem
 from app.models.recipe import Recipe
 from app.services.pantry_support import name_tokens, names_match, pantry_matches_item
 
-MEAL_SLOTS = ("desayuno", "comida", "cena")
+MEAL_SLOTS = (
+    "desayuno",
+    "merienda",
+    "comida_primero",
+    "comida_segundo",
+    "comida_postre",
+    "cena_primero",
+    "cena_segundo",
+    "cena_postre",
+)
+
+
+def slot_family(meal_slot: str) -> str:
+    if meal_slot == "desayuno":
+        return "desayuno"
+    if meal_slot == "merienda":
+        return "merienda"
+    if meal_slot.endswith("_postre"):
+        return "postre"
+    if meal_slot.startswith("comida_"):
+        return "comida"
+    if meal_slot.startswith("cena_"):
+        return "cena"
+    return meal_slot
 
 PROTEIN_KEYWORDS = {
     "pollo": "pollo",
@@ -172,19 +195,32 @@ def healthy_score(recipe: Recipe) -> float:
 
 def meal_balance_adjustment(recipe: Recipe, meal_slot: str) -> float:
     calories = float(recipe.calories_per_serving or 0.0)
+    family = slot_family(meal_slot)
     if calories <= 0:
         return 0.0
-    if meal_slot == "desayuno":
+    if family == "desayuno":
         if 220 <= calories <= 550:
             return 7.0
         if calories > 700:
             return -8.0
         return -2.0
-    if meal_slot == "comida":
+    if family == "merienda":
+        if 150 <= calories <= 420:
+            return 6.0
+        if calories > 520:
+            return -7.0
+        return -1.0
+    if family == "postre":
+        if 120 <= calories <= 360:
+            return 5.0
+        if calories > 430:
+            return -8.0
+        return -0.5
+    if family == "comida":
         if 450 <= calories <= 950:
             return 7.0
         return -1.0
-    if meal_slot == "cena":
+    if family == "cena":
         if 280 <= calories <= 700:
             return 7.0
         if calories > 850:
@@ -329,16 +365,20 @@ class MealPlannerService:
         day_index: int,
         ctx: PlannerContext,
     ) -> list[Recipe]:
-        preferred = [recipe for recipe in recipes if meal_slot in (recipe.meal_types or [])]
+        family = slot_family(meal_slot)
+        preferred = [recipe for recipe in recipes if family in (recipe.meal_types or [])]
         neutral = [recipe for recipe in recipes if not recipe.meal_types]
-        fallback = preferred or neutral or recipes
+        if family in {"postre", "merienda"}:
+            fallback = preferred or neutral
+        else:
+            fallback = preferred or neutral or recipes
 
         scored: list[tuple[float, float, float, int, Recipe]] = []
         for recipe in fallback:
             pantry_ratio = pantry_match_ratio(recipe, ctx.pantry_items)
             habit_ratio = habit_match_ratio(recipe, ctx.habit_stats)
             score = 0.0
-            score += 35.0 if meal_slot in (recipe.meal_types or []) else 8.0
+            score += 35.0 if family in (recipe.meal_types or []) else 8.0
             score += preference_score(recipe, meal_slot, ctx)
             score += pantry_ratio * 16.0
             score += habit_ratio * 8.0

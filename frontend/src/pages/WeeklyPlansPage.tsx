@@ -146,17 +146,17 @@ export default function WeeklyPlansPage() {
               <h2>Nuevo plan semanal</h2>
               <button className="btn-icon" onClick={() => setShowForm(false)}>×</button>
             </div>
-            <div style={{ display: 'grid', gap: 12, padding: '8px 4px 16px' }}>
-              <input className="form-input" value={form.title} onChange={(e) => setForm((prev) => ({ ...prev, title: e.target.value }))} placeholder="Titulo" />
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-                <input className="form-input" type="number" min={1} max={20} value={form.people_count} onChange={(e) => setForm((prev) => ({ ...prev, people_count: Number(e.target.value) }))} placeholder="Personas" />
-                <input className="form-input" type="number" min={1} max={31} value={form.days_count} onChange={(e) => setForm((prev) => ({ ...prev, days_count: Number(e.target.value) }))} placeholder="Dias" />
+            <div className="weekly-plan-create-form">
+              <input className="form-input weekly-plan-create-input" value={form.title} onChange={(e) => setForm((prev) => ({ ...prev, title: e.target.value }))} placeholder="Titulo" />
+              <div className="weekly-plan-create-grid">
+                <input className="form-input weekly-plan-create-input" type="number" min={1} max={20} value={form.people_count} onChange={(e) => setForm((prev) => ({ ...prev, people_count: Number(e.target.value) }))} placeholder="Personas" />
+                <input className="form-input weekly-plan-create-input" type="number" min={1} max={31} value={form.days_count} onChange={(e) => setForm((prev) => ({ ...prev, days_count: Number(e.target.value) }))} placeholder="Dias" />
               </div>
-              <input className="form-input" type="date" value={form.start_date ?? ''} onChange={(e) => setForm((prev) => ({ ...prev, start_date: e.target.value }))} />
-              <input className="form-input" type="number" min={0} value={form.budget_target ?? ''} onChange={(e) => setForm((prev) => ({ ...prev, budget_target: e.target.value ? Number(e.target.value) : null }))} placeholder="Presupuesto objetivo opcional" />
-              <div>
-                <div className="form-label">Preferencias del generador</div>
-                <div className="recipe-form-toggle-grid">
+              <input className="form-input weekly-plan-create-input" type="date" value={form.start_date ?? ''} onChange={(e) => setForm((prev) => ({ ...prev, start_date: e.target.value }))} />
+              <input className="form-input weekly-plan-create-input" type="number" min={0} value={form.budget_target ?? ''} onChange={(e) => setForm((prev) => ({ ...prev, budget_target: e.target.value ? Number(e.target.value) : null }))} placeholder="Presupuesto objetivo opcional" />
+              <div className="weekly-plan-create-preferences">
+                <div className="form-label weekly-plan-create-label">Preferencias del generador</div>
+                <div className="recipe-form-toggle-grid weekly-plan-create-chips">
                   {preferenceLabels.map(({ key, label }) => {
                     const active = Boolean(form.preferences?.[key]);
                     return (

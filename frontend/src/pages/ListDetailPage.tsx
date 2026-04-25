@@ -7,15 +7,13 @@ import {
   updateItem,
   addItem,
   deleteList,
-  applyListOptimization,
-  optimizeList,
 } from '../api/lists';
 import { useAuthStore } from '../store/authStore';
 import ProductSearch from '../components/products/ProductSearch';
 import BudgetPanel from '../components/budget/BudgetPanel';
 import AutomationPanel from '../components/automation/AutomationPanel';
 import ListForm from '../components/lists/ListForm';
-import type { ShoppingList, ShoppingListItem, Product, CreateListPayload, ListOptimizationPreview } from '../types';
+import type { ShoppingList, ShoppingListItem, Product, CreateListPayload } from '../types';
 
 export default function ListDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -29,9 +27,6 @@ export default function ListDetailPage() {
   const [editingTitle, setEditingTitle] = useState(false);
   const [titleInput, setTitleInput] = useState('');
   const [addingItem, setAddingItem] = useState(false);
-  const [optimizationPreview, setOptimizationPreview] = useState<ListOptimizationPreview | null>(null);
-  const [selectedSuggestions, setSelectedSuggestions] = useState<string[]>([]);
-  const [optimizing, setOptimizing] = useState(false);
 
   const listId = parseInt(id ?? '0', 10);
 
@@ -148,35 +143,6 @@ export default function ListDetailPage() {
     }
   };
 
-  const handleOptimizePreview = async () => {
-    if (!list) return;
-    setOptimizing(true);
-    try {
-      const preview = await optimizeList(list.id);
-      setOptimizationPreview(preview);
-      setSelectedSuggestions(preview.suggestions.map((suggestion) => suggestion.id));
-    } catch {
-      setError('Error al analizar la lista');
-    } finally {
-      setOptimizing(false);
-    }
-  };
-
-  const handleApplyOptimization = async () => {
-    if (!list || !optimizationPreview) return;
-    setOptimizing(true);
-    try {
-      const updated = await applyListOptimization(list.id, selectedSuggestions);
-      setList(updated);
-      setOptimizationPreview(null);
-      setSelectedSuggestions([]);
-    } catch {
-      setError('Error al aplicar la optimizacion');
-    } finally {
-      setOptimizing(false);
-    }
-  };
-
   const formatCurrency = (val: number | null) =>
     val != null
       ? val.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })
@@ -256,13 +222,6 @@ export default function ListDetailPage() {
           >
             🛒 Supermercado
           </Link>
-          <button
-            className="btn btn-secondary btn-sm"
-            onClick={handleOptimizePreview}
-            disabled={optimizing || list.items.length < 2}
-          >
-            Optimizar lista
-          </button>
           <button
             className="btn btn-secondary btn-sm"
             onClick={() => setShowEditModal(true)}
@@ -387,60 +346,6 @@ export default function ListDetailPage() {
         />
       )}
 
-      {optimizationPreview && (
-        <div className="modal-overlay" onClick={(event) => event.target === event.currentTarget && setOptimizationPreview(null)}>
-          <div className="modal-content" style={{ maxWidth: 680 }}>
-            <div className="modal-header">
-              <h2>Optimizar lista</h2>
-              <button className="btn-icon" onClick={() => setOptimizationPreview(null)}>×</button>
-            </div>
-            <div className="modal-body modal-body-scroll" style={{ display: 'grid', gap: 12 }}>
-              {optimizationPreview.suggestions.length === 0 ? (
-                <div className="empty-state">
-                  <div className="empty-icon">✨</div>
-                  <p>No he encontrado duplicados claros para unificar</p>
-                </div>
-              ) : (
-                optimizationPreview.suggestions.map((suggestion) => (
-                  <label key={suggestion.id} style={{ display: 'grid', gap: 6, padding: 12, border: '1px solid var(--color-border)', borderRadius: 12 }}>
-                    <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
-                      <input
-                        type="checkbox"
-                        checked={selectedSuggestions.includes(suggestion.id)}
-                        onChange={(event) => {
-                          setSelectedSuggestions((prev) =>
-                            event.target.checked
-                              ? [...prev, suggestion.id]
-                              : prev.filter((id) => id !== suggestion.id)
-                          );
-                        }}
-                      />
-                      <div style={{ flex: 1 }}>
-                        <div style={{ fontWeight: 600 }}>{suggestion.merged_product_name}</div>
-                        <div style={{ fontSize: 13, color: 'var(--color-text-muted)' }}>{suggestion.reason}</div>
-                        <div style={{ fontSize: 13, color: 'var(--color-text-muted)' }}>
-                          Unifica: {suggestion.item_names.join(' + ')}
-                        </div>
-                        <div style={{ fontSize: 13 }}>Cantidad final: {suggestion.combined_quantity}</div>
-                      </div>
-                    </div>
-                  </label>
-                ))
-              )}
-            </div>
-            <div className="modal-footer">
-              <button className="btn btn-secondary" onClick={() => setOptimizationPreview(null)}>Cerrar</button>
-              <button
-                className="btn btn-primary"
-                disabled={optimizing || selectedSuggestions.length === 0}
-                onClick={handleApplyOptimization}
-              >
-                {optimizing ? 'Aplicando...' : 'Aplicar sugerencias'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

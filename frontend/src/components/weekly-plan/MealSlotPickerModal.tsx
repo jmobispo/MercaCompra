@@ -1,25 +1,55 @@
 import { useMemo, useState } from 'react';
 
 import { resolveBackendUrl } from '../../api/client';
-import type { RecipeSummary } from '../../types';
+import type { RecipeSummary, WeeklyMealSlot } from '../../types';
 
-type MealSlot = 'desayuno' | 'comida' | 'cena';
-
-const SLOT_OPTIONS: Array<{ key: MealSlot; label: string }> = [
-  { key: 'desayuno', label: 'Desayuno' },
-  { key: 'comida', label: 'Comida' },
-  { key: 'cena', label: 'Cena' },
+const SLOT_GROUPS: Array<{
+  title: string;
+  items: Array<{ key: WeeklyMealSlot; label: string; family: string }>;
+}> = [
+  {
+    title: 'Desayuno',
+    items: [
+      { key: 'desayuno', label: 'Desayuno', family: 'desayuno' },
+    ],
+  },
+  {
+    title: 'Comida',
+    items: [
+      { key: 'comida_primero', label: 'Primer plato', family: 'comida' },
+      { key: 'comida_segundo', label: 'Segundo plato', family: 'comida' },
+      { key: 'comida_postre', label: 'Postre', family: 'postre' },
+    ],
+  },
+  {
+    title: 'Merienda',
+    items: [
+      { key: 'merienda', label: 'Merienda', family: 'merienda' },
+    ],
+  },
+  {
+    title: 'Cena',
+    items: [
+      { key: 'cena_primero', label: 'Primer plato', family: 'cena' },
+      { key: 'cena_segundo', label: 'Segundo plato', family: 'cena' },
+      { key: 'cena_postre', label: 'Postre', family: 'postre' },
+    ],
+  },
 ];
+
+function slotFamily(slot: WeeklyMealSlot): string {
+  return SLOT_GROUPS.flatMap((group) => group.items).find((item) => item.key === slot)?.family ?? slot;
+}
 
 interface MealSlotPickerModalProps {
   open: boolean;
   dayLabel: string;
-  mealSlot: MealSlot;
+  mealSlot: WeeklyMealSlot;
   selectedRecipeId: number | null;
   recipes: RecipeSummary[];
   saving: boolean;
   onClose: () => void;
-  onSelectMealSlot: (slot: MealSlot) => void;
+  onSelectMealSlot: (slot: WeeklyMealSlot) => void;
   onAssignRecipe: (recipeId: number) => void;
   onClearRecipe: () => void;
 }
@@ -38,6 +68,8 @@ export default function MealSlotPickerModal({
 }: MealSlotPickerModalProps) {
   const [query, setQuery] = useState('');
 
+  const activeFamily = slotFamily(mealSlot);
+
   const filteredRecipes = useMemo(() => {
     const q = query.trim().toLowerCase();
     const base = recipes.filter((recipe) => {
@@ -46,19 +78,19 @@ export default function MealSlotPickerModal({
         recipe.description ?? '',
         ...(recipe.tags ?? []),
         ...(recipe.meal_types ?? []),
-      ].join(' ').toLowerCase();
+      ]
+        .join(' ')
+        .toLowerCase();
       return q ? haystack.includes(q) : true;
     });
 
-    const scored = [...base].sort((left, right) => {
-      const leftPriority = left.meal_types?.includes(mealSlot) ? 1 : 0;
-      const rightPriority = right.meal_types?.includes(mealSlot) ? 1 : 0;
+    return [...base].sort((left, right) => {
+      const leftPriority = left.meal_types?.some((mealType) => mealType === activeFamily) ? 1 : 0;
+      const rightPriority = right.meal_types?.some((mealType) => mealType === activeFamily) ? 1 : 0;
       if (leftPriority !== rightPriority) return rightPriority - leftPriority;
       return left.title.localeCompare(right.title, 'es');
     });
-
-    return scored;
-  }, [mealSlot, query, recipes]);
+  }, [activeFamily, query, recipes]);
 
   if (!open) return null;
 
@@ -74,16 +106,23 @@ export default function MealSlotPickerModal({
         </div>
 
         <div className="modal-body modal-body-scroll meal-picker-body">
-          <div className="meal-slot-tabs" role="tablist" aria-label="Tipo de comida">
-            {SLOT_OPTIONS.map((slot) => (
-              <button
-                key={slot.key}
-                type="button"
-                className={`meal-slot-tab${mealSlot === slot.key ? ' is-active' : ''}`}
-                onClick={() => onSelectMealSlot(slot.key)}
-              >
-                {slot.label}
-              </button>
+          <div className="meal-slot-selector">
+            {SLOT_GROUPS.map((group) => (
+              <div key={group.title} className="meal-slot-selector-group">
+                <span className="meal-slot-selector-title">{group.title}</span>
+                <div className="meal-slot-selector-chips">
+                  {group.items.map((slot) => (
+                    <button
+                      key={slot.key}
+                      type="button"
+                      className={`meal-slot-tab${mealSlot === slot.key ? ' is-active' : ''}`}
+                      onClick={() => onSelectMealSlot(slot.key)}
+                    >
+                      {slot.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
             ))}
           </div>
 
@@ -100,7 +139,7 @@ export default function MealSlotPickerModal({
               onClick={onClearRecipe}
               disabled={saving || selectedRecipeId == null}
             >
-              Quitar receta
+              Quitar
             </button>
           </div>
 
@@ -132,33 +171,18 @@ export default function MealSlotPickerModal({
                       {recipe.description?.trim() || 'Sin descripcion'}
                     </p>
                     <div className="meal-recipe-card-meta">
-                      {recipe.calories_per_serving != null ? (
-                        <span>{Math.round(recipe.calories_per_serving)} kcal</span>
-                      ) : (
-                        <span>Kcal sin definir</span>
-                      )}
-                      {recipe.estimated_minutes ? <span>{recipe.estimated_minutes} min</span> : <span>Tiempo libre</span>}
-                      {recipe.estimated_cost != null ? (
-                        <span>{recipe.estimated_cost.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</span>
-                      ) : (
-                        <span>Coste sin definir</span>
-                      )}
+                      <span>
+                        {recipe.calories_per_serving != null
+                          ? `${Math.round(recipe.calories_per_serving)} kcal`
+                          : 'Kcal sin definir'}
+                      </span>
+                      <span>{recipe.estimated_minutes ? `${recipe.estimated_minutes} min` : 'Tiempo libre'}</span>
+                      <span>
+                        {recipe.estimated_cost != null
+                          ? recipe.estimated_cost.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })
+                          : 'Coste sin definir'}
+                      </span>
                     </div>
-                    {((recipe.meal_types && recipe.meal_types.length > 0) || (recipe.tags && recipe.tags.length > 0)) && (
-                      <div className="meal-recipe-card-tags">
-                        {(recipe.meal_types ?? []).map((mealType) => (
-                          <span
-                            key={mealType}
-                            className={`recipe-tag recipe-tag-meal recipe-tag-${mealType}${mealType === mealSlot ? ' is-slot-match' : ''}`}
-                          >
-                            {mealType}
-                          </span>
-                        ))}
-                        {(recipe.tags ?? []).slice(0, 3).map((tag) => (
-                          <span key={tag} className="recipe-tag">{tag}</span>
-                        ))}
-                      </div>
-                    )}
                   </div>
                 </button>
               );

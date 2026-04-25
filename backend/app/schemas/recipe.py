@@ -4,7 +4,7 @@ from datetime import datetime
 import re
 
 
-MealType = Literal["desayuno", "comida", "cena"]
+MealType = Literal["desayuno", "comida", "cena", "merienda", "postre"]
 
 
 def _normalize_meal_types(value: list[str] | None) -> list[str]:
@@ -14,7 +14,7 @@ def _normalize_meal_types(value: list[str] | None) -> list[str]:
     normalized: list[str] = []
     for item in value:
         text = str(item).strip().lower()
-        if text in {"desayuno", "comida", "cena"} and text not in seen:
+        if text in {"desayuno", "comida", "cena", "merienda", "postre"} and text not in seen:
             seen.add(text)
             normalized.append(text)
     return normalized
@@ -235,6 +235,7 @@ class AddToListResult(BaseModel):
     unresolved: int = 0
     pantry_covered: int = 0
     pantry_reduced: int = 0
+    optimization_suggestions_applied: int = 0
 
 
 class PantryRecipeSuggestion(BaseModel):

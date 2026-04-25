@@ -26,6 +26,7 @@ from app.schemas.weekly_plan import (
     WeeklyPlanUpdate,
 )
 from app.services.habit_service import HabitService
+from app.services.list_service import ListService
 from app.services.meal_planner_service import MEAL_SLOTS, MealPlannerService, normalize_preferences, recipe_cost_for_plan
 from app.services.recipe_service import RecipeService, _build_ingredient_note, _infer_cart_quantity, _merge_notes
 
@@ -186,6 +187,7 @@ class WeeklyPlanService:
         pantry_covered = 0
         pantry_reduced = 0
         consolidated: dict[str, dict] = {}
+        optimization_applied = 0
 
         for day in plan.days:
             if not day.recipe:
@@ -291,6 +293,27 @@ class WeeklyPlanService:
                 for item in consolidated.values()
             ],
         )
+        await self.db.flush()
+
+        list_service = ListService(self.db)
+        optimization_preview = await list_service.optimize_list_preview(target_list.id, user_id)
+        optimization_applied = len(optimization_preview["suggestions"])
+        if optimization_applied:
+            optimized_list = await list_service.apply_optimization(
+                target_list.id,
+                user_id,
+                [suggestion["id"] for suggestion in optimization_preview["suggestions"]],
+            )
+            added_items = [
+                {
+                    "name": item.product_name,
+                    "quantity": item.quantity,
+                    "price": item.product_price,
+                    "resolved": not item.product_id.startswith(("weekly_", "recipe_")),
+                }
+                for item in optimized_list.items
+            ]
+
         await self.db.commit()
 
         return AddToListResult(
@@ -304,6 +327,7 @@ class WeeklyPlanService:
             unresolved=unresolved,
             pantry_covered=pantry_covered,
             pantry_reduced=pantry_reduced,
+            optimization_suggestions_applied=optimization_applied,
         )
 
     async def _get_plan_or_404(self, plan_id: int, user_id: int) -> WeeklyPlan:
@@ -317,6 +341,22 @@ class WeeklyPlanService:
         plan = result.scalar_one_or_none()
         if not plan:
             raise HTTPException(status_code=404, detail="Plan semanal no encontrado")
+        expected_slots = {(day_index, meal_slot) for day_index in range(plan.days_count) for meal_slot in MEAL_SLOTS}
+        current_slots = {(day.day_index, day.meal_slot) for day in plan.days}
+        has_legacy_slots = any(day.meal_slot in {"comida", "cena"} for day in plan.days)
+        if has_legacy_slots or current_slots != expected_slots:
+            await self._sync_days(plan.id, plan.days_count, None)
+            await self.db.commit()
+            result = await self.db.execute(
+                select(WeeklyPlan)
+                .where(WeeklyPlan.id == plan_id, WeeklyPlan.user_id == user_id)
+                .options(
+                    selectinload(WeeklyPlan.days).selectinload(WeeklyPlanDay.recipe).selectinload(Recipe.ingredients)
+                )
+            )
+            plan = result.scalar_one_or_none()
+            if not plan:
+                raise HTTPException(status_code=404, detail="Plan semanal no encontrado")
         return plan
 
     async def _get_candidate_recipes(self, user_id: int) -> list[Recipe]:
@@ -353,6 +393,15 @@ class WeeklyPlanService:
             select(WeeklyPlanDay).where(WeeklyPlanDay.weekly_plan_id == plan_id)
         )
         days = list(result.scalars().all())
+        for day in days:
+            if day.meal_slot == "comida":
+                day.meal_slot = "comida_primero"
+                if day.meal_type == "comida":
+                    day.meal_type = "comida_primero"
+            elif day.meal_slot == "cena":
+                day.meal_slot = "cena_primero"
+                if day.meal_type == "cena":
+                    day.meal_type = "cena_primero"
         indexed = {(day.day_index, day.meal_slot): day for day in days}
         for day_index in range(days_count):
             for meal_slot in MEAL_SLOTS:

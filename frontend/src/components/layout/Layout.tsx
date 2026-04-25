@@ -21,7 +21,6 @@ const advancedNavItems = [
   { to: '/recipes', label: 'Recetas', icon: 'recipe' },
   { to: '/pantry', label: 'Despensa', icon: 'pantry' },
   { to: '/spending', label: 'Gasto', icon: 'spending' },
-  { to: '/automation', label: 'Automatizacion', icon: 'automation' },
 ];
 
 function SidebarIcon({ name }: { name: string }) {

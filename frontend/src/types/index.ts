@@ -237,7 +237,17 @@ export interface RecipeStep {
   text: string;
 }
 
-export type RecipeMealType = 'desayuno' | 'comida' | 'cena';
+export type RecipeMealType = 'desayuno' | 'comida' | 'cena' | 'merienda' | 'postre';
+
+export type WeeklyMealSlot =
+  | 'desayuno'
+  | 'merienda'
+  | 'comida_primero'
+  | 'comida_segundo'
+  | 'comida_postre'
+  | 'cena_primero'
+  | 'cena_segundo'
+  | 'cena_postre';
 
 export interface Recipe {
   id: number;
@@ -358,13 +368,14 @@ export interface AddToListResult {
   unresolved?: number;
   pantry_covered?: number;
   pantry_reduced?: number;
+  optimization_suggestions_applied?: number;
   items: { name: string; quantity: number; price?: number | null; source?: string; resolved?: boolean }[];
 }
 
 export interface WeeklyPlanDay {
   id: number;
   day_index: number;
-  meal_slot: 'desayuno' | 'comida' | 'cena';
+  meal_slot: WeeklyMealSlot;
   recipe_id: number | null;
   recipe_title?: string | null;
   meal_type: string | null;
@@ -535,7 +546,7 @@ export interface WeeklyPlan {
 
 export interface WeeklyPlanDayPayload {
   day_index: number;
-  meal_slot: 'desayuno' | 'comida' | 'cena';
+  meal_slot: WeeklyMealSlot;
   recipe_id?: number | null;
   meal_type?: string | null;
 }
@@ -566,7 +577,7 @@ export interface GenerateWeeklyPlanListPayload {
 }
 
 export interface WeeklyPlanMealSummary {
-  meal_slot: 'desayuno' | 'comida' | 'cena';
+  meal_slot: WeeklyMealSlot;
   recipe_id: number | null;
   recipe_title: string | null;
   calories: number;

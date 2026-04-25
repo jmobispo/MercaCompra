@@ -59,7 +59,7 @@ function normalizeMealTypes(value: unknown): RecipeMealType[] {
   const seen = new Set<RecipeMealType>();
   const normalized: RecipeMealType[] = [];
   value.forEach((item) => {
-    if (item === 'desayuno' || item === 'comida' || item === 'cena') {
+    if (item === 'desayuno' || item === 'comida' || item === 'cena' || item === 'merienda' || item === 'postre') {
       if (!seen.has(item)) {
         seen.add(item);
         normalized.push(item);

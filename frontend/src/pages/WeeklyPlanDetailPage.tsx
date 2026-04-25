@@ -16,6 +16,7 @@ import type {
   AddToListResult,
   RecipeSummary,
   ShoppingListSummary,
+  WeeklyMealSlot,
   WeeklyPlan,
   WeeklyPlanDay,
   WeeklyPlanDayPayload,
@@ -24,13 +25,22 @@ import type {
   WeeklyPlanPreferences,
 } from '../types';
 
-type MealSlot = 'desayuno' | 'comida' | 'cena';
-
 const WEEKDAY_LABELS = ['Lun', 'Mar', 'Mie', 'Jue', 'Vie', 'Sab', 'Dom'];
-const SLOT_LABELS: Array<{ key: MealSlot; label: string }> = [
-  { key: 'desayuno', label: 'Desayuno' },
-  { key: 'comida', label: 'Comida' },
-  { key: 'cena', label: 'Cena' },
+const SLOT_LABELS: Array<{ key: WeeklyMealSlot; label: string; group: 'desayuno' | 'comida' | 'cena' }> = [
+  { key: 'desayuno', label: 'Desayuno', group: 'desayuno' },
+  { key: 'merienda', label: 'Merienda', group: 'desayuno' },
+  { key: 'comida_primero', label: 'Primer plato', group: 'comida' },
+  { key: 'comida_segundo', label: 'Segundo plato', group: 'comida' },
+  { key: 'comida_postre', label: 'Postre', group: 'comida' },
+  { key: 'cena_primero', label: 'Primer plato', group: 'cena' },
+  { key: 'cena_segundo', label: 'Segundo plato', group: 'cena' },
+  { key: 'cena_postre', label: 'Postre', group: 'cena' },
+];
+const SLOT_GROUPS: Array<{ key: 'desayuno' | 'comida' | 'merienda' | 'cena'; label: string; slots: WeeklyMealSlot[] }> = [
+  { key: 'desayuno', label: 'Desayuno', slots: ['desayuno'] },
+  { key: 'comida', label: 'Comida', slots: ['comida_primero', 'comida_segundo', 'comida_postre'] },
+  { key: 'merienda', label: 'Merienda', slots: ['merienda'] },
+  { key: 'cena', label: 'Cena', slots: ['cena_primero', 'cena_segundo', 'cena_postre'] },
 ];
 const PREFERENCE_LABELS: Array<{ key: keyof WeeklyPlanPreferences; label: string }> = [
   { key: 'economico', label: 'Economico' },
@@ -54,6 +64,8 @@ const defaultPreferences: WeeklyPlanPreferences = {
   saludable: false,
   familiar: false,
 };
+
+const slotMeta = new Map(SLOT_LABELS.map((slot) => [slot.key, slot]));
 
 const toIsoDate = (value: Date) => {
   const year = value.getFullYear();
@@ -96,12 +108,37 @@ function buildCalendar(startDateIso: string, daysCount: number): CalendarCell[] 
   });
 }
 
-function getSlotDay(plan: WeeklyPlan, dayIndex: number, mealSlot: MealSlot): WeeklyPlanDay | null {
+function getSlotDay(plan: WeeklyPlan, dayIndex: number, mealSlot: WeeklyMealSlot): WeeklyPlanDay | null {
   return plan.days.find((day) => day.day_index === dayIndex && day.meal_slot === mealSlot) ?? null;
 }
 
 function getDaySummary(summary: WeeklyPlanGeneratedSummary | null, dayIndex: number): WeeklyPlanDaySummary | null {
   return summary?.days.find((day) => day.day_index === dayIndex) ?? null;
+}
+
+function mergePlanWithSummary(plan: WeeklyPlan, summary: WeeklyPlanGeneratedSummary | null): WeeklyPlan {
+  if (!summary) {
+    return plan;
+  }
+
+  return {
+    ...plan,
+    days: plan.days.map((day) => {
+      const summaryMeal = summary.days
+        .find((summaryDay) => summaryDay.day_index === day.day_index)
+        ?.meals.find((meal) => meal.meal_slot === day.meal_slot);
+
+      if (!summaryMeal || summaryMeal.recipe_id == null || day.recipe_id === summaryMeal.recipe_id) {
+        return day;
+      }
+
+      return {
+        ...day,
+        recipe_id: summaryMeal.recipe_id,
+        recipe_title: summaryMeal.recipe_title ?? day.recipe_title,
+      };
+    }),
+  };
 }
 
 export default function WeeklyPlanDetailPage() {
@@ -119,7 +156,7 @@ export default function WeeklyPlanDetailPage() {
   const [summaryLoading, setSummaryLoading] = useState(false);
   const [error, setError] = useState('');
   const [showGenerateList, setShowGenerateList] = useState(false);
-  const [pickerState, setPickerState] = useState<{ dayIndex: number; mealSlot: MealSlot } | null>(null);
+  const [pickerState, setPickerState] = useState<{ dayIndex: number; mealSlot: WeeklyMealSlot } | null>(null);
   const [pickerSaving, setPickerSaving] = useState(false);
   const [generateMode, setGenerateMode] = useState<'new' | 'existing'>('new');
   const [selectedListId, setSelectedListId] = useState<number | null>(null);
@@ -131,6 +168,7 @@ export default function WeeklyPlanDetailPage() {
     try {
       const data = await getWeeklyPlanSummary(targetPlanId);
       setSummary(data);
+      setPlan((current) => (current && current.id === targetPlanId ? mergePlanWithSummary(current, data) : current));
     } finally {
       setSummaryLoading(false);
     }
@@ -144,7 +182,7 @@ export default function WeeklyPlanDetailPage() {
         getRecipes(),
         getLists(),
       ]);
-      setPlan(planData);
+      setPlan(mergePlanWithSummary(planData, summaryData));
       setSummary(summaryData);
       setRecipes(recipesData);
       setLists(listsData.filter((item) => !item.is_archived));
@@ -218,8 +256,9 @@ export default function WeeklyPlanDetailPage() {
     setGeneratingMenu(true);
     try {
       const generated = await generateWeeklyPlan(plan.id);
-      setPlan(generated);
-      await loadSummary(generated.id);
+      const generatedSummary = await getWeeklyPlanSummary(generated.id);
+      setSummary(generatedSummary);
+      setPlan(mergePlanWithSummary(generated, generatedSummary));
       setError('');
       setResult(null);
     } catch {
@@ -270,12 +309,12 @@ export default function WeeklyPlanDetailPage() {
     year: 'numeric',
   });
 
-  const openPicker = (dayIndex: number, mealSlot: MealSlot = 'comida') => {
+  const openPicker = (dayIndex: number, mealSlot: WeeklyMealSlot = 'comida_primero') => {
     setPickerState({ dayIndex, mealSlot });
   };
 
   const pickerDay = pickerState ? pickerState.dayIndex : null;
-  const pickerMealSlot = pickerState?.mealSlot ?? 'comida';
+  const pickerMealSlot = pickerState?.mealSlot ?? 'comida_primero';
   const pickerSelectedRecipe = pickerDay != null ? getSlotDay(plan, pickerDay, pickerMealSlot)?.recipe_id ?? null : null;
   const pickerDayLabel =
     pickerDay != null
@@ -366,7 +405,10 @@ export default function WeeklyPlanDetailPage() {
         <div className="alert alert-success" style={{ marginBottom: 16 }}>
           Lista generada: {result.list_name}. Anadidos {result.added}, reales {result.resolved_real ?? 0}, fallback{' '}
           {result.resolved_fallback ?? 0}, pendientes {result.unresolved ?? 0}, cubiertos por despensa{' '}
-          {result.pantry_covered ?? 0}, ajustados por despensa {result.pantry_reduced ?? 0}.
+          {result.pantry_covered ?? 0}, ajustados por despensa {result.pantry_reduced ?? 0}
+          {result.optimization_suggestions_applied
+            ? `, optimizaciones aplicadas ${result.optimization_suggestions_applied}.`
+            : '.'}
         </div>
       )}
 
@@ -374,7 +416,7 @@ export default function WeeklyPlanDetailPage() {
         <div className="plan-overview-card">
           <span className="plan-overview-label">Cobertura del plan</span>
           <strong>{assignedPct}%</strong>
-          <small>{totalAssignedMeals}/{totalPlannedMeals} comidas asignadas</small>
+          <small>{totalAssignedMeals}/{totalPlannedMeals} huecos completos</small>
           <div className="progress-bar-container">
             <div className="progress-bar" style={{ width: `${assignedPct}%` }} />
           </div>
@@ -505,7 +547,7 @@ export default function WeeklyPlanDetailPage() {
               <strong>
                 P {Math.round(summary.total_protein_g)} g · C {Math.round(summary.total_carbs_g)} g · G {Math.round(summary.total_fat_g)} g
               </strong>
-              <small>{totalAssignedMeals} comidas asignadas</small>
+              <small>{totalAssignedMeals} huecos asignados</small>
             </div>
             <div className={`meal-plan-metric-card${summary.within_budget === false ? ' is-warning' : ''}`}>
               <span className="meal-plan-metric-label">Presupuesto</span>
@@ -531,7 +573,7 @@ export default function WeeklyPlanDetailPage() {
           <div>
             <h2 style={{ marginBottom: 4 }}>Calendario de {monthLabel}</h2>
             <p style={{ margin: 0, color: 'var(--color-text-secondary)' }}>
-              Motor por reglas determinista: ideal para, coste, tiempo, nutricion, variedad, despensa y habitos.
+              Vista simplificada por bloques: desayuno, comida por platos, merienda y cena por platos.
             </p>
           </div>
           {summaryLoading && <span className="loading-spinner" />}
@@ -561,7 +603,7 @@ export default function WeeklyPlanDetailPage() {
                   <button
                     type="button"
                     className="meal-calendar-date"
-                    onClick={() => cell.isActivePlanDay && openPicker(cell.dayIndex!, 'comida')}
+                    onClick={() => cell.isActivePlanDay && openPicker(cell.dayIndex!, 'comida_primero')}
                   >
                     <span>{cell.dayNumber}</span>
                     {cell.isActivePlanDay && <small>Dia {cell.dayIndex! + 1}</small>}
@@ -569,67 +611,82 @@ export default function WeeklyPlanDetailPage() {
 
                   {cell.isActivePlanDay ? (
                     <>
-                      <div className="meal-calendar-day-summary">
+                      <div className="meal-calendar-day-summary compact">
                         <strong>{Math.round(daySummary?.estimated_day_calories ?? 0)} kcal</strong>
-                        <span>
-                          P {Math.round(daySummary?.protein_g ?? 0)} g · C {Math.round(daySummary?.carbs_g ?? 0)} g · G {Math.round(daySummary?.fat_g ?? 0)} g
-                        </span>
                         <small>
                           {(daySummary?.estimated_day_cost ?? 0).toLocaleString('es-ES', {
                             style: 'currency',
                             currency: 'EUR',
                           })}
                         </small>
+                        <span>
+                          P {Math.round(daySummary?.protein_g ?? 0)} g · C {Math.round(daySummary?.carbs_g ?? 0)} g · G {Math.round(daySummary?.fat_g ?? 0)} g
+                        </span>
                       </div>
 
-                      <div className="meal-calendar-slots">
-                        {SLOT_LABELS.map((slot) => {
-                          const day = getSlotDay(plan, cell.dayIndex!, slot.key);
-                          const recipe = day?.recipe_id != null ? recipesById.get(day.recipe_id) ?? null : null;
-                          const recipeImage = recipe?.image_url ? resolveBackendUrl(recipe.image_url) : null;
-                          const mealSummary = daySummary?.meals.find((meal) => meal.meal_slot === slot.key) ?? null;
+                      <div className="meal-calendar-slots grouped">
+                        {SLOT_GROUPS.map((group) => (
+                          <div key={`${cell.isoDate}-${group.key}`} className={`meal-group-card meal-group-card-${group.key}`}>
+                            <div className="meal-group-card-header">
+                              <span>{group.label}</span>
+                            </div>
+                            <div className="meal-group-card-body">
+                              {group.slots.map((slotKey) => {
+                                const slot = slotMeta.get(slotKey)!;
+                                const day = getSlotDay(plan, cell.dayIndex!, slot.key);
+                                const mealSummary = daySummary?.meals.find((meal) => meal.meal_slot === slot.key) ?? null;
+                                const effectiveRecipeId = day?.recipe_id ?? mealSummary?.recipe_id ?? null;
+                                const recipe = effectiveRecipeId != null ? recipesById.get(effectiveRecipeId) ?? null : null;
+                                const recipeImage = recipe?.image_url ? resolveBackendUrl(recipe.image_url) : null;
+                                const hasAssignment = effectiveRecipeId != null || Boolean(mealSummary?.recipe_title);
+                                const recipeTitle = mealSummary?.recipe_title ?? recipe?.title ?? 'Receta asignada';
+                                const recipeMinutes = recipe?.estimated_minutes ?? null;
+                                const recipeCost = mealSummary?.estimated_cost ?? recipe?.estimated_cost ?? null;
+                                const recipeCalories = mealSummary?.calories ?? recipe?.calories_per_serving ?? null;
 
-                          return (
-                            <button
-                              key={`${cell.isoDate}-${slot.key}`}
-                              type="button"
-                              className={`meal-slot-card${day?.recipe_id ? ' has-selection' : ''}`}
-                              onClick={() => openPicker(cell.dayIndex!, slot.key)}
-                            >
-                              <span>{slot.label}</span>
-                              {recipe ? (
-                                <div className="meal-slot-card-content">
-                                  <div className="meal-slot-card-media">
-                                    {recipeImage ? (
-                                      <img src={recipeImage} alt={recipe.title} className="meal-slot-card-image" />
-                                    ) : (
-                                      <div className="meal-slot-card-placeholder">Sin imagen</div>
-                                    )}
-                                  </div>
-                                  <div className="meal-slot-card-text">
-                                    <strong>{recipe.title}</strong>
-                                    <small>
-                                      {Math.round(mealSummary?.calories ?? recipe.calories_per_serving ?? 0)} kcal
-                                      {recipe.estimated_minutes ? ` · ${recipe.estimated_minutes} min` : ''}
-                                      {mealSummary ? ` · ${mealSummary.estimated_cost.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}` : ''}
-                                    </small>
-                                    {(recipe.meal_types ?? []).length > 0 && (
-                                      <div className="meal-slot-card-tags">
-                                        {(recipe.meal_types ?? []).map((mealType) => (
-                                          <span key={mealType} className={`recipe-tag recipe-tag-meal recipe-tag-${mealType}`}>
-                                            {mealType}
-                                          </span>
-                                        ))}
+                                return (
+                                  <button
+                                    key={`${cell.isoDate}-${slot.key}`}
+                                    type="button"
+                                    className={`meal-slot-card compact${hasAssignment ? ' has-selection' : ''}`}
+                                    onClick={() => openPicker(cell.dayIndex!, slot.key)}
+                                  >
+                                    <div className="meal-slot-card-headline">
+                                      <span className="meal-slot-card-label">{slot.label}</span>
+                                      {hasAssignment && recipeCalories != null ? (
+                                        <span className="meal-slot-card-kcal">
+                                          {Math.round(recipeCalories)} kcal
+                                        </span>
+                                      ) : null}
+                                    </div>
+                                    {hasAssignment ? (
+                                      <div className="meal-slot-card-content">
+                                        <div className="meal-slot-card-media">
+                                          {recipeImage ? (
+                                            <img src={recipeImage} alt={recipeTitle} className="meal-slot-card-image" />
+                                          ) : (
+                                            <div className="meal-slot-card-placeholder">Sin imagen</div>
+                                          )}
+                                        </div>
+                                        <div className="meal-slot-card-text">
+                                          <strong>{recipeTitle}</strong>
+                                          <small>
+                                            {recipeMinutes ? `${recipeMinutes} min` : 'Tiempo libre'}
+                                            {recipeCost != null
+                                              ? ` � ${(mealSummary?.estimated_cost ?? recipeCost).toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}`
+                                              : ''}
+                                          </small>
+                                        </div>
                                       </div>
+                                    ) : (
+                                      <div className="meal-slot-card-empty">Añadir receta</div>
                                     )}
-                                  </div>
-                                </div>
-                              ) : (
-                                <div className="meal-slot-card-empty">Tocar para elegir receta</div>
-                              )}
-                            </button>
-                          );
-                        })}
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        ))}
                       </div>
                     </>
                   ) : (

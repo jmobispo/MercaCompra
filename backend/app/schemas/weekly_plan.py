@@ -13,7 +13,10 @@ class WeeklyPlanPreferences(BaseModel):
 
 class WeeklyPlanDayUpsert(BaseModel):
     day_index: int = Field(ge=0, le=30)
-    meal_slot: str = Field(default="comida", pattern="^(desayuno|comida|cena)$")
+    meal_slot: str = Field(
+        default="comida_primero",
+        pattern="^(desayuno|merienda|comida_primero|comida_segundo|comida_postre|cena_primero|cena_segundo|cena_postre)$",
+    )
     recipe_id: Optional[int] = None
     meal_type: Optional[str] = Field(default=None, max_length=50)
 
