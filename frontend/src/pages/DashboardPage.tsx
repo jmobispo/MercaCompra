@@ -1,4 +1,4 @@
-﻿import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 
 import { getDashboard } from '../api/dashboard';
@@ -205,7 +205,7 @@ export default function DashboardPage() {
               className="dashboard-variation-note"
               style={{ color: variationColor(dashboard?.weekly_variation ?? 0) }}
             >
-              {(dashboard?.weekly_variation ?? 0) > 0 ? '?' : '?'}{' '}
+              {(dashboard?.weekly_variation ?? 0) > 0 ? '+' : '-'}{' '}
               {Math.abs(dashboard?.weekly_variation ?? 0).toFixed(1)}% vs semana anterior
             </div>
           )}

@@ -12,7 +12,6 @@ import { searchProducts } from '../api/products';
 import { useAuthStore } from '../store/authStore';
 import ProductSearch from '../components/products/ProductSearch';
 import BudgetPanel from '../components/budget/BudgetPanel';
-import AutomationPanel from '../components/automation/AutomationPanel';
 import ListForm from '../components/lists/ListForm';
 import type { ShoppingList, ShoppingListItem, Product, CreateListPayload } from '../types';
 import { buildInlineFallbackThumbnail, hasRealHttpImage } from '../utils/productThumbnails';
@@ -441,7 +440,6 @@ export default function ListDetailPage() {
             budget={list.budget}
             onEditBudget={() => setShowEditModal(true)}
           />
-          <AutomationPanel listId={list.id} />
         </div>
       </div>
 
