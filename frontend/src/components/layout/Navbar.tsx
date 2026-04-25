@@ -9,7 +9,7 @@ interface NavbarProps {
 }
 
 export default function Navbar({ title, user }: NavbarProps) {
-  const { update } = useAuth();
+  const { update, logout } = useAuth();
   const initials = user ? (user.username || user.email).slice(0, 2).toUpperCase() : '??';
   const [postalCode, setPostalCode] = useState(user?.postal_code ?? '');
   const [saving, setSaving] = useState(false);
@@ -59,6 +59,9 @@ export default function Navbar({ title, user }: NavbarProps) {
               />
             </div>
             <span>{user.username || user.email}</span>
+            <button type="button" className="topbar-logout" onClick={logout}>
+              Salir
+            </button>
             <div className="avatar">{initials}</div>
           </>
         )}
