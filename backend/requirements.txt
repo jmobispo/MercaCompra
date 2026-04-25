@@ -8,6 +8,7 @@ pydantic-settings==2.2.1
 sqlalchemy==2.0.30
 alembic==1.13.1
 aiosqlite==0.20.0
+asyncpg==0.29.0
 
 # Auth (uses stdlib hmac+hashlib for JWT and scrypt for passwords)
 # No cryptography package required — avoids system conflicts
