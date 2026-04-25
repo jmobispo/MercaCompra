@@ -1,21 +1,20 @@
-import { useEffect, useState } from 'react';
+﻿import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 
-import { getRuns } from '../api/automation';
 import { getDashboard } from '../api/dashboard';
 import { getLists } from '../api/lists';
-import { addFrequentProductsToList, getFrequentProducts } from '../api/products';
+import { addFrequentProductsToList, getFrequentProducts, searchProducts } from '../api/products';
 import { getWeeklyPlans } from '../api/weeklyPlans';
 import { useAuthStore } from '../store/authStore';
+import { buildInlineFallbackThumbnail, hasRealHttpImage } from '../utils/productThumbnails';
 import type {
-  AutomationRun,
   DashboardData,
   FrequentProduct,
   ShoppingListSummary,
   WeeklyPlanSummary,
 } from '../types';
 
-function MetricIcon({ kind }: { kind: 'spend' | 'lists' | 'items' | 'plans' }) {
+function MetricIcon({ kind }: { kind: 'spend' | 'lists' | 'plans' }) {
   const icons = {
     spend: (
       <>
@@ -28,12 +27,6 @@ function MetricIcon({ kind }: { kind: 'spend' | 'lists' | 'items' | 'plans' }) {
       <>
         <rect x="5" y="4" width="14" height="16" rx="4" stroke="currentColor" strokeWidth="1.8" />
         <path d="M9 9h6M9 13h6M9 17h4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-      </>
-    ),
-    items: (
-      <>
-        <path d="M7 8h12l-1.2 7a2 2 0 0 1-2 1.7H10a2 2 0 0 1-2-1.7L7 8Z" stroke="currentColor" strokeWidth="1.8" />
-        <path d="M9 8V7a3 3 0 0 1 6 0v1" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
       </>
     ),
     plans: (
@@ -54,52 +47,40 @@ function MetricIcon({ kind }: { kind: 'spend' | 'lists' | 'items' | 'plans' }) {
   );
 }
 
-function StatusRow({ label, value, ok }: { label: string; value: string; ok?: boolean }) {
-  return (
-    <div className="dashboard-status-row">
-      <span className="dashboard-status-label">{label}</span>
-      <span
-        className="dashboard-status-value"
-        style={{
-          color:
-            ok === true
-              ? 'var(--color-success, #22c55e)'
-              : ok === false
-                ? 'var(--color-danger, #ef4444)'
-                : 'inherit',
-        }}
-      >
-        {value}
-      </span>
-    </div>
-  );
-}
-
 export default function DashboardPage() {
   const user = useAuthStore((state) => state.user);
   const [dashboard, setDashboard] = useState<DashboardData | null>(null);
   const [lists, setLists] = useState<ShoppingListSummary[]>([]);
-  const [runs, setRuns] = useState<AutomationRun[]>([]);
   const [weeklyPlans, setWeeklyPlans] = useState<WeeklyPlanSummary[]>([]);
   const [frequentProducts, setFrequentProducts] = useState<FrequentProduct[]>([]);
+  const [basicThumbnailOverrides, setBasicThumbnailOverrides] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [addingBasics, setAddingBasics] = useState(false);
+  const postalCode = user?.postal_code ?? undefined;
+
+  const visibleBasics = useMemo(
+    () =>
+      frequentProducts.map((product) => ({
+        ...product,
+        resolved_thumbnail:
+          basicThumbnailOverrides[product.product_id] ?? product.product_thumbnail ?? null,
+      })),
+    [frequentProducts, basicThumbnailOverrides]
+  );
 
   useEffect(() => {
     const fetchData = async () => {
       setLoading(true);
       try {
-        const [dashboardData, listsData, runsData, plansData, basicsData] = await Promise.all([
+        const [dashboardData, listsData, plansData, basicsData] = await Promise.all([
           getDashboard(),
           getLists(),
-          getRuns(),
           getWeeklyPlans(),
           getFrequentProducts(6),
         ]);
         setDashboard(dashboardData);
         setLists(listsData);
-        setRuns(runsData);
         setWeeklyPlans(plansData);
         setFrequentProducts(basicsData);
       } catch {
@@ -112,10 +93,50 @@ export default function DashboardPage() {
     void fetchData();
   }, []);
 
+  useEffect(() => {
+    if (frequentProducts.length === 0) return;
+
+    const unresolvedProducts = frequentProducts.filter(
+      (product) =>
+        !hasRealHttpImage(basicThumbnailOverrides[product.product_id]) &&
+        !hasRealHttpImage(product.product_thumbnail)
+    );
+
+    if (unresolvedProducts.length === 0) return;
+
+    let cancelled = false;
+
+    const hydrateBasicsThumbnails = async () => {
+      for (const product of unresolvedProducts.slice(0, 6)) {
+        if (cancelled) return;
+
+        try {
+          const result = await searchProducts(product.product_name, postalCode);
+          const matched = result.products.find((candidate) => hasRealHttpImage(candidate.thumbnail));
+          const thumbnail = matched?.thumbnail;
+          if (!thumbnail) continue;
+
+          setBasicThumbnailOverrides((current) => {
+            if (current[product.product_id] === thumbnail) return current;
+            return { ...current, [product.product_id]: thumbnail };
+          });
+        } catch {
+          // Mantiene el fallback visual sin interrumpir el panel.
+        }
+
+        await new Promise((resolve) => window.setTimeout(resolve, 180));
+      }
+    };
+
+    void hydrateBasicsThumbnails();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [frequentProducts, postalCode, basicThumbnailOverrides]);
+
   const activeLists = lists.filter((item) => !item.is_archived);
-  const totalItems = lists.reduce((sum, item) => sum + item.item_count, 0);
   const totalSpend = lists.reduce((sum, item) => sum + item.total, 0);
-  const recentRuns = runs.slice(0, 5);
 
   const formatCurrency = (value: number) =>
     value.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' });
@@ -138,7 +159,7 @@ export default function DashboardPage() {
     setAddingBasics(true);
     try {
       const response = await addFrequentProductsToList({
-        new_list_name: 'Tus basicos',
+        new_list_name: 'Tus básicos',
         limit: 6,
       });
       window.alert(`Se ha creado "${response.list_name}" con ${response.added} productos frecuentes.`);
@@ -163,7 +184,7 @@ export default function DashboardPage() {
       <div className="page-header">
         <div>
           <h1>Hola, {user?.username ?? 'Usuario'}</h1>
-          <p>Aquí tienes un resumen de tu actividad</p>
+          <p>Resumen rápido de tus listas, planes y básicos.</p>
         </div>
         <Link to="/lists" className="btn btn-primary">
           + Nueva lista
@@ -184,7 +205,7 @@ export default function DashboardPage() {
               className="dashboard-variation-note"
               style={{ color: variationColor(dashboard?.weekly_variation ?? 0) }}
             >
-              {(dashboard?.weekly_variation ?? 0) > 0 ? '▲' : '▼'}{' '}
+              {(dashboard?.weekly_variation ?? 0) > 0 ? '?' : '?'}{' '}
               {Math.abs(dashboard?.weekly_variation ?? 0).toFixed(1)}% vs semana anterior
             </div>
           )}
@@ -193,11 +214,6 @@ export default function DashboardPage() {
           <MetricIcon kind="lists" />
           <div className="stat-label">Listas activas</div>
           <div className="stat-value">{dashboard?.active_list_count ?? activeLists.length}</div>
-        </div>
-        <div className="stat-card">
-          <MetricIcon kind="items" />
-          <div className="stat-label">Total artículos</div>
-          <div className="stat-value">{totalItems}</div>
         </div>
         <div className="stat-card">
           <MetricIcon kind="plans" />
@@ -215,7 +231,7 @@ export default function DashboardPage() {
           <div className="card-body dashboard-card-list">
             {activeLists.length === 0 ? (
               <div className="empty-state">
-                <div className="empty-icon empty-icon-soft">◦</div>
+                <div className="empty-icon empty-icon-soft">?</div>
                 <p>No tienes listas aún</p>
               </div>
             ) : (
@@ -242,83 +258,13 @@ export default function DashboardPage() {
 
         <div className="card">
           <div className="card-header">
-            <h2>Automatizaciones recientes</h2>
-            <Link to="/automation" className="btn btn-ghost btn-sm">Ver todas</Link>
-          </div>
-          <div className="card-body dashboard-card-list">
-            {recentRuns.length === 0 ? (
-              <div className="empty-state">
-                <div className="empty-icon empty-icon-soft">◦</div>
-                <p>No hay ejecuciones aún</p>
-              </div>
-            ) : (
-              recentRuns.map((run) => (
-                <Link
-                  key={run.id}
-                  to="/automation"
-                  className="dashboard-list-link"
-                >
-                  <div className="dashboard-list-link-copy">
-                    <div className="dashboard-list-link-title">Ejecución #{run.id}</div>
-                    <div className="dashboard-list-link-meta">
-                      {run.added_ok}/{run.total_items} añadidos · {formatDate(run.created_at)}
-                    </div>
-                  </div>
-                  <span className={`run-status ${run.status}`}>{run.status}</span>
-                </Link>
-              ))
-            )}
-          </div>
-        </div>
-      </div>
-
-      <div className="dashboard-columns dashboard-columns-secondary">
-        <div className="card">
-          <div className="card-header">
-            <h2>Tus básicos</h2>
-            <button
-              className="btn btn-secondary btn-sm"
-              onClick={handleAddBasics}
-              disabled={addingBasics || frequentProducts.length === 0}
-            >
-              {addingBasics ? 'Añadiendo...' : 'Añadir básicos'}
-            </button>
-          </div>
-          <div className="card-body">
-            {frequentProducts.length === 0 ? (
-              <div className="empty-state">
-                <div className="empty-icon empty-icon-soft">◦</div>
-                <p>Aún no hay hábitos suficientes</p>
-              </div>
-            ) : (
-              <div className="dashboard-basics-grid">
-                {frequentProducts.map((product) => (
-                  <div key={product.product_id} className="dashboard-basic-card">
-                    <div>
-                      <div className="dashboard-basic-card-title">{product.product_name}</div>
-                      <div className="dashboard-basic-card-meta">
-                        {product.times_added} veces · media {product.average_quantity.toFixed(1)}
-                      </div>
-                    </div>
-                    <div className="dashboard-basic-card-value">
-                      {product.product_price != null ? formatCurrency(product.product_price) : '—'}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
-
-        <div className="card">
-          <div className="card-header">
-            <h2>Planificación semanal</h2>
+            <h2>Planes semanales</h2>
             <Link to="/weekly-plans" className="btn btn-ghost btn-sm">Ver planes</Link>
           </div>
           <div className="card-body dashboard-card-list">
             {weeklyPlans.length === 0 ? (
               <div className="empty-state">
-                <div className="empty-icon empty-icon-soft">◦</div>
+                <div className="empty-icon empty-icon-soft">?</div>
                 <p>Todavía no has creado planes</p>
               </div>
             ) : (
@@ -342,28 +288,64 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {dashboard?.system_status && (
-        <div className="card dashboard-system-card">
+      <div className="dashboard-columns dashboard-columns-secondary">
+        <div className="card">
           <div className="card-header">
-            <h2>Estado del sistema</h2>
+            <h2>Tus básicos</h2>
+            <button
+              className="btn btn-secondary btn-sm"
+              onClick={handleAddBasics}
+              disabled={addingBasics || frequentProducts.length === 0}
+            >
+              {addingBasics ? 'Añadiendo...' : 'Añadir básicos'}
+            </button>
           </div>
           <div className="card-body">
-            <div className="dashboard-status-grid">
-              <StatusRow label="Búsqueda" value={dashboard.system_status.search_mode} />
-              <StatusRow label="IA (recetas)" value={dashboard.system_status.ai_mode} />
-              <StatusRow label="Código postal" value={dashboard.system_status.postal_code} />
-              <StatusRow
-                label="Bot Mercadona"
-                value={dashboard.system_status.bot_available ? 'Disponible' : 'No disponible'}
-                ok={dashboard.system_status.bot_available}
-              />
-              {dashboard.system_status.demo_mode && (
-                <StatusRow label="Modo demo" value="Activo" ok />
-              )}
-            </div>
+            {frequentProducts.length === 0 ? (
+              <div className="empty-state">
+                <div className="empty-icon empty-icon-soft">?</div>
+                <p>Aún no hay hábitos suficientes</p>
+              </div>
+            ) : (
+              <div className="dashboard-basics-grid">
+                {visibleBasics.map((product) => (
+                  <div key={product.product_id} className="dashboard-basic-card">
+                    <img
+                      src={
+                        hasRealHttpImage(product.resolved_thumbnail)
+                          ? product.resolved_thumbnail!
+                          : buildInlineFallbackThumbnail(
+                              product.product_name,
+                              product.product_category
+                            )
+                      }
+                      alt={product.product_name}
+                      className="dashboard-basic-thumb"
+                      onError={(event) => {
+                        (event.target as HTMLImageElement).src = buildInlineFallbackThumbnail(
+                          product.product_name,
+                          product.product_category
+                        );
+                      }}
+                    />
+                    <div className="dashboard-basic-card-copy">
+                      <div className="dashboard-basic-card-title">{product.product_name}</div>
+                      <div className="dashboard-basic-card-meta">
+                        {product.times_added} veces · media {product.average_quantity.toFixed(1)}
+                      </div>
+                    </div>
+                    <div className="dashboard-basic-card-value">
+                      {product.product_price != null ? formatCurrency(product.product_price) : '—'}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
-      )}
+      </div>
     </div>
   );
 }
+
+

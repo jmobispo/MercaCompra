@@ -3296,6 +3296,20 @@ input, select, textarea {
   border: 1px solid rgba(114, 131, 154, 0.12);
 }
 
+.dashboard-basic-thumb {
+  width: 46px;
+  height: 46px;
+  border-radius: 14px;
+  object-fit: contain;
+  background: rgba(243, 247, 251, 0.92);
+  flex-shrink: 0;
+}
+
+.dashboard-basic-card-copy {
+  flex: 1;
+  min-width: 0;
+}
+
 .dashboard-basic-card-title {
   font-weight: 800;
   color: var(--color-text);
