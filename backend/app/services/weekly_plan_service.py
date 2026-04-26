@@ -157,7 +157,6 @@ class WeeklyPlanService:
     ) -> AddToListResult:
         plan = await self._get_plan_or_404(plan_id, user_id)
         recipe_service = RecipeService(self.db)
-        habit_service = HabitService(self.db)
         postal_code = await recipe_service._get_user_postal_code(user_id)
         pantry_items = await recipe_service._get_active_pantry_items(user_id)
 
@@ -292,58 +291,10 @@ class WeeklyPlanService:
 
         await self.db.commit()
 
-        try:
-            await asyncio.wait_for(
-                habit_service.record_additions(
-                    user_id,
-                    [
-                        {
-                            "product_id": item["product_id"],
-                            "product_name": item["product_name"],
-                            "product_price": item["product_price"],
-                            "product_unit": item["product_unit"],
-                            "product_thumbnail": item["product_thumbnail"],
-                            "product_category": item["product_category"],
-                            "quantity": item["quantity"],
-                            "source": item["source"],
-                        }
-                        for item in consolidated.values()
-                    ],
-                ),
-                timeout=4.0,
-            )
-            await self.db.commit()
-        except TimeoutError:
-            await self.db.rollback()
-
-        list_service = ListService(self.db)
-        try:
-            optimization_preview = await asyncio.wait_for(
-                list_service.optimize_list_preview(target_list.id, user_id, include_fuzzy=False),
-                timeout=6.0,
-            )
-            optimization_applied = len(optimization_preview["suggestions"])
-            if optimization_applied:
-                optimized_list = await asyncio.wait_for(
-                    list_service.apply_optimization(
-                        target_list.id,
-                        user_id,
-                        [suggestion["id"] for suggestion in optimization_preview["suggestions"]],
-                        include_fuzzy=False,
-                    ),
-                    timeout=6.0,
-                )
-                added_items = [
-                    {
-                        "name": item.product_name,
-                        "quantity": item.quantity,
-                        "price": item.product_price,
-                        "resolved": not str(item.product_id or "").startswith(("weekly_", "recipe_")),
-                    }
-                    for item in optimized_list.items
-                ]
-        except TimeoutError:
-            optimization_applied = 0
+        # En despliegues públicos priorizamos devolver la lista rápido y de forma fiable.
+        # El registro de hábitos y la optimización avanzada se mantienen fuera de esta ruta
+        # para evitar timeouts en entornos con más latencia (Render + Supabase).
+        optimization_applied = 0
 
         await self.db.commit()
 
