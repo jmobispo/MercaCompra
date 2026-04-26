@@ -584,8 +584,9 @@ function ItemRow({
             className="btn-icon danger item-delete-btn"
             onClick={onDelete}
             title="Eliminar"
+            aria-label={`Eliminar ${item.product_name}`}
           >
-            ?
+            ×
           </button>
         </div>
       </div>
