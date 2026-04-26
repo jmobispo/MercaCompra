@@ -250,31 +250,32 @@ class WeeklyPlanService:
                 else:
                     unresolved += 1
 
+        existing_items_by_product_id: dict[str, ShoppingListItem] = {}
+        existing_items_result = await self.db.execute(
+            select(ShoppingListItem).where(ShoppingListItem.shopping_list_id == target_list.id)
+        )
+        for existing_item in existing_items_result.scalars().all():
+            existing_items_by_product_id[str(existing_item.product_id)] = existing_item
+
         for item_data in consolidated.values():
-            existing_result = await self.db.execute(
-                select(ShoppingListItem).where(
-                    ShoppingListItem.shopping_list_id == target_list.id,
-                    ShoppingListItem.product_id == item_data["product_id"],
-                )
-            )
-            existing = existing_result.scalar_one_or_none()
+            existing = existing_items_by_product_id.get(str(item_data["product_id"]))
             if existing:
                 existing.quantity += item_data["quantity"]
                 existing.note = _merge_notes(existing.note, item_data["note"])
             else:
-                self.db.add(
-                    ShoppingListItem(
-                        shopping_list_id=target_list.id,
-                        product_id=item_data["product_id"],
-                        product_name=item_data["product_name"],
-                        product_price=item_data["product_price"],
-                        product_unit=item_data["product_unit"],
-                        product_thumbnail=item_data["product_thumbnail"],
-                        product_category=item_data["product_category"],
-                        quantity=item_data["quantity"],
-                        note=item_data["note"],
-                    )
+                new_item = ShoppingListItem(
+                    shopping_list_id=target_list.id,
+                    product_id=item_data["product_id"],
+                    product_name=item_data["product_name"],
+                    product_price=item_data["product_price"],
+                    product_unit=item_data["product_unit"],
+                    product_thumbnail=item_data["product_thumbnail"],
+                    product_category=item_data["product_category"],
+                    quantity=item_data["quantity"],
+                    note=item_data["note"],
                 )
+                self.db.add(new_item)
+                existing_items_by_product_id[str(item_data["product_id"])] = new_item
             added_items.append(
                 {
                     "name": item_data["product_name"],
