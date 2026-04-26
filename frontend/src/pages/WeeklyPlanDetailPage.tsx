@@ -67,6 +67,7 @@ const defaultPreferences: WeeklyPlanPreferences = {
 };
 
 const slotMeta = new Map(SLOT_LABELS.map((slot) => [slot.key, slot]));
+const wait = (ms: number) => new Promise((resolve) => window.setTimeout(resolve, ms));
 
 const toIsoDate = (value: Date) => {
   const year = value.getFullYear();
@@ -314,6 +315,13 @@ export default function WeeklyPlanDetailPage() {
   const handleGenerateShoppingList = async () => {
     if (!plan) return;
     setGeneratingList(true);
+    const existingLists = lists.filter((item) => !item.is_archived);
+    const existingListIds = new Set(existingLists.map((item) => item.id));
+    const expectedListName =
+      generateMode === 'new'
+        ? (newListName.trim() || `Plan semanal: ${plan.title}`)
+        : (existingLists.find((item) => item.id === selectedListId)?.name ?? 'Lista existente');
+
     try {
       const generated = await generateWeeklyPlanShoppingList(plan.id, {
         list_id: generateMode === 'existing' ? selectedListId : null,
@@ -322,7 +330,57 @@ export default function WeeklyPlanDetailPage() {
       setResult(generated);
       setError('');
     } catch (error) {
-      setError(extractApiError(error, 'No se pudo generar la lista de compra'));
+      let recoveredList: ShoppingListSummary | null = null;
+
+      if (axios.isAxiosError(error) && !error.response) {
+        for (let attempt = 0; attempt < 8; attempt += 1) {
+          await wait(1500);
+          try {
+            const refreshedLists = (await getLists()).filter((item) => !item.is_archived);
+            setLists(refreshedLists);
+
+            if (generateMode === 'existing' && selectedListId != null) {
+              recoveredList =
+                refreshedLists.find((item) => item.id === selectedListId) ?? null;
+            } else {
+              recoveredList =
+                refreshedLists.find(
+                  (item) =>
+                    !existingListIds.has(item.id) &&
+                    item.name.trim().toLowerCase() === expectedListName.trim().toLowerCase()
+                ) ??
+                refreshedLists
+                  .filter((item) => !existingListIds.has(item.id))
+                  .sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime())[0] ??
+                null;
+            }
+
+            if (recoveredList) {
+              setResult({
+                list_id: recoveredList.id,
+                list_name: recoveredList.name,
+                added: recoveredList.item_count,
+                skipped: 0,
+                items: [],
+                resolved_real: 0,
+                resolved_fallback: 0,
+                unresolved: 0,
+                pantry_covered: 0,
+                pantry_reduced: 0,
+                optimization_suggestions_applied: 0,
+              });
+              setError('');
+              break;
+            }
+          } catch {
+            // Seguimos esperando a que el backend termine de cerrar la lista.
+          }
+        }
+      }
+
+      if (!recoveredList) {
+        setError(extractApiError(error, 'No se pudo generar la lista de compra'));
+      }
     } finally {
       setGeneratingList(false);
     }
