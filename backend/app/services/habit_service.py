@@ -16,20 +16,36 @@ class HabitService:
 
     async def record_additions(self, user_id: int, products: list[dict[str, Any]]) -> None:
         now = datetime.now(timezone.utc)
+        normalized_products: list[dict[str, Any]] = []
+        product_ids: list[str] = []
+
         for product in products:
             product_id = str(product.get("product_id") or "").strip()
             product_name = (product.get("product_name") or "").strip()
             if not product_id or not product_name:
                 continue
+            normalized_products.append(product)
+            product_ids.append(product_id)
 
-            quantity = float(product.get("quantity") or 1)
-            result = await self.db.execute(
-                select(UserProductStats).where(
-                    UserProductStats.user_id == user_id,
-                    UserProductStats.product_id == product_id,
-                )
+        if not normalized_products:
+            return
+
+        existing_result = await self.db.execute(
+            select(UserProductStats).where(
+                UserProductStats.user_id == user_id,
+                UserProductStats.product_id.in_(product_ids),
             )
-            stats = result.scalar_one_or_none()
+        )
+        existing_stats = {
+            stats.product_id: stats
+            for stats in existing_result.scalars().all()
+        }
+
+        for product in normalized_products:
+            product_id = str(product.get("product_id") or "").strip()
+            product_name = (product.get("product_name") or "").strip()
+            quantity = float(product.get("quantity") or 1)
+            stats = existing_stats.get(product_id)
 
             if stats:
                 total_quantity = (stats.average_quantity * stats.times_added) + quantity
@@ -57,6 +73,7 @@ class HabitService:
                     average_quantity=quantity,
                 )
                 self.db.add(stats)
+                existing_stats[product_id] = stats
 
         await self.db.flush()
 

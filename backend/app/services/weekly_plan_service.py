@@ -179,6 +179,7 @@ class WeeklyPlanService:
             )
             self.db.add(target_list)
             await self.db.flush()
+            await self.db.commit()
 
         added_items: list[dict] = []
         skipped = 0
@@ -289,23 +290,31 @@ class WeeklyPlanService:
         if not added_items:
             skipped = 1
 
-        await habit_service.record_additions(
-            user_id,
-            [
-                {
-                    "product_id": item["product_id"],
-                    "product_name": item["product_name"],
-                    "product_price": item["product_price"],
-                    "product_unit": item["product_unit"],
-                    "product_thumbnail": item["product_thumbnail"],
-                    "product_category": item["product_category"],
-                    "quantity": item["quantity"],
-                    "source": item["source"],
-                }
-                for item in consolidated.values()
-            ],
-        )
-        await self.db.flush()
+        await self.db.commit()
+
+        try:
+            await asyncio.wait_for(
+                habit_service.record_additions(
+                    user_id,
+                    [
+                        {
+                            "product_id": item["product_id"],
+                            "product_name": item["product_name"],
+                            "product_price": item["product_price"],
+                            "product_unit": item["product_unit"],
+                            "product_thumbnail": item["product_thumbnail"],
+                            "product_category": item["product_category"],
+                            "quantity": item["quantity"],
+                            "source": item["source"],
+                        }
+                        for item in consolidated.values()
+                    ],
+                ),
+                timeout=4.0,
+            )
+            await self.db.commit()
+        except TimeoutError:
+            await self.db.rollback()
 
         list_service = ListService(self.db)
         try:
