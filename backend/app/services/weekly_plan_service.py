@@ -112,7 +112,7 @@ class WeeklyPlanService:
 
         await self._sync_days(plan.id, plan.days_count, data.days)
         plan.updated_at = datetime.now(timezone.utc)
-        await self.db.commit()
+        await self.db.flush()
         updated = await self._get_plan_or_404(plan_id, user_id)
         return self._to_read(updated)
 
@@ -120,7 +120,7 @@ class WeeklyPlanService:
         plan = await self._get_plan_or_404(plan_id, user_id)
         await self.db.execute(delete(WeeklyPlanDay).where(WeeklyPlanDay.weekly_plan_id == plan.id))
         await self.db.execute(delete(WeeklyPlan).where(WeeklyPlan.id == plan.id, WeeklyPlan.user_id == user_id))
-        await self.db.commit()
+        await self.db.flush()
 
     async def generate_plan(self, plan_id: int, user_id: int) -> WeeklyPlanRead:
         plan = await self._get_plan_or_404(plan_id, user_id)
@@ -188,7 +188,9 @@ class WeeklyPlanService:
         pantry_covered = 0
         pantry_reduced = 0
         consolidated: dict[str, dict] = {}
-        optimization_applied = 0
+        optimization_applied = await self._apply_quick_generated_list_optimization(
+            list(existing_items_by_product_id.values())
+        )
         product_cache: dict[str, object | None] = {}
 
         for day in plan.days:
@@ -289,12 +291,14 @@ class WeeklyPlanService:
         if not added_items:
             skipped = 1
 
-        await self.db.commit()
+        await self.db.flush()
 
         # En despliegues públicos priorizamos devolver la lista rápido y de forma fiable.
         # El registro de hábitos y la optimización avanzada se mantienen fuera de esta ruta
         # para evitar timeouts en entornos con más latencia (Render + Supabase).
-        optimization_applied = 0
+        optimization_applied = await self._apply_quick_generated_list_optimization(
+            list(existing_items_by_product_id.values())
+        )
 
         await self.db.commit()
 
@@ -311,6 +315,91 @@ class WeeklyPlanService:
             pantry_reduced=pantry_reduced,
             optimization_suggestions_applied=optimization_applied,
         )
+
+    async def _apply_quick_generated_list_optimization(self, items: list[ShoppingListItem]) -> int:
+        if not items:
+            return 0
+
+        list_service = ListService(self.db)
+        applied = 0
+
+        for _ in range(2):
+            active_items = [item for item in items if item.id is not None]
+            if not active_items:
+                break
+
+            suggestions = list_service._build_optimization_suggestions(
+                active_items,
+                pantry_items=[],
+                include_fuzzy=False,
+            )
+            if not suggestions:
+                break
+
+            items_by_id = {item.id: item for item in active_items}
+            changed_this_round = 0
+
+            for suggestion in suggestions:
+                suggestion_items = [
+                    items_by_id[item_id]
+                    for item_id in suggestion["item_ids"]
+                    if item_id in items_by_id
+                ]
+                if not suggestion_items:
+                    continue
+
+                keeper = suggestion_items[0]
+                target_quantity = suggestion["combined_quantity"]
+
+                if target_quantity <= 0:
+                    for doomed in suggestion_items:
+                        await self.db.delete(doomed)
+                        items_by_id.pop(doomed.id, None)
+                    changed_this_round += 1
+                    continue
+
+                if keeper.quantity != target_quantity:
+                    keeper.quantity = target_quantity
+                    changed_this_round += 1
+
+                if suggestion["merged_product_name"] and keeper.product_name != suggestion["merged_product_name"]:
+                    keeper.product_name = suggestion["merged_product_name"]
+                    changed_this_round += 1
+
+                if keeper.note != suggestion["merged_note"]:
+                    keeper.note = suggestion["merged_note"]
+                    changed_this_round += 1
+
+                if suggestion["product_price"] is not None and keeper.product_price != suggestion["product_price"]:
+                    keeper.product_price = suggestion["product_price"]
+                    changed_this_round += 1
+
+                sanitized_thumbnail = sanitize_db_thumbnail(suggestion["product_thumbnail"])
+                if sanitized_thumbnail != keeper.product_thumbnail:
+                    keeper.product_thumbnail = sanitized_thumbnail
+                    changed_this_round += 1
+
+                if suggestion["product_category"] and keeper.product_category != suggestion["product_category"]:
+                    keeper.product_category = suggestion["product_category"]
+                    changed_this_round += 1
+
+                if suggestion["product_unit"] and keeper.product_unit != suggestion["product_unit"]:
+                    keeper.product_unit = suggestion["product_unit"]
+                    changed_this_round += 1
+
+                for extra in suggestion_items[1:]:
+                    await self.db.delete(extra)
+                    items_by_id.pop(extra.id, None)
+                    changed_this_round += 1
+
+            if not changed_this_round:
+                break
+
+            items = [item for item in items if item.id in items_by_id]
+            applied += changed_this_round
+            await self.db.flush()
+
+        return applied
 
     async def _get_plan_or_404(self, plan_id: int, user_id: int) -> WeeklyPlan:
         result = await self.db.execute(
