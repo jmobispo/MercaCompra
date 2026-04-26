@@ -188,9 +188,7 @@ class WeeklyPlanService:
         pantry_covered = 0
         pantry_reduced = 0
         consolidated: dict[str, dict] = {}
-        optimization_applied = await self._apply_quick_generated_list_optimization(
-            list(existing_items_by_product_id.values())
-        )
+        optimization_applied = 0
         product_cache: dict[str, object | None] = {}
 
         for day in plan.days:
