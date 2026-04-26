@@ -543,48 +543,52 @@ function ItemRow({
         <div className="item-thumb-placeholder">??</div>
       )}
 
-      <div className="item-info">
-        <div className="item-name">{item.product_name}</div>
-        <div className="item-meta">
-          {item.product_category && <span>{item.product_category}</span>}
-          {item.product_unit && <span> ? {item.product_unit}</span>}
-          {item.product_price != null && (
-            <span> ? {formatCurrency(item.product_price)}/ud</span>
-          )}
+      <div className="item-content">
+        <div className="item-info">
+          <div className="item-name">{item.product_name}</div>
+          <div className="item-meta">
+            {item.product_category && <span>{item.product_category}</span>}
+            {item.product_unit && <span>{item.product_unit}</span>}
+            {item.product_price != null && (
+              <span>{formatCurrency(item.product_price)}/ud</span>
+            )}
+          </div>
+        </div>
+
+        <div className="item-actions">
+          <div className="item-quantity-controls">
+            <button className="qty-btn" onClick={() => onQtyChange(-1)} title="Restar">
+              -
+            </button>
+            <input
+              className="qty-input"
+              type="number"
+              min="1"
+              step="0.1"
+              value={quantityInput}
+              onChange={(event) => setQuantityInput(event.target.value)}
+              onBlur={commitQuantity}
+              onKeyDown={handleQuantityKeyDown}
+              aria-label={`Cantidad de ${item.product_name}`}
+            />
+            <button className="qty-btn" onClick={() => onQtyChange(1)} title="Sumar">
+              +
+            </button>
+          </div>
+
+          <div className="item-price">
+            {lineTotal != null ? formatCurrency(lineTotal) : '?'}
+          </div>
+
+          <button
+            className="btn-icon danger item-delete-btn"
+            onClick={onDelete}
+            title="Eliminar"
+          >
+            ?
+          </button>
         </div>
       </div>
-
-      <div className="item-quantity-controls">
-        <button className="qty-btn" onClick={() => onQtyChange(-1)} title="Restar">
-          -
-        </button>
-        <input
-          className="qty-input"
-          type="number"
-          min="1"
-          step="0.1"
-          value={quantityInput}
-          onChange={(event) => setQuantityInput(event.target.value)}
-          onBlur={commitQuantity}
-          onKeyDown={handleQuantityKeyDown}
-          aria-label={`Cantidad de ${item.product_name}`}
-        />
-        <button className="qty-btn" onClick={() => onQtyChange(1)} title="Sumar">
-          +
-        </button>
-      </div>
-
-      <div className="item-price">
-        {lineTotal != null ? formatCurrency(lineTotal) : '?'}
-      </div>
-
-      <button
-        className="btn-icon danger"
-        onClick={onDelete}
-        title="Eliminar"
-      >
-        ?
-      </button>
     </div>
   );
 }
