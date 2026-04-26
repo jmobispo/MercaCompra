@@ -3,7 +3,7 @@ import axios from 'axios';
 import { useNavigate, useParams } from 'react-router-dom';
 
 import { resolveBackendUrl } from '../api/client';
-import { getLists } from '../api/lists';
+import { getList, getLists } from '../api/lists';
 import { getRecipes } from '../api/recipes';
 import {
   generateWeeklyPlan,
@@ -317,10 +317,15 @@ export default function WeeklyPlanDetailPage() {
     setGeneratingList(true);
     const existingLists = lists.filter((item) => !item.is_archived);
     const existingListIds = new Set(existingLists.map((item) => item.id));
+    const existingSelectedSummary =
+      generateMode === 'existing' && selectedListId != null
+        ? existingLists.find((item) => item.id === selectedListId) ?? null
+        : null;
+    const existingSelectedItemCount = existingSelectedSummary?.item_count ?? 0;
     const expectedListName =
       generateMode === 'new'
         ? (newListName.trim() || `Plan semanal: ${plan.title}`)
-        : (existingLists.find((item) => item.id === selectedListId)?.name ?? 'Lista existente');
+        : (existingSelectedSummary?.name ?? 'Lista existente');
 
     try {
       const generated = await generateWeeklyPlanShoppingList(plan.id, {
@@ -356,12 +361,28 @@ export default function WeeklyPlanDetailPage() {
             }
 
             if (recoveredList) {
+              const recoveredDetail = await getList(recoveredList.id);
+              const hasUsefulItems =
+                recoveredDetail.items.length > 0 &&
+                (generateMode !== 'existing' || recoveredDetail.items.length > existingSelectedItemCount);
+
+              if (!hasUsefulItems) {
+                recoveredList = null;
+                continue;
+              }
+
               setResult({
                 list_id: recoveredList.id,
                 list_name: recoveredList.name,
-                added: recoveredList.item_count,
+                added: recoveredDetail.items.length,
                 skipped: 0,
-                items: [],
+                items: recoveredDetail.items.map((item) => ({
+                  name: item.product_name,
+                  quantity: item.quantity,
+                  price: item.product_price,
+                  source: item.note ?? undefined,
+                  resolved: !String(item.product_id ?? '').startsWith('weekly_'),
+                })),
                 resolved_real: 0,
                 resolved_fallback: 0,
                 unresolved: 0,
