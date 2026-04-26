@@ -27,7 +27,7 @@ from app.schemas.weekly_plan import (
     WeeklyPlanUpdate,
 )
 from app.services.habit_service import HabitService
-from app.services.list_service import ListService
+from app.services.list_service import ListService, sanitize_db_thumbnail
 from app.services.meal_planner_service import MEAL_SLOTS, MealPlannerService, normalize_preferences, recipe_cost_for_plan
 from app.services.recipe_service import RecipeService, _build_ingredient_note, _infer_cart_quantity, _merge_notes
 
@@ -231,7 +231,7 @@ class WeeklyPlanService:
                         "product_name": product.name if product else ingredient.name,
                         "product_price": product.price if product else None,
                         "product_unit": product.unit_size if product else ingredient.unit,
-                        "product_thumbnail": product.thumbnail if product else None,
+                        "product_thumbnail": sanitize_db_thumbnail(product.thumbnail if product else None),
                         "product_category": product.category if product else "Plan semanal",
                         "quantity": adjusted_qty,
                         "note": note,

@@ -27,6 +27,27 @@ from app.services.pantry_support import (
     units_compatible,
 )
 
+MAX_DB_THUMBNAIL_LENGTH = 500
+
+
+def sanitize_db_thumbnail(thumbnail: str | None) -> str | None:
+    if not thumbnail:
+        return None
+
+    value = thumbnail.strip()
+    if not value:
+        return None
+
+    # Los placeholders inline en base64 rompen Postgres en producción
+    # y no aportan valor persistidos en BD: la UI ya puede renderizar fallback.
+    if value.startswith("data:"):
+        return None
+
+    if len(value) > MAX_DB_THUMBNAIL_LENGTH:
+        return None
+
+    return value
+
 
 class ListService:
     def __init__(self, db: AsyncSession):
@@ -126,13 +147,14 @@ class ListService:
         if existing:
             await self.repo.update_item(existing, quantity=existing.quantity + int(data.get("quantity", 1)))
         else:
+            sanitized_thumbnail = sanitize_db_thumbnail(data.get("product_thumbnail"))
             await self.repo.add_item(
                 list_id=list_id,
                 product_id=product_id,
                 product_name=data["product_name"],
                 product_price=data.get("product_price"),
                 product_unit=data.get("product_unit"),
-                product_thumbnail=data.get("product_thumbnail"),
+                product_thumbnail=sanitized_thumbnail,
                 product_category=data.get("product_category"),
                 quantity=int(data.get("quantity", 1)),
                 note=data.get("note"),
@@ -146,7 +168,7 @@ class ListService:
                         "product_name": data["product_name"],
                         "product_price": data.get("product_price"),
                         "product_unit": data.get("product_unit"),
-                        "product_thumbnail": data.get("product_thumbnail"),
+                        "product_thumbnail": sanitize_db_thumbnail(data.get("product_thumbnail")),
                         "product_category": data.get("product_category"),
                         "quantity": int(data.get("quantity", 1)),
                         "source": data.get("source") or "manual",
