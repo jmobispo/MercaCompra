@@ -4,6 +4,16 @@ export interface User {
   username: string;
   postal_code: string;
   ui_mode: 'basic' | 'advanced';
+  theme_mode: 'light' | 'dark';
+  accent_color: string;
+  ai_enabled: boolean;
+  ai_provider: string;
+  ai_model: string;
+  ai_recipe_autofill: boolean;
+  ai_list_assist: boolean;
+  ai_plan_assist: boolean;
+  has_ai_api_key: boolean;
+  ai_api_key_preview: string | null;
   is_active: boolean;
   created_at: string;
 }
@@ -313,6 +323,42 @@ export interface RecipeStepPayload {
   text: string;
 }
 
+export interface AIRecipeEnrichPayload {
+  title: string;
+  description?: string | null;
+  servings?: number;
+  estimated_minutes?: number | null;
+  estimated_cost?: number | null;
+  calories_per_serving?: number | null;
+  protein_g?: number | null;
+  carbs_g?: number | null;
+  fat_g?: number | null;
+  fiber_g?: number | null;
+  sugar_g?: number | null;
+  sodium_mg?: number | null;
+  meal_types?: RecipeMealType[];
+  tags?: string[];
+  ingredients: RecipeIngredientPayload[];
+  steps?: RecipeStepPayload[];
+}
+
+export interface AIRecipeEnrichResult {
+  description: string | null;
+  estimated_minutes: number | null;
+  estimated_cost: number | null;
+  calories_per_serving: number | null;
+  protein_g: number | null;
+  carbs_g: number | null;
+  fat_g: number | null;
+  fiber_g: number | null;
+  sugar_g: number | null;
+  sodium_mg: number | null;
+  meal_types: RecipeMealType[];
+  tags: string[];
+  steps: RecipeStepPayload[];
+  summary: string | null;
+}
+
 export interface CreateRecipePayload {
   title: string;
   description?: string | null;
@@ -576,6 +622,12 @@ export interface GenerateWeeklyPlanListPayload {
   new_list_name?: string | null;
 }
 
+export interface AIListOptimizeResult {
+  message: string;
+  applied_changes: number;
+  shopping_list: ShoppingList;
+}
+
 export interface WeeklyPlanMealSummary {
   meal_slot: WeeklyMealSlot;
   recipe_id: number | null;
@@ -616,4 +668,10 @@ export interface WeeklyPlanGeneratedSummary {
   budget_remaining: number | null;
   within_budget: boolean | null;
   days: WeeklyPlanDaySummary[];
+}
+
+export interface AIWeeklyPlanAssistResult {
+  message: string;
+  applied_slots: number;
+  weekly_plan: WeeklyPlan;
 }

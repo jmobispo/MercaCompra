@@ -16,6 +16,15 @@ class User(Base):
     is_active = Column(Boolean, default=True, nullable=False)
     postal_code = Column(String(10), default="28001", nullable=False)
     ui_mode = Column(String(20), default="advanced", nullable=False)
+    theme_mode = Column(String(20), default="light", nullable=False)
+    accent_color = Column(String(30), default="green", nullable=False)
+    ai_enabled = Column(Boolean, default=False, nullable=False)
+    ai_provider = Column(String(30), default="openai", nullable=False)
+    ai_model = Column(String(100), default="gpt-4.1-mini", nullable=False)
+    ai_api_key = Column(String(255), nullable=True)
+    ai_recipe_autofill = Column(Boolean, default=True, nullable=False)
+    ai_list_assist = Column(Boolean, default=True, nullable=False)
+    ai_plan_assist = Column(Boolean, default=True, nullable=False)
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False)
     updated_at = Column(
         DateTime(timezone=True),

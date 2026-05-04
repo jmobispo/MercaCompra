@@ -6,6 +6,7 @@ import { resolveBackendUrl } from '../api/client';
 import { getList, getLists } from '../api/lists';
 import { getRecipes } from '../api/recipes';
 import {
+  assistWeeklyPlanWithAI,
   generateWeeklyPlan,
   generateWeeklyPlanShoppingList,
   getWeeklyPlan,
@@ -13,6 +14,7 @@ import {
   updateWeeklyPlan,
 } from '../api/weeklyPlans';
 import MealSlotPickerModal from '../components/weekly-plan/MealSlotPickerModal';
+import { useAuthStore } from '../store/authStore';
 import type {
   AddToListResult,
   RecipeSummary,
@@ -173,6 +175,7 @@ export default function WeeklyPlanDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const planId = Number(id);
+  const user = useAuthStore((state) => state.user);
 
   const [plan, setPlan] = useState<WeeklyPlan | null>(null);
   const [summary, setSummary] = useState<WeeklyPlanGeneratedSummary | null>(null);
@@ -183,6 +186,7 @@ export default function WeeklyPlanDetailPage() {
   const [generatingMenu, setGeneratingMenu] = useState(false);
   const [summaryLoading, setSummaryLoading] = useState(false);
   const [generatingList, setGeneratingList] = useState(false);
+  const [assistingAI, setAssistingAI] = useState(false);
   const [listGenerationPhase, setListGenerationPhase] = useState(0);
   const [error, setError] = useState('');
   const [showGenerateList, setShowGenerateList] = useState(false);
@@ -407,6 +411,23 @@ export default function WeeklyPlanDetailPage() {
     }
   };
 
+  const handleAIAssist = async () => {
+    if (!plan || !user?.ai_enabled || !user?.has_ai_api_key || !user?.ai_plan_assist) return;
+    setAssistingAI(true);
+    setError('');
+    try {
+      const assisted = await assistWeeklyPlanWithAI(plan.id);
+      setPlan(assisted.weekly_plan);
+      setResult(null);
+      await loadSummary(assisted.weekly_plan.id);
+      window.alert(assisted.message);
+    } catch (aiError) {
+      setError(extractApiError(aiError, 'No se pudo completar el plan con IA'));
+    } finally {
+      setAssistingAI(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="loading-overlay">
@@ -530,6 +551,11 @@ export default function WeeklyPlanDetailPage() {
           <button className="btn btn-secondary" onClick={() => void handleGenerateMenu()} disabled={generatingMenu}>
             {generatingMenu ? 'Generando...' : 'Generar menu'}
           </button>
+          {user?.ai_enabled && user?.has_ai_api_key && user?.ai_plan_assist && (
+            <button className="btn btn-secondary" onClick={() => void handleAIAssist()} disabled={assistingAI}>
+              {assistingAI ? 'Pensando...' : 'Ayuda IA'}
+            </button>
+          )}
           <button className="btn btn-primary" onClick={() => void handleSave()} disabled={saving}>
             {saving ? 'Guardando...' : 'Guardar plan'}
           </button>

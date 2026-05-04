@@ -6,10 +6,12 @@ from app.db.session import get_db
 from app.api.deps import get_current_user
 from app.models.user import User
 from app.services.recipe_service import RecipeService
+from app.services.ai_service import AIService
 from app.schemas.recipe import (
     RecipeCreate, RecipeUpdate, RecipeRead, RecipeSummary,
     AddToListPayload, AddToListResult, PantryRecipeSuggestion,
 )
+from app.schemas.ai import AIRecipeEnrichPayload, AIRecipeEnrichResult
 from app.utils.recipe_images import (
     ALLOWED_RECIPE_IMAGE_TYPES,
     MAX_RECIPE_IMAGE_BYTES,
@@ -19,6 +21,16 @@ from app.utils.recipe_images import (
 )
 
 router = APIRouter(prefix="/recipes", tags=["recipes"])
+
+
+@router.post("/ai/enrich", response_model=AIRecipeEnrichResult)
+async def enrich_recipe_with_ai(
+    payload: AIRecipeEnrichPayload,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    svc = AIService(db)
+    return await svc.enrich_recipe(current_user.id, payload)
 
 
 @router.get("/suggestions/from-pantry", response_model=List[PantryRecipeSuggestion])

@@ -1,5 +1,6 @@
 import apiClient from './client';
 import type {
+  AIListOptimizeResult,
   AddItemPayload,
   CreateListPayload,
   ListOptimizationPreview,
@@ -74,5 +75,10 @@ export const applyListOptimization = async (
   const response = await apiClient.post<ShoppingList>(`/lists/${listId}/optimize/apply`, {
     suggestion_ids: suggestionIds,
   });
+  return response.data;
+};
+
+export const aiOptimizeList = async (listId: number): Promise<AIListOptimizeResult> => {
+  const response = await apiClient.post<AIListOptimizeResult>(`/lists/${listId}/ai-optimize`);
   return response.data;
 };

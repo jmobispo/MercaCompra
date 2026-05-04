@@ -1,6 +1,7 @@
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../store/authStore';
 import { login as apiLogin, register as apiRegister, getMe, updateMe } from '../api/auth';
+import type { UpdateMePayload } from '../api/auth';
 import type { User } from '../types';
 
 export function useAuth() {
@@ -35,7 +36,7 @@ export function useAuth() {
     return userData;
   };
 
-  const update = async (data: Partial<Pick<User, 'username' | 'postal_code' | 'ui_mode'>>): Promise<User> => {
+  const update = async (data: UpdateMePayload): Promise<User> => {
     const updated = await updateMe(data);
     setUser(updated);
     return updated;

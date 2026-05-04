@@ -13,6 +13,7 @@ import ProductsPage from './pages/ProductsPage';
 import RecipeDetailPage from './pages/RecipeDetailPage';
 import RecipesPage from './pages/RecipesPage';
 import RegisterPage from './pages/RegisterPage';
+import SettingsPage from './pages/SettingsPage';
 import SpendingPage from './pages/SpendingPage';
 import SupermarketModePage from './pages/SupermarketModePage';
 import WeeklyPlanDetailPage from './pages/WeeklyPlanDetailPage';
@@ -78,6 +79,7 @@ export default function App() {
           <Route path="recipes/:id" element={<RecipeDetailPage />} />
           <Route path="spending" element={<SpendingPage />} />
           <Route path="pantry" element={<PantryPage />} />
+          <Route path="settings" element={<SettingsPage />} />
         </Route>
         <Route path="*" element={<Navigate to="/dashboard" replace />} />
       </Routes>

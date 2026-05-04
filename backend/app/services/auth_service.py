@@ -23,7 +23,7 @@ class AuthService:
             postal_code=data.postal_code,
         )
         token = create_access_token(str(user.id))
-        return TokenResponse(access_token=token, user=UserRead.model_validate(user))
+        return TokenResponse(access_token=token, user=UserRead.from_user(user))
 
     async def login(self, email: str, password: str) -> TokenResponse:
         user = await self.repo.get_by_email(email)
@@ -36,7 +36,7 @@ class AuthService:
             raise HTTPException(status_code=403, detail="Cuenta desactivada")
 
         token = create_access_token(str(user.id))
-        return TokenResponse(access_token=token, user=UserRead.model_validate(user))
+        return TokenResponse(access_token=token, user=UserRead.from_user(user))
 
     async def get_user_by_id(self, user_id: int) -> User:
         user = await self.repo.get_by_id(user_id)

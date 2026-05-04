@@ -1,7 +1,9 @@
 import { NavLink, Outlet, useLocation } from 'react-router-dom';
+import { useEffect } from 'react';
 import { useAuth } from '../../hooks/useAuth';
 import Navbar from './Navbar';
 import BrandLogo from '../branding/BrandLogo';
+import { applyUserAppearance } from '../../utils/theme';
 
 const basicNavItems = [
   { to: '/dashboard', label: 'Inicio', icon: 'home' },
@@ -10,6 +12,7 @@ const basicNavItems = [
   { to: '/weekly-plans', label: 'Planes', icon: 'calendar' },
   { to: '/lists', label: 'Mis listas', icon: 'list' },
   { to: '/recipes', label: 'Recetas', icon: 'recipe' },
+  { to: '/settings', label: 'Configuracion', icon: 'settings' },
 ];
 
 const advancedNavItems = [
@@ -21,6 +24,7 @@ const advancedNavItems = [
   { to: '/recipes', label: 'Recetas', icon: 'recipe' },
   { to: '/pantry', label: 'Despensa', icon: 'pantry' },
   { to: '/spending', label: 'Gasto', icon: 'spending' },
+  { to: '/settings', label: 'Configuracion', icon: 'settings' },
 ];
 
 function SidebarIcon({ name }: { name: string }) {
@@ -83,6 +87,12 @@ function SidebarIcon({ name }: { name: string }) {
         <circle cx="14" cy="12" r="1" fill="currentColor" />
       </>
     ),
+    settings: (
+      <>
+        <circle cx="12" cy="12" r="3.2" {...common} />
+        <path d="M12 2.8v2.1M12 19.1v2.1M4.9 4.9l1.5 1.5M17.6 17.6l1.5 1.5M2.8 12h2.1M19.1 12h2.1M4.9 19.1l1.5-1.5M17.6 6.4l1.5-1.5" {...common} />
+      </>
+    ),
     mode: (
       <>
         <path d="M12 3v3M12 18v3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M3 12h3M18 12h3M4.9 19.1 7 17M17 7l2.1-2.1" {...common} />
@@ -107,6 +117,10 @@ export default function Layout() {
   const isAdvanced = user?.ui_mode !== 'basic';
   const navItems = isAdvanced ? advancedNavItems : basicNavItems;
 
+  useEffect(() => {
+    applyUserAppearance(user ?? null);
+  }, [user]);
+
   const toggleMode = async () => {
     if (!user) return;
     await update({ ui_mode: isAdvanced ? 'basic' : 'advanced' });
@@ -125,6 +139,7 @@ export default function Layout() {
     if (location.pathname.startsWith('/recipes/')) return 'Detalle de receta';
     if (location.pathname === '/pantry') return 'Despensa';
     if (location.pathname === '/spending') return 'Control de gasto';
+    if (location.pathname === '/settings') return 'Configuracion';
     if (location.pathname.endsWith('/supermarket')) return 'Modo supermercado';
     return 'MercaCompra';
   };

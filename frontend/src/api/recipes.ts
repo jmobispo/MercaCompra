@@ -1,5 +1,7 @@
 import apiClient from './client';
 import type {
+  AIRecipeEnrichPayload,
+  AIRecipeEnrichResult,
   Recipe,
   RecipeSummary,
   CreateRecipePayload,
@@ -180,4 +182,11 @@ export const addRecipeToList = async (
 export const getPantryRecipeSuggestions = async (): Promise<PantryRecipeSuggestion[]> => {
   const r = await apiClient.get<PantryRecipeSuggestion[]>('/recipes/suggestions/from-pantry');
   return Array.isArray(r.data) ? r.data.map(normalizePantrySuggestion) : [];
+};
+
+export const enrichRecipeWithAI = async (
+  payload: AIRecipeEnrichPayload
+): Promise<AIRecipeEnrichResult> => {
+  const response = await apiClient.post<AIRecipeEnrichResult>('/recipes/ai/enrich', payload);
+  return response.data;
 };

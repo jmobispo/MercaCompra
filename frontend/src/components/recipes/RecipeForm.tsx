@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
-import { deleteRecipeImage, uploadRecipeImage } from '../../api/recipes';
+import { deleteRecipeImage, enrichRecipeWithAI, uploadRecipeImage } from '../../api/recipes';
 import { resolveBackendUrl } from '../../api/client';
+import { useAuthStore } from '../../store/authStore';
 import type {
+  AIRecipeEnrichResult,
   Recipe,
   RecipeIngredientPayload,
   RecipeStepPayload,
@@ -23,6 +25,8 @@ const MEAL_TYPE_OPTIONS: Array<{ value: RecipeMealType; label: string }> = [
   { value: 'desayuno', label: 'Desayuno' },
   { value: 'comida', label: 'Comida' },
   { value: 'cena', label: 'Cena' },
+  { value: 'merienda', label: 'Merienda' },
+  { value: 'postre', label: 'Postre' },
 ];
 
 function emptyIngredient(): RecipeIngredientPayload {
@@ -74,7 +78,11 @@ export default function RecipeForm({
   const [previewUrl, setPreviewUrl] = useState<string | null>(resolveBackendUrl(initial?.image_url));
   const [removeImage, setRemoveImage] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [enrichingAI, setEnrichingAI] = useState(false);
   const [error, setError] = useState('');
+  const [info, setInfo] = useState('');
+  const user = useAuthStore((state) => state.user);
+  const canUseRecipeAI = Boolean(user?.ai_enabled && user?.has_ai_api_key && user?.ai_recipe_autofill);
 
   const currentImageLabel = useMemo(() => {
     if (selectedImage) return selectedImage.name;
@@ -136,6 +144,69 @@ export default function RecipeForm({
     setRemoveImage(true);
   };
 
+  const handleEnrichWithAI = async () => {
+    if (!canUseRecipeAI) return;
+    if (!recipeTitle.trim()) {
+      setError('Escribe al menos el titulo antes de usar la IA.');
+      return;
+    }
+    const cleanIngredients = ingredients.filter((ingredient) => ingredient.name.trim());
+    if (cleanIngredients.length === 0) {
+      setError('Añade ingredientes antes de pedir ayuda con IA.');
+      return;
+    }
+
+    setEnrichingAI(true);
+    setError('');
+    setInfo('');
+    try {
+      const result = await enrichRecipeWithAI({
+        title: recipeTitle.trim(),
+        description: description.trim() || null,
+        servings,
+        estimated_minutes: minutes ? parseInt(minutes, 10) : null,
+        estimated_cost: cost ? parseFloat(cost) : null,
+        calories_per_serving: calories ? parseFloat(calories) : null,
+        protein_g: protein ? parseFloat(protein) : null,
+        carbs_g: carbs ? parseFloat(carbs) : null,
+        fat_g: fat ? parseFloat(fat) : null,
+        fiber_g: fiber ? parseFloat(fiber) : null,
+        sugar_g: sugar ? parseFloat(sugar) : null,
+        sodium_mg: sodium ? parseFloat(sodium) : null,
+        meal_types: mealTypes,
+        tags: tagsRaw.split(',').map((tag) => tag.trim()).filter(Boolean),
+        ingredients: cleanIngredients,
+        steps,
+      });
+
+      if (!description.trim() && result.description) setDescription(result.description);
+      if (!minutes && result.estimated_minutes != null) setMinutes(String(result.estimated_minutes));
+      if (!cost && result.estimated_cost != null) setCost(String(result.estimated_cost));
+      if (!calories && result.calories_per_serving != null) setCalories(String(result.calories_per_serving));
+      if (!protein && result.protein_g != null) setProtein(String(result.protein_g));
+      if (!carbs && result.carbs_g != null) setCarbs(String(result.carbs_g));
+      if (!fat && result.fat_g != null) setFat(String(result.fat_g));
+      if (!fiber && result.fiber_g != null) setFiber(String(result.fiber_g));
+      if (!sugar && result.sugar_g != null) setSugar(String(result.sugar_g));
+      if (!sodium && result.sodium_mg != null) setSodium(String(result.sodium_mg));
+      if (mealTypes.length === 0 && result.meal_types.length > 0) {
+        setMealTypes(result.meal_types);
+      }
+      if (!tagsRaw.trim() && result.tags.length > 0) {
+        setTagsRaw(result.tags.join(', '));
+      }
+      if (steps.filter((step) => step.text.trim()).length === 0 && result.steps.length > 0) {
+        setSteps(result.steps.map((step, index) => ({ text: step.text, position: step.position ?? index })));
+      }
+
+      setInfo(result.summary ?? 'La IA ha completado los campos que faltaban.');
+    } catch {
+      setError('No se pudo completar la receta con IA.');
+    } finally {
+      setEnrichingAI(false);
+    }
+  };
+
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
 
@@ -156,39 +227,98 @@ export default function RecipeForm({
 
     setSaving(true);
     setError('');
+    setInfo('');
 
     try {
+      const cleanedIngredients = ingredients
+        .filter((ingredient) => ingredient.name.trim())
+        .map((ingredient, position) => ({
+          ...ingredient,
+          name: ingredient.name.trim(),
+          quantity: ingredient.quantity ?? null,
+          unit: ingredient.unit?.trim() || null,
+          notes: ingredient.notes?.trim() || null,
+          product_query: ingredient.product_query?.trim() || null,
+          position,
+        }));
+
+      const cleanedSteps = steps
+        .filter((step) => step.text.trim())
+        .map((step, position) => ({
+          text: step.text.trim(),
+          position,
+        }));
+
+      let aiResult: AIRecipeEnrichResult | null = null;
+      const shouldAutoEnrich =
+        canUseRecipeAI &&
+        (
+          !description.trim() ||
+          !minutes ||
+          !cost ||
+          !calories ||
+          !protein ||
+          !carbs ||
+          !fat ||
+          !fiber ||
+          !sugar ||
+          !sodium ||
+          mealTypes.length === 0 ||
+          !tagsRaw.trim() ||
+          cleanedSteps.length === 0
+        );
+
+      if (shouldAutoEnrich) {
+        try {
+          aiResult = await enrichRecipeWithAI({
+            title: recipeTitle.trim(),
+            description: description.trim() || null,
+            servings,
+            estimated_minutes: minutes ? parseInt(minutes, 10) : null,
+            estimated_cost: cost ? parseFloat(cost) : null,
+            calories_per_serving: calories ? parseFloat(calories) : null,
+            protein_g: protein ? parseFloat(protein) : null,
+            carbs_g: carbs ? parseFloat(carbs) : null,
+            fat_g: fat ? parseFloat(fat) : null,
+            fiber_g: fiber ? parseFloat(fiber) : null,
+            sugar_g: sugar ? parseFloat(sugar) : null,
+            sodium_mg: sodium ? parseFloat(sodium) : null,
+            meal_types: mealTypes,
+            tags: tagsRaw.split(',').map((tag) => tag.trim()).filter(Boolean),
+            ingredients: cleanedIngredients,
+            steps: cleanedSteps,
+          });
+          if (aiResult?.summary) {
+            setInfo(aiResult.summary);
+          }
+        } catch {
+          // Si la IA falla, no bloqueamos el guardado manual.
+        }
+      }
+
       let savedRecipe = await onSubmit({
         title: recipeTitle.trim(),
-        description: description.trim() || null,
+        description: description.trim() || aiResult?.description || null,
         servings,
-        estimated_minutes: minutes ? parseInt(minutes, 10) : null,
-        estimated_cost: cost ? parseFloat(cost) : null,
-        calories_per_serving: calories ? parseFloat(calories) : null,
-        protein_g: protein ? parseFloat(protein) : null,
-        carbs_g: carbs ? parseFloat(carbs) : null,
-        fat_g: fat ? parseFloat(fat) : null,
-        fiber_g: fiber ? parseFloat(fiber) : null,
-        sugar_g: sugar ? parseFloat(sugar) : null,
-        sodium_mg: sodium ? parseFloat(sodium) : null,
-        meal_types: mealTypes,
-        tags: tagsRaw.split(',').map((tag) => tag.trim()).filter(Boolean),
-        ingredients: ingredients
-          .filter((ingredient) => ingredient.name.trim())
-          .map((ingredient, position) => ({
-            ...ingredient,
-            name: ingredient.name.trim(),
-            quantity: ingredient.quantity ?? null,
-            unit: ingredient.unit?.trim() || null,
-            notes: ingredient.notes?.trim() || null,
-            product_query: ingredient.product_query?.trim() || null,
-            position,
-          })),
-        steps: steps
-          .filter((step) => step.text.trim())
-          .map((step, position) => ({
+        estimated_minutes: minutes ? parseInt(minutes, 10) : (aiResult?.estimated_minutes ?? null),
+        estimated_cost: cost ? parseFloat(cost) : (aiResult?.estimated_cost ?? null),
+        calories_per_serving: calories ? parseFloat(calories) : (aiResult?.calories_per_serving ?? null),
+        protein_g: protein ? parseFloat(protein) : (aiResult?.protein_g ?? null),
+        carbs_g: carbs ? parseFloat(carbs) : (aiResult?.carbs_g ?? null),
+        fat_g: fat ? parseFloat(fat) : (aiResult?.fat_g ?? null),
+        fiber_g: fiber ? parseFloat(fiber) : (aiResult?.fiber_g ?? null),
+        sugar_g: sugar ? parseFloat(sugar) : (aiResult?.sugar_g ?? null),
+        sodium_mg: sodium ? parseFloat(sodium) : (aiResult?.sodium_mg ?? null),
+        meal_types: mealTypes.length > 0 ? mealTypes : (aiResult?.meal_types ?? []),
+        tags: tagsRaw.split(',').map((tag) => tag.trim()).filter(Boolean).length > 0
+          ? tagsRaw.split(',').map((tag) => tag.trim()).filter(Boolean)
+          : (aiResult?.tags ?? []),
+        ingredients: cleanedIngredients,
+        steps: cleanedSteps.length > 0
+          ? cleanedSteps
+          : (aiResult?.steps ?? []).map((step, position) => ({
             text: step.text.trim(),
-            position,
+            position: step.position ?? position,
           })),
       });
 
@@ -212,12 +342,25 @@ export default function RecipeForm({
       <div className="modal-content" style={{ maxWidth: 820, maxHeight: '90vh' }}>
         <div className="modal-header">
           <h2>{title}</h2>
-          <button className="btn-icon" onClick={onCancel}>×</button>
+          <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+            {canUseRecipeAI && (
+              <button
+                type="button"
+                className="btn btn-secondary btn-sm"
+                onClick={() => void handleEnrichWithAI()}
+                disabled={saving || enrichingAI}
+              >
+                {enrichingAI ? 'Completando...' : 'Completar con IA'}
+              </button>
+            )}
+            <button className="btn-icon" onClick={onCancel}>×</button>
+          </div>
         </div>
 
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', minHeight: 0 }}>
           <div className="modal-body modal-body-scroll recipe-form-grid">
             {error && <div className="alert alert-error">{error}</div>}
+            {info && <div className="alert alert-success">{info}</div>}
 
             <div className="form-group">
               <label className="form-label">Titulo *</label>

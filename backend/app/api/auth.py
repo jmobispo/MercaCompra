@@ -28,7 +28,7 @@ async def login(data: UserLogin, db: AsyncSession = Depends(get_db)):
 @router.get("/me", response_model=UserRead)
 async def me(current_user: User = Depends(get_current_user)):
     """Get current user profile."""
-    return UserRead.model_validate(current_user)
+    return UserRead.from_user(current_user)
 
 
 @router.put("/me", response_model=UserRead)
@@ -48,6 +48,26 @@ async def update_me(
         updates["hashed_password"] = hash_password(data.password)
     if data.ui_mode in ("basic", "advanced"):
         updates["ui_mode"] = data.ui_mode
+    if data.theme_mode in ("light", "dark"):
+        updates["theme_mode"] = data.theme_mode
+    if data.accent_color:
+        updates["accent_color"] = data.accent_color
+    if data.ai_enabled is not None:
+        updates["ai_enabled"] = data.ai_enabled
+    if data.ai_provider:
+        updates["ai_provider"] = data.ai_provider.strip().lower()
+    if data.ai_model:
+        updates["ai_model"] = data.ai_model.strip()
+    if data.ai_api_key:
+        updates["ai_api_key"] = data.ai_api_key.strip()
+    if data.clear_ai_api_key:
+        updates["ai_api_key"] = None
+    if data.ai_recipe_autofill is not None:
+        updates["ai_recipe_autofill"] = data.ai_recipe_autofill
+    if data.ai_list_assist is not None:
+        updates["ai_list_assist"] = data.ai_list_assist
+    if data.ai_plan_assist is not None:
+        updates["ai_plan_assist"] = data.ai_plan_assist
 
     updated = await repo.update(current_user, **updates)
-    return UserRead.model_validate(updated)
+    return UserRead.from_user(updated)

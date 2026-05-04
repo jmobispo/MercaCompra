@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, KeyboardEvent } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import {
+  aiOptimizeList,
   getList,
   updateList,
   deleteItem,
@@ -35,6 +36,7 @@ export default function ListDetailPage() {
   const [thumbnailOverrides, setThumbnailOverrides] = useState<Record<number, string>>({});
   const [enrichedListId, setEnrichedListId] = useState<number | null>(null);
   const [thumbnailBatchCursor, setThumbnailBatchCursor] = useState(0);
+  const [optimizingAI, setOptimizingAI] = useState(false);
 
   const listId = parseInt(id ?? '0', 10);
 
@@ -255,6 +257,21 @@ export default function ListDetailPage() {
     }
   };
 
+  const handleAIOptimize = async () => {
+    if (!list || !user?.ai_enabled || !user?.has_ai_api_key || !user?.ai_list_assist) return;
+    setOptimizingAI(true);
+    setError('');
+    try {
+      const result = await aiOptimizeList(list.id);
+      setList(result.shopping_list);
+      window.alert(result.message);
+    } catch {
+      setError('No se pudo mejorar la lista con IA');
+    } finally {
+      setOptimizingAI(false);
+    }
+  };
+
   const formatCurrency = (val: number | null) =>
     val != null
       ? val.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })
@@ -340,6 +357,15 @@ export default function ListDetailPage() {
           >
             ✏️ Editar
           </button>
+          {user?.ai_enabled && user?.has_ai_api_key && user?.ai_list_assist && (
+            <button
+              className="btn btn-secondary btn-sm"
+              onClick={() => void handleAIOptimize()}
+              disabled={optimizingAI}
+            >
+              {optimizingAI ? 'Mejorando...' : 'Mejorar con IA'}
+            </button>
+          )}
           <button
             className="btn btn-secondary btn-sm"
             onClick={() => navigate('/lists')}

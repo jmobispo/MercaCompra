@@ -4,6 +4,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.deps import get_current_user
 from app.db.session import get_db
 from app.models.user import User
+from app.schemas.ai import AIWeeklyPlanAssistResult
 from app.schemas.recipe import AddToListResult
 from app.schemas.weekly_plan import (
     WeeklyPlanCreate,
@@ -14,6 +15,7 @@ from app.schemas.weekly_plan import (
     WeeklyPlanUpdate,
 )
 from app.services.weekly_plan_service import WeeklyPlanService
+from app.services.ai_service import AIService
 
 
 router = APIRouter(prefix="/weekly-plans", tags=["weekly-plans"])
@@ -91,3 +93,12 @@ async def generate_shopping_list_from_plan(
     db: AsyncSession = Depends(get_db),
 ):
     return await WeeklyPlanService(db).generate_shopping_list(plan_id, current_user.id, payload)
+
+
+@router.post("/{plan_id}/ai-assist", response_model=AIWeeklyPlanAssistResult)
+async def assist_weekly_plan_with_ai(
+    plan_id: int,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    return await AIService(db).assist_weekly_plan(current_user.id, plan_id)

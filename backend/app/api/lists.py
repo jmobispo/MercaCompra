@@ -18,7 +18,9 @@ from app.schemas.shopping_list import (
     ShoppingListSummary,
     ShoppingListUpdate,
 )
+from app.schemas.ai import AIListOptimizeResult
 from app.services.list_service import ListService
+from app.services.ai_service import AIService
 
 
 class SupermarketGroup(BaseModel):
@@ -179,3 +181,13 @@ async def apply_list_optimization(
 ):
     svc = ListService(db)
     return await svc.apply_optimization(list_id, current_user.id, payload.suggestion_ids)
+
+
+@router.post("/{list_id}/ai-optimize", response_model=AIListOptimizeResult)
+async def apply_list_ai_optimization(
+    list_id: int,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    svc = AIService(db)
+    return await svc.optimize_list(current_user.id, list_id)

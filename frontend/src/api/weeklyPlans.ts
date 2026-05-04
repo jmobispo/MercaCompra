@@ -1,5 +1,6 @@
 import apiClient from './client';
 import type {
+  AIWeeklyPlanAssistResult,
   AddToListResult,
   CreateWeeklyPlanPayload,
   GenerateWeeklyPlanListPayload,
@@ -48,5 +49,10 @@ export const generateWeeklyPlanShoppingList = async (
   payload: GenerateWeeklyPlanListPayload
 ): Promise<AddToListResult> => {
   const response = await apiClient.post<AddToListResult>(`/weekly-plans/${id}/generate-shopping-list`, payload);
+  return response.data;
+};
+
+export const assistWeeklyPlanWithAI = async (id: number): Promise<AIWeeklyPlanAssistResult> => {
+  const response = await apiClient.post<AIWeeklyPlanAssistResult>(`/weekly-plans/${id}/ai-assist`);
   return response.data;
 };

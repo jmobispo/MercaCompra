@@ -37,6 +37,57 @@
   --sidebar-width: 280px;
 }
 
+:root[data-theme="dark"] {
+  --color-primary-light: rgba(31, 168, 79, 0.18);
+  --color-accent-soft: rgba(249, 115, 22, 0.16);
+  --color-info-soft: rgba(79, 70, 229, 0.18);
+  --color-text: #ecf3ff;
+  --color-text-secondary: #c1cee4;
+  --color-text-muted: #90a2bf;
+  --color-border: rgba(148, 163, 184, 0.18);
+  --color-border-strong: rgba(148, 163, 184, 0.28);
+  --color-bg: #0e1624;
+  --color-bg-elevated: rgba(18, 28, 43, 0.88);
+  --color-panel: #131f31;
+  --color-white: #ffffff;
+  --color-sidebar: #101a2a;
+  --color-sidebar-text: #b9c9de;
+  --color-sidebar-active: rgba(31, 168, 79, 0.16);
+  --color-sidebar-border: rgba(148, 163, 184, 0.12);
+  --color-glass: rgba(17, 27, 41, 0.72);
+  --shadow: 0 12px 34px rgba(0, 0, 0, 0.28);
+  --shadow-md: 0 24px 54px rgba(0, 0, 0, 0.34);
+  --shadow-lg: 0 36px 72px rgba(0, 0, 0, 0.4);
+}
+
+:root[data-accent="blue"] {
+  --color-primary: #2288ff;
+  --color-primary-dark: #175ec4;
+  --color-primary-light: #edf5ff;
+  --color-primary-soft: #7ed9ff;
+}
+
+:root[data-accent="coral"] {
+  --color-primary: #f26a5b;
+  --color-primary-dark: #be3f33;
+  --color-primary-light: #fff1ee;
+  --color-primary-soft: #ffb76f;
+}
+
+:root[data-accent="amber"] {
+  --color-primary: #d28b10;
+  --color-primary-dark: #925c00;
+  --color-primary-light: #fff7e8;
+  --color-primary-soft: #ffe06e;
+}
+
+:root[data-accent="plum"] {
+  --color-primary: #8f5cff;
+  --color-primary-dark: #6639c9;
+  --color-primary-light: #f4efff;
+  --color-primary-soft: #d2b7ff;
+}
+
 /* Reset */
 *, *::before, *::after {
   box-sizing: border-box;
@@ -58,6 +109,13 @@ body {
     linear-gradient(180deg, #f9fcff 0%, #f3f7fb 100%);
   line-height: 1.5;
   letter-spacing: -0.01em;
+}
+
+:root[data-theme="dark"] body {
+  background:
+    radial-gradient(circle at top left, rgba(31, 168, 79, 0.12), transparent 24%),
+    radial-gradient(circle at top right, rgba(79, 70, 229, 0.14), transparent 20%),
+    linear-gradient(180deg, #0b1320 0%, #101a2a 100%);
 }
 
 a {
@@ -280,6 +338,138 @@ input, select, textarea {
   background: rgba(31, 168, 79, 0.08);
   color: var(--color-primary-dark);
   transform: translateX(2px);
+}
+
+.settings-page {
+  display: grid;
+  gap: 20px;
+}
+
+.settings-grid {
+  display: grid;
+  gap: 20px;
+}
+
+.settings-card {
+  overflow: hidden;
+}
+
+.settings-card-wide {
+  grid-column: 1 / -1;
+}
+
+.settings-card-body {
+  display: grid;
+  gap: 18px;
+}
+
+.settings-segment {
+  display: inline-flex;
+  padding: 6px;
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  background: var(--color-bg);
+  gap: 6px;
+}
+
+.settings-segment-option {
+  padding: 10px 16px;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--color-text-secondary);
+  font-weight: 700;
+}
+
+.settings-segment-option.active {
+  background: linear-gradient(135deg, var(--color-primary-light), rgba(255,255,255,0.92));
+  color: var(--color-primary-dark);
+  box-shadow: var(--shadow);
+}
+
+.settings-accent-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.accent-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  background: var(--color-panel);
+  color: var(--color-text);
+  font-weight: 700;
+}
+
+.accent-chip.active {
+  border-color: rgba(31, 168, 79, 0.3);
+  box-shadow: var(--shadow);
+}
+
+.accent-chip-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 999px;
+  background: currentColor;
+}
+
+.accent-green { color: #1fa84f; }
+.accent-blue { color: #2288ff; }
+.accent-coral { color: #f26a5b; }
+.accent-amber { color: #d28b10; }
+.accent-plum { color: #8f5cff; }
+
+.settings-toggle-grid {
+  display: grid;
+  gap: 12px;
+}
+
+.settings-toggle {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 14px 16px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  background: var(--color-bg-elevated);
+}
+
+.settings-toggle input {
+  margin-top: 2px;
+}
+
+.settings-toggle span {
+  display: grid;
+  gap: 4px;
+}
+
+.settings-toggle small,
+.form-help {
+  color: var(--color-text-muted);
+}
+
+.settings-hint-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-top: 8px;
+}
+
+.settings-inline-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--color-text-secondary);
+}
+
+.settings-actions {
+  display: flex;
+  justify-content: flex-end;
 }
 
 .main-area {
@@ -3798,6 +3988,22 @@ textarea.form-input {
 @media (max-width: 768px) {
   .page-content {
     padding: 20px 16px 28px;
+  }
+
+  .settings-segment {
+    width: 100%;
+  }
+
+  .settings-segment-option {
+    flex: 1;
+  }
+
+  .settings-actions {
+    justify-content: stretch;
+  }
+
+  .settings-actions .btn {
+    width: 100%;
   }
 
   .sidebar {
