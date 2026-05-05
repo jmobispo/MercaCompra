@@ -337,9 +337,31 @@ class ProductService:
             if effective_mode in {"fallback", "hybrid"}:
                 try:
                     raw = get_fallback_category_products(category_id)
-                    category_name, products = _normalize_category_products(raw, postal_code, warehouse)
-                    source = "fallback"
-                    error = f"{type(e).__name__}: {str(e)[:200]}"
+                    category_name, fallback_products = _normalize_category_products(raw, postal_code, warehouse)
+                    remote_products: list[ProductRead] = []
+                    if category_name:
+                        try:
+                            remote_raw = await search_products(
+                                category_name,
+                                postal_code=postal_code,
+                                limit=50,
+                                mode="mercadona",
+                            )
+                            remote_products = [_to_product_read(p, postal_code, warehouse) for p in remote_raw]
+                        except Exception as remote_error:
+                            logger.warning(
+                                f"Remote category-name search failed for {category_name} ({category_id}): {remote_error}"
+                            )
+
+                    if remote_products:
+                        category_name = category_name or raw.get("name") or "Categoria"
+                        products = remote_products
+                        source = "mercadona_api"
+                        error = None
+                    else:
+                        products = fallback_products
+                        source = "fallback"
+                        error = f"{type(e).__name__}: {str(e)[:200]}"
                 except Exception as fallback_error:
                     remote_name = _REMOTE_CATEGORY_NAME_CACHE.get(postal_code, {}).get(str(category_id))
                     if remote_name:
