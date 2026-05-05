@@ -1,6 +1,7 @@
 from pydantic import BaseModel, Field
 from datetime import datetime
 from typing import Optional
+from app.core.secrets import decrypt_secret
 
 
 class UserCreate(BaseModel):
@@ -41,8 +42,15 @@ class UserRead(BaseModel):
     def from_user(cls, user) -> "UserRead":
         preview = None
         if getattr(user, "ai_api_key", None):
-            suffix = user.ai_api_key[-4:]
-            preview = f"••••{suffix}"
+            try:
+                plain_secret = decrypt_secret(user.ai_api_key)
+            except ValueError:
+                plain_secret = None
+
+            if plain_secret:
+                preview = f"••••{plain_secret[-4:]}"
+            else:
+                preview = "••••guardada"
         return cls(
             id=user.id,
             email=user.email,
@@ -74,7 +82,7 @@ class UserUpdate(BaseModel):
     ai_enabled: Optional[bool] = None
     ai_provider: Optional[str] = Field(None, min_length=2, max_length=30)
     ai_model: Optional[str] = Field(None, min_length=2, max_length=100)
-    ai_api_key: Optional[str] = Field(None, min_length=10, max_length=255)
+    ai_api_key: Optional[str] = Field(None, min_length=10, max_length=2000)
     clear_ai_api_key: Optional[bool] = None
     ai_recipe_autofill: Optional[bool] = None
     ai_list_assist: Optional[bool] = None

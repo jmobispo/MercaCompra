@@ -7,6 +7,7 @@ from app.api.deps import get_current_user
 from app.models.user import User
 from app.repositories.user_repo import UserRepository
 from app.core.security import hash_password
+from app.core.secrets import encrypt_secret
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -59,7 +60,7 @@ async def update_me(
     if data.ai_model:
         updates["ai_model"] = data.ai_model.strip()
     if data.ai_api_key:
-        updates["ai_api_key"] = data.ai_api_key.strip()
+        updates["ai_api_key"] = encrypt_secret(data.ai_api_key.strip())
     if data.clear_ai_api_key:
         updates["ai_api_key"] = None
     if data.ai_recipe_autofill is not None:

@@ -12,6 +12,7 @@ class Settings(BaseSettings):
 
     # Security
     SECRET_KEY: str = "change-me-in-production-use-openssl-rand-hex-32"
+    AI_ENCRYPTION_KEY: Optional[str] = None
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 7  # 7 days
 

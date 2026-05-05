@@ -21,7 +21,7 @@ class User(Base):
     ai_enabled = Column(Boolean, default=False, nullable=False)
     ai_provider = Column(String(30), default="openai", nullable=False)
     ai_model = Column(String(100), default="gpt-4.1-mini", nullable=False)
-    ai_api_key = Column(String(255), nullable=True)
+    ai_api_key = Column(String(2048), nullable=True)
     ai_recipe_autofill = Column(Boolean, default=True, nullable=False)
     ai_list_assist = Column(Boolean, default=True, nullable=False)
     ai_plan_assist = Column(Boolean, default=True, nullable=False)

@@ -11,6 +11,7 @@ from app.models.recipe import Recipe
 from app.models.shopping_list import ShoppingList
 from app.models.user import User
 from app.models.weekly_plan import WeeklyPlan, WeeklyPlanDay
+from app.core.secrets import decrypt_secret, encrypt_secret, is_encrypted_secret
 from app.schemas.ai import (
     AIListOptimizeResult,
     AIRecipeEnrichPayload,
@@ -336,11 +337,18 @@ class AIService:
             raise HTTPException(status_code=400, detail="Esta ayuda IA está desactivada en tu cuenta")
         if not getattr(user, "ai_api_key", None):
             raise HTTPException(status_code=400, detail="Falta la API key de IA en la configuración")
+        if not is_encrypted_secret(user.ai_api_key):
+            user.ai_api_key = encrypt_secret(user.ai_api_key)
+            await self.db.commit()
+            await self.db.refresh(user)
         return user
 
     async def _chat_json(self, user: User, system_prompt: str, payload: dict, schema: dict) -> dict:
+        api_key = decrypt_secret(user.ai_api_key)
+        if not api_key:
+            raise HTTPException(status_code=400, detail="No se pudo leer la API key de IA")
         headers = {
-            "Authorization": f"Bearer {user.ai_api_key}",
+            "Authorization": f"Bearer {api_key}",
             "Content-Type": "application/json",
         }
         body = {
