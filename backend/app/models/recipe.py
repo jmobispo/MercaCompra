@@ -33,7 +33,7 @@ class Recipe(Base):
     meal_types = Column(JSON, nullable=True)    # list["desayuno"|"comida"|"cena"]
     tags = Column(JSON, nullable=True)          # list[str]
     steps = Column(JSON, nullable=True)         # list[{position:int,text:str}]
-    image_url = Column(String(500), nullable=True)
+    image_url = Column(Text, nullable=True)
     is_public = Column(Boolean, default=False, nullable=False)   # True for seed/template recipes
 
     created_at = Column(DateTime(timezone=True), default=_now, nullable=False)

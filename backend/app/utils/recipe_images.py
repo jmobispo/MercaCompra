@@ -1,4 +1,5 @@
 from pathlib import Path
+import base64
 from uuid import uuid4
 
 
@@ -41,6 +42,11 @@ def save_recipe_image_bytes(filename: str, content: bytes) -> str:
     path = get_recipe_upload_dir() / filename
     path.write_bytes(content)
     return build_recipe_image_url(filename)
+
+
+def build_recipe_image_data_url(content_type: str, content: bytes) -> str:
+    encoded = base64.b64encode(content).decode("ascii")
+    return f"data:{content_type};base64,{encoded}"
 
 
 def is_local_recipe_image_url(image_url: str | None) -> bool:

@@ -16,6 +16,7 @@ const API_URL = import.meta.env.VITE_API_URL ?? '/api/v1';
 
 export function resolveBackendUrl(path?: string | null): string | null {
   if (!path) return null;
+  if (/^data:/i.test(path)) return path;
   if (/^https?:\/\//i.test(path)) return path;
 
   if (API_URL.startsWith('http')) {

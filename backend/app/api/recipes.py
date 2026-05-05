@@ -15,9 +15,7 @@ from app.schemas.ai import AIRecipeEnrichPayload, AIRecipeEnrichResult
 from app.utils.recipe_images import (
     ALLOWED_RECIPE_IMAGE_TYPES,
     MAX_RECIPE_IMAGE_BYTES,
-    delete_recipe_image_file,
-    generate_recipe_image_filename,
-    save_recipe_image_bytes,
+    build_recipe_image_data_url,
 )
 
 router = APIRouter(prefix="/recipes", tags=["recipes"])
@@ -126,15 +124,10 @@ async def upload_recipe_image(
     if len(content) > MAX_RECIPE_IMAGE_BYTES:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="La imagen supera el maximo de 5 MB.")
 
-    filename = generate_recipe_image_filename(image.content_type)
-    image_url = save_recipe_image_bytes(filename, content)
+    image_url = build_recipe_image_data_url(image.content_type, content)
     svc = RecipeService(db)
 
-    try:
-        return await svc.set_recipe_image(recipe_id, current_user.id, image_url)
-    except Exception:
-        delete_recipe_image_file(image_url)
-        raise
+    return await svc.set_recipe_image(recipe_id, current_user.id, image_url)
 
 
 @router.delete("/{recipe_id}/image", response_model=RecipeRead)
