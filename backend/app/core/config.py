@@ -1,7 +1,10 @@
 from pydantic_settings import BaseSettings
 from functools import lru_cache
 from typing import Optional
-import os
+from pathlib import Path
+
+
+ENV_PATH = Path(__file__).resolve().parents[2] / ".env"
 
 
 class Settings(BaseSettings):
@@ -50,7 +53,7 @@ class Settings(BaseSettings):
     LOG_LEVEL: str = "INFO"
 
     class Config:
-        env_file = ".env"
+        env_file = str(ENV_PATH)
         extra = "ignore"
 
     @property

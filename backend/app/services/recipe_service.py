@@ -33,9 +33,11 @@ from app.services.pantry_support import (
 )
 from app.services.product_service import ProductService
 from app.utils.recipe_images import (
+    build_recipe_image_data_url_from_path,
     build_recipe_image_url,
     delete_recipe_image_file,
     get_recipe_upload_dir,
+    recipe_image_path_from_url,
     is_local_recipe_image_url,
 )
 
@@ -842,7 +844,7 @@ class RecipeService:
             meal_types=_normalize_meal_types(recipe.meal_types),
             tags=recipe.tags,
             steps=_normalize_steps(recipe.steps),
-            image_url=recipe.image_url,
+            image_url=_exposed_recipe_image_url(recipe),
             is_public=recipe.is_public,
             ingredient_count=len(recipe.ingredients),
             created_at=recipe.created_at,
@@ -963,10 +965,17 @@ class RecipeService:
             .order_by(Recipe.is_public.asc(), Recipe.updated_at.desc())
         )
         recipes = result.scalars().all()
+        migrated = False
+        for recipe in recipes:
+            migrated = await self._maybe_embed_legacy_image(recipe) or migrated
+        if migrated:
+            await self.db.commit()
         return [self._to_summary(r) for r in recipes]
 
     async def get_recipe(self, recipe_id: int, user_id: int) -> RecipeRead:
         recipe = await self._get_recipe_or_404(recipe_id, user_id)
+        if await self._maybe_embed_legacy_image(recipe):
+            await self.db.commit()
         return _to_recipe_read(recipe)
 
     async def create_recipe(self, user_id: int, data: RecipeCreate) -> RecipeRead:
@@ -1015,6 +1024,20 @@ class RecipeService:
             .execution_options(populate_existing=True)
         )
         return _to_recipe_read(result.scalar_one())
+
+    async def _maybe_embed_legacy_image(self, recipe: Recipe) -> bool:
+        image_url = recipe.image_url
+        if not is_local_recipe_image_url(image_url):
+            return False
+        path = recipe_image_path_from_url(image_url)
+        if not path:
+            return False
+        embedded = build_recipe_image_data_url_from_path(path)
+        if not embedded:
+            return False
+        recipe.image_url = embedded
+        recipe.updated_at = datetime.now(timezone.utc)
+        return True
 
     async def update_recipe(self, recipe_id: int, user_id: int, data: RecipeUpdate) -> RecipeRead:
         recipe = await self._get_mutable_recipe_or_404(recipe_id, user_id)
@@ -1634,7 +1657,7 @@ def _to_recipe_read(recipe: Recipe) -> RecipeRead:
         meal_types=_normalize_meal_types(recipe.meal_types),
         tags=recipe.tags,
         steps=_normalize_steps(recipe.steps),
-        image_url=recipe.image_url,
+        image_url=_exposed_recipe_image_url(recipe),
         is_public=recipe.is_public,
         ingredients=[
             {
@@ -1652,3 +1675,12 @@ def _to_recipe_read(recipe: Recipe) -> RecipeRead:
         created_at=recipe.created_at,
         updated_at=recipe.updated_at,
     )
+
+
+def _exposed_recipe_image_url(recipe: Recipe) -> str | None:
+    image_url = recipe.image_url
+    if is_local_recipe_image_url(image_url):
+        path = recipe_image_path_from_url(image_url)
+        if not path or not path.exists():
+            return None
+    return image_url

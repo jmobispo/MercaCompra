@@ -83,16 +83,19 @@ export default function BrandLogo({
         <div className="brand-logo-mark">
           <CartIcon />
         </div>
-      ) : null}
-      {!iconOnly && (
+      ) : (
+        <>
+          <div className="brand-logo-mark">
+            <CartIcon />
+          </div>
         <div className="brand-logo-copy">
-          <img
-            src="/mercacompra-logo.png"
-            alt="MercaCompra"
-            className="brand-logo-image"
-          />
+          <div className="brand-logo-wordmark" aria-label="MercaCompra">
+            <span className="brand-logo-wordmark-dark">Merca</span>
+            <span className="brand-logo-wordmark-light">Compra</span>
+          </div>
           {subtitle ? <p className="brand-logo-subtitle">{subtitle}</p> : null}
         </div>
+        </>
       )}
     </div>
   );

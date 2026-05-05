@@ -1,5 +1,6 @@
 from pathlib import Path
 import base64
+import mimetypes
 from uuid import uuid4
 
 
@@ -49,6 +50,15 @@ def build_recipe_image_data_url(content_type: str, content: bytes) -> str:
     return f"data:{content_type};base64,{encoded}"
 
 
+def build_recipe_image_data_url_from_path(path: Path) -> str | None:
+    if not path.exists() or not path.is_file():
+        return None
+    content_type, _ = mimetypes.guess_type(path.name)
+    if content_type not in ALLOWED_RECIPE_IMAGE_TYPES:
+        content_type = "image/jpeg"
+    return build_recipe_image_data_url(content_type, path.read_bytes())
+
+
 def is_local_recipe_image_url(image_url: str | None) -> bool:
     return bool(image_url and image_url.startswith("/uploads/recipes/"))
 
@@ -56,7 +66,7 @@ def is_local_recipe_image_url(image_url: str | None) -> bool:
 def recipe_image_path_from_url(image_url: str | None) -> Path | None:
     if not is_local_recipe_image_url(image_url):
         return None
-    return get_backend_root() / image_url.lstrip("/").replace("/", "\\")
+    return get_backend_root().joinpath(*image_url.lstrip("/").split("/"))
 
 
 def delete_recipe_image_file(image_url: str | None) -> None:
