@@ -52,6 +52,15 @@ BASE_HEADERS = {
     "Origin": "https://tienda.mercadona.es",
 }
 
+
+def _mercadona_client(timeout: float = 10.0) -> httpx.AsyncClient:
+    transport = httpx.AsyncHTTPTransport(
+        retries=0,
+        http2=False,
+        local_address="0.0.0.0",
+    )
+    return httpx.AsyncClient(timeout=timeout, transport=transport)
+
 # Priority categories for fallback category search
 PRIORITY_CATEGORIES = [
     72, 53, 54, 37, 38, 40, 62, 59, 60, 64, 69, 78, 77,
@@ -481,7 +490,7 @@ async def search_mercadona(query: str, postal_code: str = "28001", limit: int = 
     warehouse = get_warehouse(postal_code)
     query_words = _tokenize_query(query)
 
-    async with httpx.AsyncClient(timeout=10.0) as client:
+    async with _mercadona_client(timeout=10.0) as client:
         # ── Attempt 1: direct product search ──────────────────────────────
         direct = await _search_direct(client, query, warehouse)
         if direct:
@@ -524,7 +533,7 @@ async def _search_mercadona_fast(query: str, postal_code: str = "28001", limit: 
     """
     warehouse = get_warehouse(postal_code)
 
-    async with httpx.AsyncClient(timeout=3.5) as client:
+    async with _mercadona_client(timeout=3.5) as client:
         algolia = await _search_algolia(client, query, warehouse, limit=limit)
         algolia_results = algolia if isinstance(algolia, list) else []
 
@@ -632,7 +641,7 @@ def get_fallback_category_products(category_id: int | str) -> Dict[str, Any]:
 
 async def get_categories(postal_code: str = "28001") -> Dict:
     warehouse = get_warehouse(postal_code)
-    async with httpx.AsyncClient(timeout=30.0) as client:
+    async with _mercadona_client(timeout=30.0) as client:
         resp = await client.get(
             f"{MERCADONA_API}/categories/",
             params={"lang": "es", "wh": warehouse},
@@ -644,7 +653,7 @@ async def get_categories(postal_code: str = "28001") -> Dict:
 
 async def get_category_products(category_id: int, postal_code: str = "28001") -> Dict:
     warehouse = get_warehouse(postal_code)
-    async with httpx.AsyncClient(timeout=30.0) as client:
+    async with _mercadona_client(timeout=30.0) as client:
         resp = await client.get(
             f"{MERCADONA_API}/categories/{category_id}/",
             params={"lang": "es", "wh": warehouse},
@@ -656,7 +665,7 @@ async def get_category_products(category_id: int, postal_code: str = "28001") ->
 
 async def get_product(product_id: str, postal_code: str = "28001") -> Dict:
     warehouse = get_warehouse(postal_code)
-    async with httpx.AsyncClient(timeout=30.0) as client:
+    async with _mercadona_client(timeout=30.0) as client:
         resp = await client.get(
             f"{MERCADONA_API}/products/{product_id}/",
             params={"lang": "es", "wh": warehouse},
