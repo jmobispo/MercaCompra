@@ -22,7 +22,7 @@ from app.schemas.shopping_list import ShoppingListRead
 from app.schemas.user import UserRead
 from app.schemas.weekly_plan import WeeklyPlanRead
 from app.services.list_service import ListService
-from app.services.meal_planner_service import MEAL_SLOTS
+from app.services.meal_planner_service import AUTO_PLANNED_SLOTS, MEAL_SLOTS
 from app.services.weekly_plan_service import WeeklyPlanService
 
 
@@ -38,6 +38,8 @@ MEAL_SLOT_PREFERENCES: dict[str, list[str]] = {
     "cena_segundo": ["cena"],
     "cena_postre": ["postre", "merienda"],
 }
+
+AI_PLANNED_SLOTS = set(AUTO_PLANNED_SLOTS)
 
 
 class AIService:
@@ -212,7 +214,10 @@ class AIService:
         )
         recipes = list(recipes_result.scalars().all())
 
-        empty_slots = [day for day in plan.days if day.recipe_id is None]
+        empty_slots = [
+            day for day in plan.days
+            if day.recipe_id is None and day.meal_slot in AI_PLANNED_SLOTS
+        ]
         if not empty_slots:
             return AIWeeklyPlanAssistResult(
                 message="El plan ya está completo.",
@@ -268,6 +273,7 @@ class AIService:
             "rules": {
                 "avoid_repetition": True,
                 "respect_meal_types": True,
+                "ignore_slots": ["merienda", "comida_postre", "cena_postre"],
             },
         }
         schema = {

@@ -24,6 +24,8 @@ const MEAL_TYPE_OPTIONS: Array<{ value: RecipeMealType; label: string }> = [
   { value: 'desayuno', label: 'Desayuno' },
   { value: 'comida', label: 'Comida' },
   { value: 'cena', label: 'Cena' },
+  { value: 'merienda', label: 'Merienda' },
+  { value: 'postre', label: 'Postre' },
 ];
 
 export default function RecipesPage() {

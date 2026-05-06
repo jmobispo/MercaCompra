@@ -21,6 +21,14 @@ MEAL_SLOTS = (
     "cena_postre",
 )
 
+AUTO_PLANNED_SLOTS = (
+    "desayuno",
+    "comida_primero",
+    "comida_segundo",
+    "cena_primero",
+    "cena_segundo",
+)
+
 
 def slot_family(meal_slot: str) -> str:
     if meal_slot == "desayuno":
@@ -328,10 +336,10 @@ class MealPlannerService:
         for day_index in range(self.days_count):
             previous_day_recipes = [
                 assignments[(day_index - 1, slot)]
-                for slot in MEAL_SLOTS
+                for slot in AUTO_PLANNED_SLOTS
                 if (day_index - 1, slot) in assignments
             ]
-            for meal_slot in MEAL_SLOTS:
+            for meal_slot in AUTO_PLANNED_SLOTS:
                 ctx = PlannerContext(
                     people_count=self.people_count,
                     days_count=self.days_count,

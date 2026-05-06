@@ -28,7 +28,7 @@ from app.schemas.weekly_plan import (
 )
 from app.services.habit_service import HabitService
 from app.services.list_service import ListService, sanitize_db_thumbnail
-from app.services.meal_planner_service import MEAL_SLOTS, MealPlannerService, normalize_preferences, recipe_cost_for_plan
+from app.services.meal_planner_service import AUTO_PLANNED_SLOTS, MEAL_SLOTS, MealPlannerService, normalize_preferences, recipe_cost_for_plan
 from app.services.recipe_service import RecipeService, _build_ingredient_note, _infer_cart_quantity, _merge_notes
 
 
@@ -140,6 +140,8 @@ class WeeklyPlanService:
         ).generate(recipes)
 
         for day in plan.days:
+            if day.meal_slot not in AUTO_PLANNED_SLOTS:
+                continue
             recipe = assignments.get((day.day_index, day.meal_slot))
             day.recipe_id = recipe.id if recipe else None
             day.meal_type = day.meal_slot

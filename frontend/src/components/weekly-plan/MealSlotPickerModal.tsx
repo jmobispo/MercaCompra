@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 
 import { resolveBackendUrl } from '../../api/client';
-import type { RecipeSummary, WeeklyMealSlot } from '../../types';
+import type { RecipeMealType, RecipeSummary, WeeklyMealSlot } from '../../types';
 
 const SLOT_GROUPS: Array<{
   title: string;
@@ -41,6 +41,15 @@ function slotFamily(slot: WeeklyMealSlot): string {
   return SLOT_GROUPS.flatMap((group) => group.items).find((item) => item.key === slot)?.family ?? slot;
 }
 
+function slotAllowedMealTypes(slot: WeeklyMealSlot): RecipeMealType[] {
+  if (slot === 'desayuno') return ['desayuno'];
+  if (slot === 'merienda') return ['merienda'];
+  if (slot === 'comida_postre' || slot === 'cena_postre') return ['postre'];
+  if (slot === 'comida_primero' || slot === 'comida_segundo') return ['comida'];
+  if (slot === 'cena_primero' || slot === 'cena_segundo') return ['cena'];
+  return [];
+}
+
 interface MealSlotPickerModalProps {
   open: boolean;
   dayLabel: string;
@@ -69,15 +78,20 @@ export default function MealSlotPickerModal({
   const [query, setQuery] = useState('');
 
   const activeFamily = slotFamily(mealSlot);
+  const allowedMealTypes = useMemo(() => slotAllowedMealTypes(mealSlot), [mealSlot]);
 
   const filteredRecipes = useMemo(() => {
     const q = query.trim().toLowerCase();
     const base = recipes.filter((recipe) => {
+      const recipeMealTypes = recipe.meal_types ?? [];
+      if (!allowedMealTypes.some((mealType) => recipeMealTypes.includes(mealType))) {
+        return false;
+      }
       const haystack = [
         recipe.title,
         recipe.description ?? '',
         ...(recipe.tags ?? []),
-        ...(recipe.meal_types ?? []),
+        ...recipeMealTypes,
       ]
         .join(' ')
         .toLowerCase();
@@ -90,7 +104,7 @@ export default function MealSlotPickerModal({
       if (leftPriority !== rightPriority) return rightPriority - leftPriority;
       return left.title.localeCompare(right.title, 'es');
     });
-  }, [activeFamily, query, recipes]);
+  }, [activeFamily, allowedMealTypes, query, recipes]);
 
   if (!open) return null;
 
