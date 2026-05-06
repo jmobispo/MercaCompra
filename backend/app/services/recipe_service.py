@@ -847,6 +847,7 @@ class RecipeService:
             image_url=_exposed_recipe_image_url(recipe),
             is_public=recipe.is_public,
             ingredient_count=len(recipe.ingredients),
+            ingredient_names=[ingredient.name for ingredient in recipe.ingredients if ingredient.name],
             created_at=recipe.created_at,
             updated_at=recipe.updated_at,
         )

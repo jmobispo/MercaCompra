@@ -199,6 +199,7 @@ class RecipeSummary(BaseModel):
     image_url: Optional[str]
     is_public: bool
     ingredient_count: int
+    ingredient_names: List[str] = Field(default_factory=list)
     created_at: datetime
     updated_at: datetime
 

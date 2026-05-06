@@ -76,7 +76,8 @@ export default function RecipesPage() {
         (r) =>
           r.title.toLowerCase().includes(q) ||
           r.description?.toLowerCase().includes(q) ||
-          (r.tags ?? []).some((t) => t.toLowerCase().includes(q))
+          (r.tags ?? []).some((t) => t.toLowerCase().includes(q)) ||
+          (r.ingredient_names ?? []).some((ingredient) => ingredient.toLowerCase().includes(q))
       );
     }
     if (filterTag) {

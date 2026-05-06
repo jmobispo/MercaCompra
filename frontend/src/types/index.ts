@@ -305,6 +305,7 @@ export interface RecipeSummary {
   image_url: string | null;
   is_public: boolean;
   ingredient_count: number;
+  ingredient_names: string[];
   created_at: string;
   updated_at: string;
 }

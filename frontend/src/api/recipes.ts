@@ -93,6 +93,9 @@ function normalizeRecipeSummary(recipe: RecipeSummary): RecipeSummary {
     sodium_mg: normalizeNumber(recipe.sodium_mg),
     image_url: recipe.image_url ?? null,
     ingredient_count: typeof recipe.ingredient_count === 'number' ? recipe.ingredient_count : 0,
+    ingredient_names: Array.isArray(recipe.ingredient_names)
+      ? recipe.ingredient_names.filter((name): name is string => typeof name === 'string' && name.trim().length > 0)
+      : [],
   };
 }
 
