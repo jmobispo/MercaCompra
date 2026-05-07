@@ -54,11 +54,18 @@ export default function RecipesPage() {
     }
   };
 
+  const fetchSuggestions = async () => {
+    try {
+      const data = await getPantryRecipeSuggestions();
+      setSuggestions(data);
+    } catch {
+      // optional, ignore errors
+    }
+  };
+
   useEffect(() => {
     fetchRecipes();
-    getPantryRecipeSuggestions()
-      .then(setSuggestions)
-      .catch(() => {/* suggestions are optional, ignore errors */});
+    fetchSuggestions();
   }, []);
 
   // Collect all tags
@@ -102,7 +109,9 @@ export default function RecipesPage() {
     try {
       await deleteRecipe(deleteConfirm.id);
       setRecipes((prev) => prev.filter((r) => r.id !== deleteConfirm.id));
+      setSuggestions((prev) => prev.filter((s) => s.recipe.id !== deleteConfirm.id));
       setDeleteConfirm(null);
+      void fetchSuggestions();
     } catch {
       setError('Error al eliminar la receta');
     } finally {
@@ -114,6 +123,7 @@ export default function RecipesPage() {
     try {
       await duplicateRecipe(id);
       await fetchRecipes();
+      await fetchSuggestions();
     } catch {
       setError('Error al duplicar la receta');
     }

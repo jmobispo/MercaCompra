@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import axios from 'axios';
 import { deleteRecipeImage, enrichRecipeWithAI, uploadRecipeImage } from '../../api/recipes';
 import { resolveBackendUrl } from '../../api/client';
 import { useAuthStore } from '../../store/authStore';
@@ -21,6 +22,8 @@ interface RecipeFormProps {
 
 const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
+const TARGET_IMAGE_MAX_BYTES = 900 * 1024;
+const TARGET_IMAGE_MAX_DIMENSION = 1600;
 const MEAL_TYPE_OPTIONS: Array<{ value: RecipeMealType; label: string }> = [
   { value: 'desayuno', label: 'Desayuno' },
   { value: 'comida', label: 'Comida' },
@@ -35,6 +38,85 @@ function emptyIngredient(): RecipeIngredientPayload {
 
 function emptyStep(): RecipeStepPayload {
   return { text: '' };
+}
+
+function extractApiErrorMessage(error: unknown, fallback: string): string {
+  if (axios.isAxiosError(error)) {
+    const detail = error.response?.data?.detail;
+    if (typeof detail === 'string' && detail.trim()) {
+      return detail;
+    }
+    if (Array.isArray(detail) && detail.length > 0) {
+      return detail
+        .map((item) => {
+          if (typeof item === 'string') return item;
+          if (item && typeof item === 'object' && 'msg' in item && typeof item.msg === 'string') {
+            return item.msg;
+          }
+          return null;
+        })
+        .filter((msg): msg is string => Boolean(msg))
+        .join(' · ');
+    }
+    if (typeof error.message === 'string' && error.message.trim()) {
+      return error.message;
+    }
+  }
+  if (error instanceof Error && error.message.trim()) {
+    return error.message;
+  }
+  return fallback;
+}
+
+async function optimizeImageFile(file: File): Promise<File> {
+  if (file.type === 'image/gif' || file.size <= TARGET_IMAGE_MAX_BYTES) {
+    return file;
+  }
+
+  const imageBitmap = await createImageBitmap(file);
+  const scale = Math.min(
+    1,
+    TARGET_IMAGE_MAX_DIMENSION / Math.max(imageBitmap.width, imageBitmap.height)
+  );
+  const width = Math.max(1, Math.round(imageBitmap.width * scale));
+  const height = Math.max(1, Math.round(imageBitmap.height * scale));
+
+  const canvas = document.createElement('canvas');
+  canvas.width = width;
+  canvas.height = height;
+  const context = canvas.getContext('2d');
+  if (!context) {
+    imageBitmap.close();
+    return file;
+  }
+  context.drawImage(imageBitmap, 0, 0, width, height);
+  imageBitmap.close();
+
+  const candidateQualities = [0.86, 0.78, 0.7, 0.62, 0.54];
+  for (const quality of candidateQualities) {
+    const blob = await new Promise<Blob | null>((resolve) =>
+      canvas.toBlob(resolve, 'image/jpeg', quality)
+    );
+    if (!blob) continue;
+    const optimized = new File(
+      [blob],
+      file.name.replace(/\.[^.]+$/, '') + '.jpg',
+      { type: 'image/jpeg' }
+    );
+    if (optimized.size <= TARGET_IMAGE_MAX_BYTES) {
+      return optimized;
+    }
+  }
+
+  const finalBlob = await new Promise<Blob | null>((resolve) =>
+    canvas.toBlob(resolve, 'image/jpeg', 0.5)
+  );
+  if (!finalBlob) return file;
+  return new File(
+    [finalBlob],
+    file.name.replace(/\.[^.]+$/, '') + '.jpg',
+    { type: 'image/jpeg' }
+  );
 }
 
 export default function RecipeForm({
@@ -122,7 +204,7 @@ export default function RecipeForm({
     ));
   };
 
-  const handleImageSelection = (file: File | null) => {
+  const handleImageSelection = async (file: File | null) => {
     if (!file) return;
     if (!ALLOWED_IMAGE_TYPES.includes(file.type)) {
       setError('La imagen debe ser JPG, PNG, WEBP o GIF.');
@@ -134,7 +216,15 @@ export default function RecipeForm({
     }
 
     setError('');
-    setSelectedImage(file);
+    try {
+      const optimized = await optimizeImageFile(file);
+      setSelectedImage(optimized);
+      if (optimized !== file) {
+        setInfo('La imagen se ha optimizado automaticamente para guardarla mejor.');
+      }
+    } catch {
+      setSelectedImage(file);
+    }
     setRemoveImage(false);
   };
 
@@ -200,8 +290,8 @@ export default function RecipeForm({
       }
 
       setInfo(result.summary ?? 'La IA ha completado los campos que faltaban.');
-    } catch {
-      setError('No se pudo completar la receta con IA.');
+    } catch (err) {
+      setError(extractApiErrorMessage(err, 'No se pudo completar la receta con IA.'));
     } finally {
       setEnrichingAI(false);
     }
@@ -330,8 +420,8 @@ export default function RecipeForm({
 
       onSaved?.(savedRecipe);
       onCancel();
-    } catch {
-      setError('Error al guardar la receta');
+    } catch (err) {
+      setError(extractApiErrorMessage(err, 'Error al guardar la receta'));
     } finally {
       setSaving(false);
     }
@@ -558,7 +648,7 @@ export default function RecipeForm({
                       type="file"
                       accept="image/jpeg,image/png,image/webp,image/gif"
                       style={{ display: 'none' }}
-                      onChange={(event) => handleImageSelection(event.target.files?.[0] ?? null)}
+                      onChange={(event) => { void handleImageSelection(event.target.files?.[0] ?? null); }}
                     />
                   </label>
                   {(previewUrl || initial?.image_url) && !removeImage && (
