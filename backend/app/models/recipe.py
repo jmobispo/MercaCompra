@@ -58,6 +58,7 @@ class HiddenRecipe(Base):
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
     recipe_id = Column(Integer, ForeignKey("recipes.id", ondelete="CASCADE"), nullable=False, index=True)
+    recipe_key = Column(String(200), nullable=True, index=True)
     created_at = Column(DateTime(timezone=True), default=_now, nullable=False)
 
 

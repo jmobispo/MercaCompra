@@ -810,8 +810,13 @@ class RecipeService:
             raise HTTPException(status_code=404, detail="Receta no encontrada")
         if recipe.is_public:
             hidden_ids = await self._get_hidden_public_recipe_ids(user_id)
+            hidden_keys = await self._get_hidden_public_recipe_keys(user_id)
             overridden_ids = await self._get_overridden_public_recipe_ids(user_id)
-            if recipe.id in hidden_ids or recipe.id in overridden_ids:
+            if (
+                recipe.id in hidden_ids
+                or recipe.id in overridden_ids
+                or _seed_title_key(recipe.title) in hidden_keys
+            ):
                 raise HTTPException(status_code=404, detail="Receta no encontrada")
         return recipe
 
@@ -839,6 +844,12 @@ class RecipeService:
         )
         return {recipe_id for recipe_id in result.scalars().all() if recipe_id is not None}
 
+    async def _get_hidden_public_recipe_keys(self, user_id: int) -> set[str]:
+        result = await self.db.execute(
+            select(HiddenRecipe.recipe_key).where(HiddenRecipe.user_id == user_id)
+        )
+        return {recipe_key for recipe_key in result.scalars().all() if recipe_key}
+
     async def _get_overridden_public_recipe_ids(self, user_id: int) -> set[int]:
         result = await self.db.execute(
             select(Recipe.source_recipe_id).where(
@@ -849,14 +860,21 @@ class RecipeService:
         return {recipe_id for recipe_id in result.scalars().all() if recipe_id is not None}
 
     async def _hide_public_recipe_for_user(self, recipe_id: int, user_id: int) -> None:
+        recipe = await self.db.get(Recipe, recipe_id)
+        recipe_key = _seed_title_key(recipe.title) if recipe else None
         existing = await self.db.execute(
             select(HiddenRecipe).where(
                 HiddenRecipe.user_id == user_id,
                 HiddenRecipe.recipe_id == recipe_id,
             )
         )
-        if existing.scalar_one_or_none() is None:
-            self.db.add(HiddenRecipe(user_id=user_id, recipe_id=recipe_id))
+        hidden_row = existing.scalar_one_or_none()
+        if hidden_row is None:
+            self.db.add(HiddenRecipe(user_id=user_id, recipe_id=recipe_id, recipe_key=recipe_key))
+            return
+
+        if hidden_row and recipe_key and not hidden_row.recipe_key:
+            hidden_row.recipe_key = recipe_key
 
     async def _clone_recipe_for_user(self, source: Recipe, user_id: int) -> Recipe:
         clone = Recipe(
@@ -1035,6 +1053,7 @@ class RecipeService:
         """Return user's own recipes + public seeds."""
         await self.ensure_seeds()
         hidden_ids = await self._get_hidden_public_recipe_ids(user_id)
+        hidden_keys = await self._get_hidden_public_recipe_keys(user_id)
         overridden_ids = await self._get_overridden_public_recipe_ids(user_id)
         result = await self.db.execute(
             select(Recipe)
@@ -1046,7 +1065,12 @@ class RecipeService:
             recipe
             for recipe in result.scalars().all()
             if recipe.user_id == user_id
-            or (recipe.is_public and recipe.id not in hidden_ids and recipe.id not in overridden_ids)
+            or (
+                recipe.is_public
+                and recipe.id not in hidden_ids
+                and recipe.id not in overridden_ids
+                and _seed_title_key(recipe.title) not in hidden_keys
+            )
         ]
         migrated = False
         for recipe in recipes:
@@ -1465,6 +1489,7 @@ class RecipeService:
 
         await self.ensure_seeds()
         hidden_ids = await self._get_hidden_public_recipe_ids(user_id)
+        hidden_keys = await self._get_hidden_public_recipe_keys(user_id)
         overridden_ids = await self._get_overridden_public_recipe_ids(user_id)
         recipe_result = await self.db.execute(
             select(Recipe)
@@ -1475,7 +1500,12 @@ class RecipeService:
             recipe
             for recipe in recipe_result.scalars().all()
             if recipe.user_id == user_id
-            or (recipe.is_public and recipe.id not in hidden_ids and recipe.id not in overridden_ids)
+            or (
+                recipe.is_public
+                and recipe.id not in hidden_ids
+                and recipe.id not in overridden_ids
+                and _seed_title_key(recipe.title) not in hidden_keys
+            )
         ]
 
         suggestions: list[PantryRecipeSuggestion] = []
