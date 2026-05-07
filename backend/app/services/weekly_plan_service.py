@@ -32,7 +32,7 @@ from app.services.habit_service import HabitService
 from app.services.list_service import ListService, sanitize_db_thumbnail
 from app.services.meal_planner_service import AUTO_PLANNED_SLOTS, MEAL_SLOTS, MealPlannerService, normalize_preferences, recipe_cost_for_plan
 from app.services.pantry_support import convert_amount, parse_measurement_text, units_compatible
-from app.services.recipe_service import RecipeService, _build_ingredient_note, _infer_cart_quantity, _ingredient_required_amount, _merge_notes
+from app.services.recipe_service import RecipeService, _build_ingredient_note, _infer_cart_quantity, _ingredient_required_amount, _is_staple_or_packaged_product, _merge_notes
 
 
 class WeeklyPlanService:
@@ -253,6 +253,7 @@ class WeeklyPlanService:
                         "note": note,
                         "source": product.source if product else "manual",
                         "resolved": bool(product),
+                        "staple_like": _is_staple_or_packaged_product(ingredient, product),
                         "aggregated_amount": aggregated_amount,
                         "aggregated_unit": aggregated_unit,
                         "pack_size": pack_size,
@@ -271,9 +272,15 @@ class WeeklyPlanService:
                         if converted_amount is not None:
                             consolidated[key]["aggregated_amount"] += converted_amount
                         else:
-                            consolidated[key]["quantity"] += adjusted_qty
+                            if consolidated[key].get("staple_like"):
+                                consolidated[key]["quantity"] = max(consolidated[key]["quantity"], adjusted_qty)
+                            else:
+                                consolidated[key]["quantity"] += adjusted_qty
                     else:
-                        consolidated[key]["quantity"] += adjusted_qty
+                        if consolidated[key].get("staple_like"):
+                            consolidated[key]["quantity"] = max(consolidated[key]["quantity"], adjusted_qty)
+                        else:
+                            consolidated[key]["quantity"] += adjusted_qty
                     consolidated[key]["note"] = _merge_notes(consolidated[key]["note"], note)
 
                 if product:

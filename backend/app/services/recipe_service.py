@@ -1422,11 +1422,12 @@ def _infer_cart_quantity(ing: RecipeIngredient, servings_multiplier: float, prod
         return 1
 
     if unit in discrete_units and ing.quantity is not None:
-        if _has_weight_pack(product) and _is_packaged_or_processed_product(ing, product):
+        if _has_weight_pack(product):
             guessed_pack_units = _guess_units_per_pack(product, ing)
             if guessed_pack_units:
                 return max(1, math.ceil(scaled_quantity / guessed_pack_units))
-            return 1
+            if _is_packaged_or_processed_product(ing, product) or _is_fresh_produce(ing, product):
+                return 1
         return max(1, math.ceil(scaled_quantity))
 
     return 1
@@ -1455,6 +1456,11 @@ def _ingredient_required_amount(
     if raw_unit in {"ud", "uds", "unidad", "unidades"}:
         pack = parse_measurement_text(getattr(product, "unit_size", None)) if product else None
         if pack and pack[1] in {"kg", "g", "l", "ml"}:
+            guessed_pack_units = _guess_units_per_pack(product, ing)
+            if guessed_pack_units:
+                return scaled_quantity, "uds"
+            if _is_fresh_produce(ing, product):
+                return scaled_quantity, "uds"
             return scaled_quantity * pack[0], pack[1]
         return scaled_quantity, "uds"
 
@@ -1518,6 +1524,26 @@ def _has_weight_pack(product) -> bool:
     return bool(pack and pack[1] in {"kg", "g", "l", "ml"})
 
 
+def _is_fresh_produce(ing: RecipeIngredient, product) -> bool:
+    haystack = " ".join(
+        part.lower()
+        for part in [
+            ing.name or "",
+            ing.product_query or "",
+            getattr(product, "name", "") or "",
+            getattr(product, "display_name", "") or "",
+            getattr(product, "category", "") or "",
+            getattr(product, "subcategory", "") or "",
+        ]
+        if part
+    )
+    produce_keywords = (
+        "fruta", "verdura", "hortaliza", "calabacin", "zanahoria", "limon",
+        "cebolla", "tomate", "pimiento", "patata", "ajo tierno",
+    )
+    return any(keyword in haystack for keyword in produce_keywords)
+
+
 def _is_staple_or_packaged_product(ing: RecipeIngredient, product) -> bool:
     haystack = " ".join(
         part.lower()
@@ -1573,6 +1599,24 @@ def _guess_units_per_pack(product, ing: RecipeIngredient) -> Optional[int]:
         return 8
     if "lomos de salmon" in haystack or "salmon" in haystack:
         return 2
+    pack = parse_measurement_text(getattr(product, "unit_size", None)) if product else None
+    if not pack or pack[1] not in {"kg", "g"}:
+        return None
+
+    average_unit_weights_g = {
+        "limon": 120,
+        "calabacin": 260,
+        "zanahoria": 90,
+        "cebolla": 180,
+        "tomate": 140,
+        "patata": 220,
+        "ajo tierno": 50,
+        "ajo": 8,
+    }
+    pack_weight_g = pack[0] * (1000 if pack[1] == "kg" else 1)
+    for keyword, avg_weight_g in average_unit_weights_g.items():
+        if keyword in haystack:
+            return max(1, round(pack_weight_g / avg_weight_g))
     return None
 
 
