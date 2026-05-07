@@ -14,7 +14,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.models.pantry import PantryItem
-from app.models.recipe import Recipe, RecipeIngredient
+from app.models.recipe import HiddenRecipe, Recipe, RecipeIngredient
 from app.models.shopping_list import ShoppingList, ShoppingListItem
 from app.models.user import User
 from app.schemas.recipe import (
@@ -808,22 +808,97 @@ class RecipeService:
         recipe = result.scalar_one_or_none()
         if not recipe:
             raise HTTPException(status_code=404, detail="Receta no encontrada")
+        if recipe.is_public:
+            hidden_ids = await self._get_hidden_public_recipe_ids(user_id)
+            overridden_ids = await self._get_overridden_public_recipe_ids(user_id)
+            if recipe.id in hidden_ids or recipe.id in overridden_ids:
+                raise HTTPException(status_code=404, detail="Receta no encontrada")
         return recipe
 
     async def _get_mutable_recipe_or_404(self, recipe_id: int, user_id: int) -> Recipe:
-        """Get any visible recipe for mutations."""
+        """Get only the user's own recipe for mutations."""
         result = await self.db.execute(
             select(Recipe)
             .where(
                 Recipe.id == recipe_id,
-                (Recipe.user_id == user_id) | (Recipe.is_public == True),
+                Recipe.user_id == user_id,
             )
             .options(selectinload(Recipe.ingredients))
         )
         recipe = result.scalar_one_or_none()
         if not recipe:
-            raise HTTPException(status_code=404, detail="Receta no encontrada o sin permiso")
+            raise HTTPException(
+                status_code=404,
+                detail="Receta no encontrada, sin permiso o no editable",
+            )
         return recipe
+
+    async def _get_hidden_public_recipe_ids(self, user_id: int) -> set[int]:
+        result = await self.db.execute(
+            select(HiddenRecipe.recipe_id).where(HiddenRecipe.user_id == user_id)
+        )
+        return {recipe_id for recipe_id in result.scalars().all() if recipe_id is not None}
+
+    async def _get_overridden_public_recipe_ids(self, user_id: int) -> set[int]:
+        result = await self.db.execute(
+            select(Recipe.source_recipe_id).where(
+                Recipe.user_id == user_id,
+                Recipe.source_recipe_id.is_not(None),
+            )
+        )
+        return {recipe_id for recipe_id in result.scalars().all() if recipe_id is not None}
+
+    async def _hide_public_recipe_for_user(self, recipe_id: int, user_id: int) -> None:
+        existing = await self.db.execute(
+            select(HiddenRecipe).where(
+                HiddenRecipe.user_id == user_id,
+                HiddenRecipe.recipe_id == recipe_id,
+            )
+        )
+        if existing.scalar_one_or_none() is None:
+            self.db.add(HiddenRecipe(user_id=user_id, recipe_id=recipe_id))
+
+    async def _clone_recipe_for_user(self, source: Recipe, user_id: int) -> Recipe:
+        clone = Recipe(
+            user_id=user_id,
+            source_recipe_id=source.id,
+            title=source.title,
+            description=source.description,
+            servings=source.servings,
+            estimated_minutes=source.estimated_minutes,
+            estimated_cost=source.estimated_cost,
+            calories_per_serving=source.calories_per_serving,
+            protein_g=source.protein_g,
+            carbs_g=source.carbs_g,
+            fat_g=source.fat_g,
+            fiber_g=source.fiber_g,
+            sugar_g=source.sugar_g,
+            sodium_mg=source.sodium_mg,
+            meal_types=_normalize_meal_types(source.meal_types),
+            tags=source.tags,
+            steps=_normalize_steps(source.steps),
+            image_url=source.image_url,
+            is_public=False,
+        )
+        self.db.add(clone)
+        await self.db.flush()
+
+        for pos, ing in enumerate(source.ingredients):
+            self.db.add(
+                RecipeIngredient(
+                    recipe_id=clone.id,
+                    name=ing.name,
+                    quantity=ing.quantity,
+                    unit=ing.unit,
+                    notes=ing.notes,
+                    product_query=ing.product_query,
+                    position=pos,
+                )
+            )
+
+        await self._hide_public_recipe_for_user(source.id, user_id)
+        await self.db.flush()
+        return clone
 
     def _to_summary(self, recipe: Recipe) -> RecipeSummary:
         return RecipeSummary(
@@ -959,13 +1034,20 @@ class RecipeService:
     async def get_recipes(self, user_id: int) -> List[RecipeSummary]:
         """Return user's own recipes + public seeds."""
         await self.ensure_seeds()
+        hidden_ids = await self._get_hidden_public_recipe_ids(user_id)
+        overridden_ids = await self._get_overridden_public_recipe_ids(user_id)
         result = await self.db.execute(
             select(Recipe)
             .where((Recipe.user_id == user_id) | (Recipe.is_public == True))
             .options(selectinload(Recipe.ingredients))
             .order_by(Recipe.is_public.asc(), Recipe.updated_at.desc())
         )
-        recipes = result.scalars().all()
+        recipes = [
+            recipe
+            for recipe in result.scalars().all()
+            if recipe.user_id == user_id
+            or (recipe.is_public and recipe.id not in hidden_ids and recipe.id not in overridden_ids)
+        ]
         migrated = False
         for recipe in recipes:
             migrated = await self._maybe_embed_legacy_image(recipe) or migrated
@@ -1041,7 +1123,9 @@ class RecipeService:
         return True
 
     async def update_recipe(self, recipe_id: int, user_id: int, data: RecipeUpdate) -> RecipeRead:
-        recipe = await self._get_mutable_recipe_or_404(recipe_id, user_id)
+        recipe = await self._get_recipe_or_404(recipe_id, user_id)
+        if recipe.is_public:
+            recipe = await self._clone_recipe_for_user(recipe, user_id)
         provided = data.model_fields_set
 
         if data.title is not None:
@@ -1106,15 +1190,24 @@ class RecipeService:
         return _to_recipe_read(result.scalar_one())
 
     async def delete_recipe(self, recipe_id: int, user_id: int) -> None:
-        recipe = await self._get_mutable_recipe_or_404(recipe_id, user_id)
+        recipe = await self._get_recipe_or_404(recipe_id, user_id)
+        if recipe.is_public:
+            await self._hide_public_recipe_for_user(recipe.id, user_id)
+            await self.db.commit()
+            return
         previous_image_url = recipe.image_url
+        source_recipe_id = recipe.source_recipe_id
         await self.db.delete(recipe)
+        if source_recipe_id is not None:
+            await self._hide_public_recipe_for_user(source_recipe_id, user_id)
         await self.db.commit()
         if is_local_recipe_image_url(previous_image_url) and previous_image_url not in PROTECTED_SEED_IMAGE_URLS:
             delete_recipe_image_file(previous_image_url)
 
     async def set_recipe_image(self, recipe_id: int, user_id: int, image_url: str) -> RecipeRead:
-        recipe = await self._get_mutable_recipe_or_404(recipe_id, user_id)
+        recipe = await self._get_recipe_or_404(recipe_id, user_id)
+        if recipe.is_public:
+            recipe = await self._clone_recipe_for_user(recipe, user_id)
         previous_image_url = recipe.image_url
         recipe.image_url = image_url
         recipe.updated_at = datetime.now(timezone.utc)
@@ -1136,7 +1229,9 @@ class RecipeService:
         return _to_recipe_read(result.scalar_one())
 
     async def delete_recipe_image(self, recipe_id: int, user_id: int) -> RecipeRead:
-        recipe = await self._get_mutable_recipe_or_404(recipe_id, user_id)
+        recipe = await self._get_recipe_or_404(recipe_id, user_id)
+        if recipe.is_public:
+            recipe = await self._clone_recipe_for_user(recipe, user_id)
         previous_image_url = recipe.image_url
         recipe.image_url = None
         recipe.updated_at = datetime.now(timezone.utc)
@@ -1184,7 +1279,20 @@ class RecipeService:
                 for i in source.ingredients
             ],
         )
-        return await self.create_recipe(user_id, data)
+        created = await self.create_recipe(user_id, data)
+        if source.is_public:
+            created_recipe = await self._get_mutable_recipe_or_404(created.id, user_id)
+            created_recipe.source_recipe_id = source.id
+            await self._hide_public_recipe_for_user(source.id, user_id)
+            await self.db.commit()
+            result = await self.db.execute(
+                select(Recipe)
+                .where(Recipe.id == created.id)
+                .options(selectinload(Recipe.ingredients))
+                .execution_options(populate_existing=True)
+            )
+            return _to_recipe_read(result.scalar_one())
+        return created
 
     # ── Add to list ───────────────────────────────────────────────────────────
 
@@ -1356,12 +1464,19 @@ class RecipeService:
         pantry_names = [item.name.lower().strip() for item in pantry_items]
 
         await self.ensure_seeds()
+        hidden_ids = await self._get_hidden_public_recipe_ids(user_id)
+        overridden_ids = await self._get_overridden_public_recipe_ids(user_id)
         recipe_result = await self.db.execute(
             select(Recipe)
             .where((Recipe.user_id == user_id) | (Recipe.is_public == True))
             .options(selectinload(Recipe.ingredients))
         )
-        recipes = recipe_result.scalars().all()
+        recipes = [
+            recipe
+            for recipe in recipe_result.scalars().all()
+            if recipe.user_id == user_id
+            or (recipe.is_public and recipe.id not in hidden_ids and recipe.id not in overridden_ids)
+        ]
 
         suggestions: list[PantryRecipeSuggestion] = []
         for recipe in recipes:

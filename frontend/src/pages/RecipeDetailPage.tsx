@@ -201,8 +201,16 @@ export default function RecipeDetailPage() {
       </div>
 
       <div className="recipe-edit-hint">
-        <strong>Edicion completa disponible.</strong> Pulsa <em>Editar receta</em> para cambiar
-        ingredientes, pasos y tambien anadir, reemplazar o eliminar la imagen.
+        {recipe.is_public ? (
+          <>
+            <strong>Receta sugerida editable.</strong> Si la modificas o eliminas, el cambio se aplicara a tu cuenta y la receta base dejara de mostrarse para ti.
+          </>
+        ) : (
+          <>
+            <strong>Edicion completa disponible.</strong> Pulsa <em>Editar receta</em> para cambiar
+            ingredientes, pasos y tambien anadir, reemplazar o eliminar la imagen.
+          </>
+        )}
       </div>
 
       <div className="card recipe-nutrition-card" style={{ marginTop: 24 }}>
@@ -325,6 +333,9 @@ export default function RecipeDetailPage() {
           onSaved={(updatedRecipe) => {
             setRecipe(updatedRecipe);
             setShowEditForm(false);
+            if (updatedRecipe.id !== recipe.id) {
+              navigate(`/recipes/${updatedRecipe.id}`, { replace: true });
+            }
           }}
           onCancel={() => setShowEditForm(false)}
           title="Editar receta"

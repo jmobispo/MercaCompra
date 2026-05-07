@@ -2,7 +2,7 @@
 from datetime import datetime, timezone
 from sqlalchemy import (
     Boolean, Column, DateTime, Float, ForeignKey,
-    Integer, JSON, String, Text,
+    Integer, JSON, String, Text, UniqueConstraint,
 )
 from sqlalchemy.orm import relationship
 from app.db.base import Base
@@ -17,6 +17,7 @@ class Recipe(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=True, index=True)
+    source_recipe_id = Column(Integer, ForeignKey("recipes.id", ondelete="SET NULL"), nullable=True, index=True)
 
     title = Column(String(200), nullable=False)
     description = Column(Text, nullable=True)
@@ -46,6 +47,18 @@ class Recipe(Base):
         order_by="RecipeIngredient.position",
         cascade="all, delete-orphan",
     )
+
+
+class HiddenRecipe(Base):
+    __tablename__ = "hidden_recipes"
+    __table_args__ = (
+        UniqueConstraint("user_id", "recipe_id", name="uq_hidden_recipes_user_recipe"),
+    )
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    recipe_id = Column(Integer, ForeignKey("recipes.id", ondelete="CASCADE"), nullable=False, index=True)
+    created_at = Column(DateTime(timezone=True), default=_now, nullable=False)
 
 
 class RecipeIngredient(Base):
