@@ -9,17 +9,17 @@ from datetime import datetime, timezone
 from typing import List, Optional
 
 from fastapi import HTTPException
-from sqlalchemy import select
+from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.models.pantry import PantryItem
-from app.models.recipe import HiddenRecipe, Recipe, RecipeIngredient
+from app.models.recipe import HiddenRecipe, Recipe, RecipeIngredient, RecipeRating
 from app.models.shopping_list import ShoppingList, ShoppingListItem
 from app.models.user import User
 from app.schemas.recipe import (
     RecipeCreate, RecipeUpdate, RecipeRead, RecipeSummary,
-    AddToListPayload, AddToListResult, PantryRecipeSuggestion,
+    AddToListPayload, AddToListResult, PantryRecipeSuggestion, RecipeRatingRead,
 )
 from app.services.habit_service import HabitService
 from app.services.recipe_seed_nutrition import SEED_RECIPE_NUTRITION, LEGACY_RECIPE_NUTRITION
@@ -859,6 +859,44 @@ class RecipeService:
         )
         return {recipe_id for recipe_id in result.scalars().all() if recipe_id is not None}
 
+    async def _get_rating_maps(self, user_id: int, recipe_ids: list[int]) -> tuple[dict[int, int], dict[int, float], dict[int, int]]:
+        if not recipe_ids:
+            return {}, {}, {}
+
+        own_result = await self.db.execute(
+            select(RecipeRating.recipe_id, RecipeRating.rating).where(
+                RecipeRating.user_id == user_id,
+                RecipeRating.recipe_id.in_(recipe_ids),
+            )
+        )
+        user_ratings = {int(recipe_id): int(rating) for recipe_id, rating in own_result.all()}
+
+        aggregate_result = await self.db.execute(
+            select(
+                RecipeRating.recipe_id,
+                func.avg(RecipeRating.rating),
+                func.count(RecipeRating.id),
+            )
+            .where(RecipeRating.recipe_id.in_(recipe_ids))
+            .group_by(RecipeRating.recipe_id)
+        )
+        average_ratings: dict[int, float] = {}
+        rating_counts: dict[int, int] = {}
+        for recipe_id, average_rating, rating_count in aggregate_result.all():
+            average_ratings[int(recipe_id)] = round(float(average_rating or 0.0), 2)
+            rating_counts[int(recipe_id)] = int(rating_count or 0)
+
+        return user_ratings, average_ratings, rating_counts
+
+    async def _get_rating_payload(self, user_id: int, recipe_id: int) -> RecipeRatingRead:
+        user_ratings, average_ratings, rating_counts = await self._get_rating_maps(user_id, [recipe_id])
+        return RecipeRatingRead(
+            recipe_id=recipe_id,
+            user_rating=user_ratings.get(recipe_id),
+            average_rating=average_ratings.get(recipe_id),
+            rating_count=rating_counts.get(recipe_id, 0),
+        )
+
     async def _hide_public_recipe_for_user(self, recipe_id: int, user_id: int) -> None:
         recipe = await self.db.get(Recipe, recipe_id)
         recipe_key = _seed_title_key(recipe.title) if recipe else None
@@ -914,11 +952,40 @@ class RecipeService:
                 )
             )
 
+        source_rating_result = await self.db.execute(
+            select(RecipeRating).where(
+                RecipeRating.user_id == user_id,
+                RecipeRating.recipe_id == source.id,
+            )
+        )
+        source_rating = source_rating_result.scalar_one_or_none()
+        if source_rating:
+            self.db.add(
+                RecipeRating(
+                    user_id=user_id,
+                    recipe_id=clone.id,
+                    rating=source_rating.rating,
+                )
+            )
+            await self.db.execute(
+                delete(RecipeRating).where(
+                    RecipeRating.user_id == user_id,
+                    RecipeRating.recipe_id == source.id,
+                )
+            )
+
         await self._hide_public_recipe_for_user(source.id, user_id)
         await self.db.flush()
         return clone
 
-    def _to_summary(self, recipe: Recipe) -> RecipeSummary:
+    def _to_summary(
+        self,
+        recipe: Recipe,
+        *,
+        user_rating: int | None = None,
+        average_rating: float | None = None,
+        rating_count: int = 0,
+    ) -> RecipeSummary:
         return RecipeSummary(
             id=recipe.id,
             user_id=recipe.user_id,
@@ -939,6 +1006,9 @@ class RecipeService:
             steps=_normalize_steps(recipe.steps),
             image_url=_exposed_recipe_image_url(recipe),
             is_public=recipe.is_public,
+            user_rating=user_rating,
+            average_rating=average_rating,
+            rating_count=rating_count,
             ingredient_count=len(recipe.ingredients),
             ingredient_names=[ingredient.name for ingredient in recipe.ingredients if ingredient.name],
             created_at=recipe.created_at,
@@ -1077,13 +1147,29 @@ class RecipeService:
             migrated = await self._maybe_embed_legacy_image(recipe) or migrated
         if migrated:
             await self.db.commit()
-        return [self._to_summary(r) for r in recipes]
+        recipe_ids = [recipe.id for recipe in recipes]
+        user_ratings, average_ratings, rating_counts = await self._get_rating_maps(user_id, recipe_ids)
+        return [
+            self._to_summary(
+                recipe,
+                user_rating=user_ratings.get(recipe.id),
+                average_rating=average_ratings.get(recipe.id),
+                rating_count=rating_counts.get(recipe.id, 0),
+            )
+            for recipe in recipes
+        ]
 
     async def get_recipe(self, recipe_id: int, user_id: int) -> RecipeRead:
         recipe = await self._get_recipe_or_404(recipe_id, user_id)
         if await self._maybe_embed_legacy_image(recipe):
             await self.db.commit()
-        return _to_recipe_read(recipe)
+        rating_payload = await self._get_rating_payload(user_id, recipe.id)
+        return _to_recipe_read(
+            recipe,
+            user_rating=rating_payload.user_rating,
+            average_rating=rating_payload.average_rating,
+            rating_count=rating_payload.rating_count,
+        )
 
     async def create_recipe(self, user_id: int, data: RecipeCreate) -> RecipeRead:
         recipe = Recipe(
@@ -1130,7 +1216,7 @@ class RecipeService:
             .options(selectinload(Recipe.ingredients))
             .execution_options(populate_existing=True)
         )
-        return _to_recipe_read(result.scalar_one())
+        return _to_recipe_read(result.scalar_one(), user_rating=None, average_rating=None, rating_count=0)
 
     async def _maybe_embed_legacy_image(self, recipe: Recipe) -> bool:
         image_url = recipe.image_url
@@ -1211,7 +1297,13 @@ class RecipeService:
             .options(selectinload(Recipe.ingredients))
             .execution_options(populate_existing=True)
         )
-        return _to_recipe_read(result.scalar_one())
+        rating_payload = await self._get_rating_payload(user_id, recipe.id)
+        return _to_recipe_read(
+            result.scalar_one(),
+            user_rating=rating_payload.user_rating,
+            average_rating=rating_payload.average_rating,
+            rating_count=rating_payload.rating_count,
+        )
 
     async def delete_recipe(self, recipe_id: int, user_id: int) -> None:
         recipe = await self._get_recipe_or_404(recipe_id, user_id)
@@ -1250,7 +1342,13 @@ class RecipeService:
             and previous_image_url not in PROTECTED_SEED_IMAGE_URLS
         ):
             delete_recipe_image_file(previous_image_url)
-        return _to_recipe_read(result.scalar_one())
+        rating_payload = await self._get_rating_payload(user_id, recipe.id)
+        return _to_recipe_read(
+            result.scalar_one(),
+            user_rating=rating_payload.user_rating,
+            average_rating=rating_payload.average_rating,
+            rating_count=rating_payload.rating_count,
+        )
 
     async def delete_recipe_image(self, recipe_id: int, user_id: int) -> RecipeRead:
         recipe = await self._get_recipe_or_404(recipe_id, user_id)
@@ -1269,7 +1367,13 @@ class RecipeService:
         )
         if is_local_recipe_image_url(previous_image_url) and previous_image_url not in PROTECTED_SEED_IMAGE_URLS:
             delete_recipe_image_file(previous_image_url)
-        return _to_recipe_read(result.scalar_one())
+        rating_payload = await self._get_rating_payload(user_id, recipe.id)
+        return _to_recipe_read(
+            result.scalar_one(),
+            user_rating=rating_payload.user_rating,
+            average_rating=rating_payload.average_rating,
+            rating_count=rating_payload.rating_count,
+        )
 
     async def duplicate_recipe(self, recipe_id: int, user_id: int) -> RecipeRead:
         """Copy a recipe (own or public) to the user's collection."""
@@ -1304,19 +1408,66 @@ class RecipeService:
             ],
         )
         created = await self.create_recipe(user_id, data)
+        source_rating_result = await self.db.execute(
+            select(RecipeRating).where(
+                RecipeRating.user_id == user_id,
+                RecipeRating.recipe_id == source.id,
+            )
+        )
+        source_rating = source_rating_result.scalar_one_or_none()
+        if source_rating:
+            self.db.add(
+                RecipeRating(
+                    user_id=user_id,
+                    recipe_id=created.id,
+                    rating=source_rating.rating,
+                )
+            )
         if source.is_public:
             created_recipe = await self._get_mutable_recipe_or_404(created.id, user_id)
             created_recipe.source_recipe_id = source.id
             await self._hide_public_recipe_for_user(source.id, user_id)
-            await self.db.commit()
-            result = await self.db.execute(
-                select(Recipe)
-                .where(Recipe.id == created.id)
-                .options(selectinload(Recipe.ingredients))
-                .execution_options(populate_existing=True)
+        await self.db.commit()
+        result = await self.db.execute(
+            select(Recipe)
+            .where(Recipe.id == created.id)
+            .options(selectinload(Recipe.ingredients))
+            .execution_options(populate_existing=True)
+        )
+        rating_payload = await self._get_rating_payload(user_id, created.id)
+        return _to_recipe_read(
+            result.scalar_one(),
+            user_rating=rating_payload.user_rating,
+            average_rating=rating_payload.average_rating,
+            rating_count=rating_payload.rating_count,
+        )
+
+    async def set_recipe_rating(self, recipe_id: int, user_id: int, rating: int) -> RecipeRatingRead:
+        recipe = await self._get_recipe_or_404(recipe_id, user_id)
+        result = await self.db.execute(
+            select(RecipeRating).where(
+                RecipeRating.user_id == user_id,
+                RecipeRating.recipe_id == recipe.id,
             )
-            return _to_recipe_read(result.scalar_one())
-        return created
+        )
+        existing = result.scalar_one_or_none()
+        if existing:
+            existing.rating = rating
+        else:
+            self.db.add(RecipeRating(user_id=user_id, recipe_id=recipe.id, rating=rating))
+        await self.db.commit()
+        return await self._get_rating_payload(user_id, recipe.id)
+
+    async def clear_recipe_rating(self, recipe_id: int, user_id: int) -> RecipeRatingRead:
+        recipe = await self._get_recipe_or_404(recipe_id, user_id)
+        await self.db.execute(
+            delete(RecipeRating).where(
+                RecipeRating.user_id == user_id,
+                RecipeRating.recipe_id == recipe.id,
+            )
+        )
+        await self.db.commit()
+        return await self._get_rating_payload(user_id, recipe.id)
 
     # ── Add to list ───────────────────────────────────────────────────────────
 
@@ -1507,6 +1658,8 @@ class RecipeService:
                 and _seed_title_key(recipe.title) not in hidden_keys
             )
         ]
+        recipe_ids = [recipe.id for recipe in recipes]
+        user_ratings, average_ratings, rating_counts = await self._get_rating_maps(user_id, recipe_ids)
 
         suggestions: list[PantryRecipeSuggestion] = []
         for recipe in recipes:
@@ -1525,7 +1678,12 @@ class RecipeService:
             if match_pct > 0:
                 suggestions.append(
                     PantryRecipeSuggestion(
-                        recipe=self._to_summary(recipe),
+                        recipe=self._to_summary(
+                            recipe,
+                            user_rating=user_ratings.get(recipe.id),
+                            average_rating=average_ratings.get(recipe.id),
+                            rating_count=rating_counts.get(recipe.id, 0),
+                        ),
                         match_pct=round(match_pct, 1),
                         matched_count=len(matched),
                         missing_count=len(missing),
@@ -1829,7 +1987,13 @@ def _normalize_meal_types(meal_types) -> list[str]:
     return normalized
 
 
-def _to_recipe_read(recipe: Recipe) -> RecipeRead:
+def _to_recipe_read(
+    recipe: Recipe,
+    *,
+    user_rating: int | None = None,
+    average_rating: float | None = None,
+    rating_count: int = 0,
+) -> RecipeRead:
     return RecipeRead(
         id=recipe.id,
         user_id=recipe.user_id,
@@ -1850,6 +2014,9 @@ def _to_recipe_read(recipe: Recipe) -> RecipeRead:
         steps=_normalize_steps(recipe.steps),
         image_url=_exposed_recipe_image_url(recipe),
         is_public=recipe.is_public,
+        user_rating=user_rating,
+        average_rating=average_rating,
+        rating_count=rating_count,
         ingredients=[
             {
                 "id": ingredient.id,

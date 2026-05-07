@@ -9,7 +9,7 @@ from app.services.recipe_service import RecipeService
 from app.services.ai_service import AIService
 from app.schemas.recipe import (
     RecipeCreate, RecipeUpdate, RecipeRead, RecipeSummary,
-    AddToListPayload, AddToListResult, PantryRecipeSuggestion,
+    AddToListPayload, AddToListResult, PantryRecipeSuggestion, RecipeRatingRead, RecipeRatingUpdate,
 )
 from app.schemas.ai import AIRecipeEnrichPayload, AIRecipeEnrichResult
 from app.utils.recipe_images import (
@@ -80,6 +80,27 @@ async def update_recipe(
 ):
     svc = RecipeService(db)
     return await svc.update_recipe(recipe_id, current_user.id, data)
+
+
+@router.put("/{recipe_id}/rating", response_model=RecipeRatingRead)
+async def set_recipe_rating(
+    recipe_id: int,
+    payload: RecipeRatingUpdate,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    svc = RecipeService(db)
+    return await svc.set_recipe_rating(recipe_id, current_user.id, payload.rating)
+
+
+@router.delete("/{recipe_id}/rating", response_model=RecipeRatingRead)
+async def clear_recipe_rating(
+    recipe_id: int,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    svc = RecipeService(db)
+    return await svc.clear_recipe_rating(recipe_id, current_user.id)
 
 
 @router.delete("/{recipe_id}", status_code=204)

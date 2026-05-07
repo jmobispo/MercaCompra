@@ -6,6 +6,8 @@ import {
   deleteRecipe,
   duplicateRecipe,
   addRecipeToList,
+  setRecipeRating,
+  clearRecipeRating,
 } from '../api/recipes';
 import RecipeForm from '../components/recipes/RecipeForm';
 import AddToListModal from '../components/recipes/AddToListModal';
@@ -24,6 +26,7 @@ export default function RecipeDetailPage() {
   const [showAddToList, setShowAddToList] = useState(false);
   const [successMsg, setSuccessMsg] = useState('');
   const [actionLoading, setActionLoading] = useState(false);
+  const [ratingLoading, setRatingLoading] = useState(false);
 
   const fetchRecipe = useCallback(async () => {
     if (!recipeId) return;
@@ -84,6 +87,32 @@ export default function RecipeDetailPage() {
     setTimeout(() => setSuccessMsg(''), 4000);
   };
 
+  const handleRatingChange = async (nextRating: number) => {
+    if (!recipe || ratingLoading) return;
+    setRatingLoading(true);
+    setError('');
+    try {
+      const ratingResult =
+        recipe.user_rating === nextRating
+          ? await clearRecipeRating(recipe.id)
+          : await setRecipeRating(recipe.id, nextRating);
+      setRecipe((current) =>
+        current
+          ? {
+              ...current,
+              user_rating: ratingResult.user_rating,
+              average_rating: ratingResult.average_rating,
+              rating_count: ratingResult.rating_count,
+            }
+          : current
+      );
+    } catch {
+      setError('Error al guardar la valoracion');
+    } finally {
+      setRatingLoading(false);
+    }
+  };
+
   const formatCost = (cost: number | null) =>
     cost != null ? cost.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' }) : null;
 
@@ -111,6 +140,7 @@ export default function RecipeDetailPage() {
   const steps = Array.isArray(recipe.steps) ? recipe.steps : [];
   const imageUrl = resolveBackendUrl(recipe.image_url);
   const mealTypes = recipe.meal_types ?? [];
+  const displayRating = recipe.user_rating ?? Math.round(recipe.average_rating ?? 0);
 
   return (
     <div>
@@ -163,6 +193,30 @@ export default function RecipeDetailPage() {
               ))}
             </div>
           )}
+          <div className="recipe-rating-block">
+            <span className="recipe-rating-label">Tu valoracion</span>
+            <div className="recipe-rating-stars" role="radiogroup" aria-label="Valorar receta">
+              {[1, 2, 3, 4, 5].map((star) => (
+                <button
+                  key={star}
+                  type="button"
+                  className={`recipe-rating-star recipe-rating-star-button${star <= displayRating ? ' is-active' : ''}`}
+                  onClick={() => void handleRatingChange(star)}
+                  disabled={ratingLoading}
+                  aria-label={`${star} estrella${star === 1 ? '' : 's'}`}
+                  aria-pressed={recipe.user_rating === star}
+                >
+                  ★
+                </button>
+              ))}
+            </div>
+            <span className="recipe-rating-meta">
+              {recipe.user_rating ? `Has puntuado ${recipe.user_rating}/5` : 'Aun sin valorar'}
+              {recipe.rating_count > 0 && recipe.average_rating != null
+                ? ` · Media ${recipe.average_rating.toFixed(1)}/5 (${recipe.rating_count})`
+                : ''}
+            </span>
+          </div>
           {recipe.tags && recipe.tags.length > 0 && (
             <div className="recipe-tags" style={{ marginTop: 8 }}>
               {recipe.tags.map((tag) => (

@@ -2007,6 +2007,64 @@ input, select, textarea {
   flex-wrap: wrap;
 }
 
+.recipe-card-rating,
+.recipe-rating-block {
+  display: grid;
+  gap: 6px;
+}
+
+.recipe-card-rating {
+  margin-bottom: 10px;
+}
+
+.recipe-rating-block {
+  margin-top: 10px;
+}
+
+.recipe-rating-label,
+.recipe-card-rating-text,
+.recipe-rating-meta {
+  color: var(--color-text-muted);
+  font-size: 13px;
+}
+
+.recipe-rating-stars {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.recipe-rating-stars-static {
+  gap: 2px;
+}
+
+.recipe-rating-star {
+  color: color-mix(in srgb, var(--color-text-muted) 45%, transparent);
+  font-size: 20px;
+  line-height: 1;
+}
+
+.recipe-rating-star.is-active {
+  color: #f5b642;
+}
+
+.recipe-rating-star-button {
+  border: none;
+  background: transparent;
+  padding: 0;
+  cursor: pointer;
+  transition: transform 140ms ease, color 140ms ease;
+}
+
+.recipe-rating-star-button:hover:not(:disabled) {
+  transform: translateY(-1px) scale(1.05);
+}
+
+.recipe-rating-star-button:disabled {
+  cursor: wait;
+  opacity: 0.7;
+}
+
 .catalog-layout {
   display: grid;
   grid-template-columns: 280px 1fr;

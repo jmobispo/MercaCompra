@@ -10,6 +10,7 @@ import type {
   AddToListResult,
   PantryRecipeSuggestion,
   RecipeIngredient,
+  RecipeRatingResult,
   RecipeMealType,
   RecipeStep,
 } from '../types';
@@ -92,6 +93,9 @@ function normalizeRecipeSummary(recipe: RecipeSummary): RecipeSummary {
     sugar_g: normalizeNumber(recipe.sugar_g),
     sodium_mg: normalizeNumber(recipe.sodium_mg),
     image_url: recipe.image_url ?? null,
+    user_rating: typeof recipe.user_rating === 'number' ? recipe.user_rating : null,
+    average_rating: normalizeNumber(recipe.average_rating),
+    rating_count: typeof recipe.rating_count === 'number' ? recipe.rating_count : 0,
     ingredient_count: typeof recipe.ingredient_count === 'number' ? recipe.ingredient_count : 0,
     ingredient_names: Array.isArray(recipe.ingredient_names)
       ? recipe.ingredient_names.filter((name): name is string => typeof name === 'string' && name.trim().length > 0)
@@ -117,6 +121,9 @@ function normalizeRecipe(recipe: Recipe): Recipe {
     sugar_g: normalizeNumber(recipe.sugar_g),
     sodium_mg: normalizeNumber(recipe.sodium_mg),
     image_url: recipe.image_url ?? null,
+    user_rating: typeof recipe.user_rating === 'number' ? recipe.user_rating : null,
+    average_rating: normalizeNumber(recipe.average_rating),
+    rating_count: typeof recipe.rating_count === 'number' ? recipe.rating_count : 0,
   };
 }
 
@@ -191,5 +198,15 @@ export const enrichRecipeWithAI = async (
   payload: AIRecipeEnrichPayload
 ): Promise<AIRecipeEnrichResult> => {
   const response = await apiClient.post<AIRecipeEnrichResult>('/recipes/ai/enrich', payload);
+  return response.data;
+};
+
+export const setRecipeRating = async (id: number, rating: number): Promise<RecipeRatingResult> => {
+  const response = await apiClient.put<RecipeRatingResult>(`/recipes/${id}/rating`, { rating });
+  return response.data;
+};
+
+export const clearRecipeRating = async (id: number): Promise<RecipeRatingResult> => {
+  const response = await apiClient.delete<RecipeRatingResult>(`/recipes/${id}/rating`);
   return response.data;
 };

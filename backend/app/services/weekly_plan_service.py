@@ -1,6 +1,7 @@
 import asyncio
 from dataclasses import asdict
 from datetime import date, datetime, timezone
+import logging
 import math
 from typing import Optional
 
@@ -11,7 +12,7 @@ from sqlalchemy.orm import selectinload
 
 from app.models.habit import UserProductStats
 from app.models.pantry import PantryItem
-from app.models.recipe import Recipe
+from app.models.recipe import Recipe, RecipeRating
 from app.models.shopping_list import ShoppingList, ShoppingListItem
 from app.models.user import User
 from app.models.weekly_plan import WeeklyPlan, WeeklyPlanDay
@@ -33,6 +34,9 @@ from app.services.list_service import ListService, sanitize_db_thumbnail
 from app.services.meal_planner_service import AUTO_PLANNED_SLOTS, MEAL_SLOTS, MealPlannerService, normalize_preferences, recipe_cost_for_plan
 from app.services.pantry_support import convert_amount, parse_measurement_text, units_compatible
 from app.services.recipe_service import RecipeService, _build_ingredient_note, _infer_cart_quantity, _ingredient_required_amount, _is_staple_or_packaged_product, _merge_notes
+
+
+logger = logging.getLogger(__name__)
 
 
 class WeeklyPlanService:
@@ -133,6 +137,7 @@ class WeeklyPlanService:
 
         pantry_items = await self._get_active_pantry_items(user_id)
         habit_stats = await self._get_habit_stats(user_id)
+        recipe_ratings = await self._get_recipe_ratings(user_id, [recipe.id for recipe in recipes])
         assignments = MealPlannerService(
             people_count=plan.people_count,
             days_count=plan.days_count,
@@ -140,6 +145,7 @@ class WeeklyPlanService:
             preferences=plan.preferences,
             pantry_items=pantry_items,
             habit_stats=habit_stats,
+            recipe_ratings=recipe_ratings,
         ).generate(recipes)
 
         for day in plan.days:
@@ -151,8 +157,27 @@ class WeeklyPlanService:
 
         plan.updated_at = datetime.now(timezone.utc)
         await self.db.commit()
+        try:
+            user = await self.db.get(User, user_id)
+            if user and user.ai_enabled and user.ai_plan_assist and user.ai_api_key:
+                from app.services.ai_service import AIService
+
+                await AIService(self.db).assist_weekly_plan(user_id, plan_id, include_filled=True)
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("No se pudo aplicar el nutricionista IA al plan %s del usuario %s: %s", plan_id, user_id, exc)
         refreshed = await self._get_plan_or_404(plan_id, user_id)
         return self._to_read(refreshed)
+
+    async def _get_recipe_ratings(self, user_id: int, recipe_ids: list[int]) -> dict[int, int]:
+        if not recipe_ids:
+            return {}
+        result = await self.db.execute(
+            select(RecipeRating.recipe_id, RecipeRating.rating).where(
+                RecipeRating.user_id == user_id,
+                RecipeRating.recipe_id.in_(recipe_ids),
+            )
+        )
+        return {int(recipe_id): int(rating) for recipe_id, rating in result.all()}
 
     async def generate_shopping_list(
         self,

@@ -23,6 +23,7 @@ export default function RecipeCard({
 
   const imageUrl = resolveBackendUrl(recipe.image_url);
   const mealTypes = recipe.meal_types ?? [];
+  const userRating = typeof recipe.user_rating === 'number' ? recipe.user_rating : 0;
 
   return (
     <div
@@ -53,6 +54,21 @@ export default function RecipeCard({
 
         {recipe.description && (
           <p className="recipe-card-desc">{recipe.description}</p>
+        )}
+
+        {(userRating > 0 || recipe.rating_count > 0) && (
+          <div className="recipe-card-rating">
+            <span className="recipe-rating-stars recipe-rating-stars-static" aria-label={`Valoracion ${userRating || recipe.average_rating || 0} de 5`}>
+              {[1, 2, 3, 4, 5].map((star) => (
+                <span key={star} className={`recipe-rating-star${star <= (userRating || Math.round(recipe.average_rating ?? 0)) ? ' is-active' : ''}`}>
+                  ★
+                </span>
+              ))}
+            </span>
+            <span className="recipe-card-rating-text">
+              {userRating > 0 ? `Tu nota: ${userRating}/5` : `${(recipe.average_rating ?? 0).toFixed(1)}/5`}
+            </span>
+          </div>
         )}
 
         <div className="recipe-card-meta">

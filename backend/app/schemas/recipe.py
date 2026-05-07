@@ -159,6 +159,9 @@ class RecipeRead(BaseModel):
     steps: List[RecipeStepRead] = Field(default_factory=list)
     image_url: Optional[str]
     is_public: bool
+    user_rating: Optional[int] = None
+    average_rating: Optional[float] = None
+    rating_count: int = 0
     ingredients: List[RecipeIngredientRead]
     created_at: datetime
     updated_at: datetime
@@ -198,6 +201,9 @@ class RecipeSummary(BaseModel):
     steps: List[RecipeStepRead] = Field(default_factory=list)
     image_url: Optional[str]
     is_public: bool
+    user_rating: Optional[int] = None
+    average_rating: Optional[float] = None
+    rating_count: int = 0
     ingredient_count: int
     ingredient_names: List[str] = Field(default_factory=list)
     created_at: datetime
@@ -246,3 +252,14 @@ class PantryRecipeSuggestion(BaseModel):
     matched_count: int
     missing_count: int
     missing_ingredients: List[str]
+
+
+class RecipeRatingUpdate(BaseModel):
+    rating: int = Field(..., ge=1, le=5)
+
+
+class RecipeRatingRead(BaseModel):
+    recipe_id: int
+    user_rating: Optional[int] = None
+    average_rating: Optional[float] = None
+    rating_count: int = 0

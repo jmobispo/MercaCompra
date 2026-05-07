@@ -279,6 +279,9 @@ export interface Recipe {
   steps: RecipeStep[];
   image_url: string | null;
   is_public: boolean;
+  user_rating: number | null;
+  average_rating: number | null;
+  rating_count: number;
   ingredients: RecipeIngredient[];
   created_at: string;
   updated_at: string;
@@ -304,10 +307,20 @@ export interface RecipeSummary {
   steps: RecipeStep[];
   image_url: string | null;
   is_public: boolean;
+  user_rating: number | null;
+  average_rating: number | null;
+  rating_count: number;
   ingredient_count: number;
   ingredient_names: string[];
   created_at: string;
   updated_at: string;
+}
+
+export interface RecipeRatingResult {
+  recipe_id: number;
+  user_rating: number | null;
+  average_rating: number | null;
+  rating_count: number;
 }
 
 export interface RecipeIngredientPayload {

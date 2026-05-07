@@ -62,6 +62,20 @@ class HiddenRecipe(Base):
     created_at = Column(DateTime(timezone=True), default=_now, nullable=False)
 
 
+class RecipeRating(Base):
+    __tablename__ = "recipe_ratings"
+    __table_args__ = (
+        UniqueConstraint("user_id", "recipe_id", name="uq_recipe_ratings_user_recipe"),
+    )
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    recipe_id = Column(Integer, ForeignKey("recipes.id", ondelete="CASCADE"), nullable=False, index=True)
+    rating = Column(Integer, nullable=False)
+    created_at = Column(DateTime(timezone=True), default=_now, nullable=False)
+    updated_at = Column(DateTime(timezone=True), default=_now, onupdate=_now, nullable=False)
+
+
 class RecipeIngredient(Base):
     __tablename__ = "recipe_ingredients"
 

@@ -93,6 +93,7 @@ class PlannerContext:
     preferences: PlannerPreferences
     pantry_items: list[PantryItem]
     habit_stats: list[UserProductStats]
+    recipe_ratings: dict[int, int]
     recipe_repeat_counts: Counter[int]
     total_cost_so_far: float
     previous_recipe_by_slot: dict[str, Recipe]
@@ -266,7 +267,16 @@ def preference_score(recipe: Recipe, meal_slot: str, ctx: PlannerContext) -> flo
             score += 2.0
 
     score += meal_balance_adjustment(recipe, meal_slot)
+    score += recipe_rating_score(recipe, ctx)
     return score
+
+
+def recipe_rating_score(recipe: Recipe, ctx: PlannerContext) -> float:
+    rating = ctx.recipe_ratings.get(recipe.id)
+    if rating is None:
+        return 0.0
+    # Priorizamos de forma visible las recetas mejor valoradas por el usuario.
+    return (float(rating) - 3.0) * 8.0 + float(rating) * 1.5
 
 
 def repetition_penalty(recipe: Recipe, meal_slot: str, ctx: PlannerContext) -> float:
@@ -313,6 +323,7 @@ class MealPlannerService:
         preferences: dict | None,
         pantry_items: list[PantryItem],
         habit_stats: list[UserProductStats],
+        recipe_ratings: dict[int, int],
     ) -> None:
         self.people_count = people_count
         self.days_count = days_count
@@ -320,6 +331,7 @@ class MealPlannerService:
         self.preferences = normalize_preferences(preferences)
         self.pantry_items = pantry_items
         self.habit_stats = habit_stats
+        self.recipe_ratings = recipe_ratings
 
     def generate(self, recipes: list[Recipe]) -> dict[tuple[int, str], Recipe]:
         if not recipes:
@@ -347,6 +359,7 @@ class MealPlannerService:
                     preferences=self.preferences,
                     pantry_items=self.pantry_items,
                     habit_stats=self.habit_stats,
+                    recipe_ratings=self.recipe_ratings,
                     recipe_repeat_counts=recipe_repeat_counts,
                     total_cost_so_far=total_cost_so_far,
                     previous_recipe_by_slot=previous_recipe_by_slot,

@@ -7,7 +7,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.models.recipe import Recipe
+from app.models.recipe import Recipe, RecipeRating
 from app.models.shopping_list import ShoppingList
 from app.models.user import User
 from app.models.weekly_plan import WeeklyPlan, WeeklyPlanDay
@@ -208,23 +208,18 @@ class AIService:
             shopping_list=refreshed,
         )
 
-    async def assist_weekly_plan(self, user_id: int, plan_id: int) -> AIWeeklyPlanAssistResult:
+    async def assist_weekly_plan(self, user_id: int, plan_id: int, include_filled: bool = False) -> AIWeeklyPlanAssistResult:
         user = await self._get_ai_ready_user(user_id, require_enabled_field="ai_plan_assist")
         weekly_plan_service = WeeklyPlanService(self.db)
         plan = await weekly_plan_service._get_plan_or_404(plan_id, user_id)
 
-        recipes_result = await self.db.execute(
-            select(Recipe)
-            .where((Recipe.user_id == user_id) | (Recipe.is_public == True))
-            .order_by(Recipe.is_public.desc(), Recipe.title.asc())
-        )
-        recipes = list(recipes_result.scalars().all())
+        recipes = await weekly_plan_service._get_candidate_recipes(user_id)
 
-        empty_slots = [
+        target_slots = [
             day for day in plan.days
-            if day.recipe_id is None and day.meal_slot in AI_PLANNED_SLOTS
+            if day.meal_slot in AI_PLANNED_SLOTS and (include_filled or day.recipe_id is None)
         ]
-        if not empty_slots:
+        if not target_slots:
             return AIWeeklyPlanAssistResult(
                 message="El plan ya está completo.",
                 applied_slots=0,
@@ -233,9 +228,13 @@ class AIService:
 
         current_recipe_ids = [day.recipe_id for day in plan.days if day.recipe_id is not None]
         usage_counter = Counter(current_recipe_ids)
+        rating_result = await self.db.execute(
+            select(RecipeRating.recipe_id, RecipeRating.rating).where(RecipeRating.user_id == user_id)
+        )
+        rating_map = {int(recipe_id): int(rating) for recipe_id, rating in rating_result.all()}
 
         slot_candidates = []
-        for slot in empty_slots:
+        for slot in target_slots:
             preferred_meal_types = MEAL_SLOT_PREFERENCES.get(slot.meal_slot, ["comida"])
             candidates = [
                 recipe for recipe in recipes
@@ -244,16 +243,22 @@ class AIService:
             ranked = sorted(
                 candidates,
                 key=lambda recipe: (
+                    -rating_map.get(recipe.id, 0),
                     usage_counter.get(recipe.id, 0),
                     recipe.estimated_cost or 0,
                     recipe.estimated_minutes or 999,
                     recipe.title,
                 ),
             )[:8]
+            if slot.recipe_id and not any(recipe.id == slot.recipe_id for recipe in ranked):
+                current_recipe = next((recipe for recipe in candidates if recipe.id == slot.recipe_id), None)
+                if current_recipe is not None:
+                    ranked = [current_recipe, *ranked][:8]
             slot_candidates.append(
                 {
                     "day_index": slot.day_index,
                     "meal_slot": slot.meal_slot,
+                    "current_recipe_id": slot.recipe_id,
                     "candidates": [
                         {
                             "recipe_id": recipe.id,
@@ -262,6 +267,10 @@ class AIService:
                             "minutes": recipe.estimated_minutes,
                             "cost": recipe.estimated_cost,
                             "calories": recipe.calories_per_serving,
+                            "protein_g": recipe.protein_g,
+                            "carbs_g": recipe.carbs_g,
+                            "fat_g": recipe.fat_g,
+                            "user_rating": rating_map.get(recipe.id),
                         }
                         for recipe in ranked
                     ],
@@ -275,11 +284,14 @@ class AIService:
                 "days_count": plan.days_count,
                 "preferences": plan.preferences or {},
             },
-            "empty_slots": slot_candidates,
+            "target_slots": slot_candidates,
             "rules": {
                 "avoid_repetition": True,
                 "respect_meal_types": True,
                 "ignore_slots": ["merienda", "comida_postre", "cena_postre"],
+                "prefer_high_rated_recipes": True,
+                "keep_breakfast_lighter_than_main_meals": True,
+                "favor_balanced_macros_and_variety": True,
             },
         }
         schema = {
@@ -305,8 +317,10 @@ class AIService:
             "required": ["assignments", "summary"],
         }
         system_prompt = (
-            "Eres un planificador de menús. Elige una receta válida de entre las candidatas por cada hueco vacío. "
-            "Respeta el tipo de comida y evita repetir demasiado la misma receta."
+            "Eres un nutricionista y planificador de menus familiares. Elige una receta valida de entre las candidatas "
+            "para cada hueco objetivo. Prioriza recetas mejor valoradas por el usuario, distribuye mejor las calorias "
+            "y macros de la semana, evita repeticiones excesivas y manten desayunos mas ligeros que comidas y cenas. "
+            "Respeta siempre el tipo de comida y no inventes recetas fuera de las candidatas."
         )
         data = await self._chat_json(user, system_prompt, payload, schema)
 
