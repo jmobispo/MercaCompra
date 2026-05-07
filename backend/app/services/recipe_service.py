@@ -872,6 +872,22 @@ class RecipeService:
         try:
             product_service = ProductService(self.db)
 
+            if allow_remote:
+                result = await asyncio.wait_for(
+                    product_service.search(
+                        query=query,
+                        postal_code=postal_code,
+                        limit=8,
+                        mode="hybrid",
+                        rank_with_ai=False,
+                    ),
+                    timeout=3.5,
+                )
+                if result.products:
+                    remote_best = product_service.pick_best_match(query, result.products)
+                    if remote_best and getattr(remote_best, "source", None) != "fallback":
+                        return remote_best
+
             fallback_result = await product_service.search(
                 query=query,
                 postal_code=postal_code,
@@ -882,27 +898,11 @@ class RecipeService:
             fallback_best = product_service.pick_best_match(query, fallback_result.products)
             if fallback_best:
                 return fallback_best
-
-            if not allow_remote:
-                return None
-
-            result = await asyncio.wait_for(
-                product_service.search(
-                    query=query,
-                    postal_code=postal_code,
-                    limit=5,
-                    mode="hybrid",
-                    rank_with_ai=False,
-                ),
-                timeout=2.2,
-            )
         except TimeoutError:
             logger.warning("Timeout resolviendo ingrediente '%s' para CP %s", query, postal_code)
             return None
-        if not result.products:
-            return None
 
-        return product_service.pick_best_match(query, result.products)
+        return None
 
     async def _get_active_pantry_items(self, user_id: int) -> list[PantryItem]:
         result = await self.db.execute(
@@ -1533,7 +1533,8 @@ def _is_staple_or_packaged_product(ing: RecipeIngredient, product) -> bool:
     keywords = (
         "aceite", "sal", "pimienta", "especia", "oregano", "comino", "curry",
         "pimenton", "ajo granulado", "salsa soja", "vinagre", "pan rallado",
-        "tortilla", "wrap", "rallad", "lavad",
+        "tortilla", "wrap", "rallad", "lavad", "mermelada", "cafe",
+        "azucar", "harina", "mantequilla", "cacao", "salsa", "crema",
     )
     return any(keyword in haystack for keyword in keywords)
 

@@ -1,6 +1,7 @@
 import asyncio
 from dataclasses import asdict
 from datetime import date, datetime, timezone
+import math
 from typing import Optional
 
 from fastapi import HTTPException
@@ -12,6 +13,7 @@ from app.models.habit import UserProductStats
 from app.models.pantry import PantryItem
 from app.models.recipe import Recipe
 from app.models.shopping_list import ShoppingList, ShoppingListItem
+from app.models.user import User
 from app.models.weekly_plan import WeeklyPlan, WeeklyPlanDay
 from app.schemas.recipe import AddToListResult
 from app.schemas.weekly_plan import (
@@ -29,7 +31,8 @@ from app.schemas.weekly_plan import (
 from app.services.habit_service import HabitService
 from app.services.list_service import ListService, sanitize_db_thumbnail
 from app.services.meal_planner_service import AUTO_PLANNED_SLOTS, MEAL_SLOTS, MealPlannerService, normalize_preferences, recipe_cost_for_plan
-from app.services.recipe_service import RecipeService, _build_ingredient_note, _infer_cart_quantity, _merge_notes
+from app.services.pantry_support import convert_amount, parse_measurement_text, units_compatible
+from app.services.recipe_service import RecipeService, _build_ingredient_note, _infer_cart_quantity, _ingredient_required_amount, _merge_notes
 
 
 class WeeklyPlanService:
@@ -206,13 +209,14 @@ class WeeklyPlanService:
                     product = await recipe_service._resolve_product_for_ingredient(
                         ingredient,
                         postal_code,
-                        allow_remote=False,
+                        allow_remote=True,
                     )
                     product_cache[query_key] = product
                 product_id = product.id if product else f"weekly_{plan.id}_{ingredient.id}"
                 note = _build_ingredient_note(ingredient, servings_multiplier)
                 key = product_id if product else ingredient.name.strip().lower()
                 adjusted_qty = _infer_cart_quantity(ingredient, servings_multiplier, product)
+                required_amount = _ingredient_required_amount(ingredient, servings_multiplier, product)
                 adjusted_qty, covered_by_pantry, reduced_by_pantry = recipe_service._apply_pantry_coverage(
                     pantry_items,
                     ingredient,
@@ -228,6 +232,16 @@ class WeeklyPlanService:
                     pantry_reduced += 1
 
                 if key not in consolidated:
+                    pack_measure = parse_measurement_text(product.unit_size) if product else None
+                    aggregated_amount = None
+                    aggregated_unit = None
+                    pack_size = None
+                    if required_amount and pack_measure and units_compatible(pack_measure[1], required_amount[1]):
+                        converted_amount = convert_amount(required_amount[0], required_amount[1], pack_measure[1])
+                        if converted_amount is not None:
+                            aggregated_amount = converted_amount
+                            aggregated_unit = pack_measure[1]
+                            pack_size = pack_measure[0]
                     consolidated[key] = {
                         "product_id": product_id,
                         "product_name": product.name if product else ingredient.name,
@@ -239,9 +253,27 @@ class WeeklyPlanService:
                         "note": note,
                         "source": product.source if product else "manual",
                         "resolved": bool(product),
+                        "aggregated_amount": aggregated_amount,
+                        "aggregated_unit": aggregated_unit,
+                        "pack_size": pack_size,
                     }
                 else:
-                    consolidated[key]["quantity"] += adjusted_qty
+                    if (
+                        consolidated[key].get("aggregated_amount") is not None
+                        and required_amount
+                        and consolidated[key].get("aggregated_unit")
+                    ):
+                        converted_amount = convert_amount(
+                            required_amount[0],
+                            required_amount[1],
+                            consolidated[key]["aggregated_unit"],
+                        )
+                        if converted_amount is not None:
+                            consolidated[key]["aggregated_amount"] += converted_amount
+                        else:
+                            consolidated[key]["quantity"] += adjusted_qty
+                    else:
+                        consolidated[key]["quantity"] += adjusted_qty
                     consolidated[key]["note"] = _merge_notes(consolidated[key]["note"], note)
 
                 if product:
@@ -260,6 +292,16 @@ class WeeklyPlanService:
             existing_items_by_product_id[str(existing_item.product_id)] = existing_item
 
         for item_data in consolidated.values():
+            if (
+                item_data.get("aggregated_amount") is not None
+                and item_data.get("pack_size")
+                and item_data["pack_size"] > 0
+            ):
+                item_data["quantity"] = max(
+                    1,
+                    math.ceil(float(item_data["aggregated_amount"]) / float(item_data["pack_size"])),
+                )
+
             existing = existing_items_by_product_id.get(str(item_data["product_id"]))
             if existing:
                 existing.quantity += item_data["quantity"]
@@ -301,6 +343,11 @@ class WeeklyPlanService:
         )
 
         await self.db.commit()
+
+        optimization_applied += await self._maybe_apply_ai_generated_list_review(
+            user_id=user_id,
+            shopping_list_id=target_list.id,
+        )
 
         return AddToListResult(
             list_id=target_list.id,
@@ -400,6 +447,23 @@ class WeeklyPlanService:
             await self.db.flush()
 
         return applied
+
+    async def _maybe_apply_ai_generated_list_review(self, *, user_id: int, shopping_list_id: int) -> int:
+        result = await self.db.execute(select(User).where(User.id == user_id))
+        user = result.scalar_one_or_none()
+        if not user or not user.ai_enabled or not user.ai_list_assist or not user.ai_api_key:
+            return 0
+
+        try:
+            from app.services.ai_service import AIService
+
+            ai_result = await asyncio.wait_for(
+                AIService(self.db).optimize_list(user_id, shopping_list_id),
+                timeout=18.0,
+            )
+            return ai_result.applied_changes
+        except Exception:
+            return 0
 
     async def _get_plan_or_404(self, plan_id: int, user_id: int) -> WeeklyPlan:
         result = await self.db.execute(

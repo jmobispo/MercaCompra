@@ -153,6 +153,12 @@ class AIService:
                 for item in items
             ],
             "goal": "reduce absurd quantities, merge obvious duplicates, keep practical shopping quantities",
+            "rules": {
+                "prefer_practical_pantry_sizes": True,
+                "for_spreads_coffee_flour_sugar_oil_condiments_keep_one_pack_if_total_usage_fits": True,
+                "never_increase_without_clear_reason": True,
+                "be_conservative_but_fix_obvious_excesses": True,
+            },
         }
         schema = {
             "type": "object",
