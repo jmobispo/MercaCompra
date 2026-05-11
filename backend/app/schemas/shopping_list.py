@@ -2,6 +2,9 @@ from pydantic import BaseModel, Field
 from datetime import datetime
 from typing import Optional, List
 
+from app.schemas.pantry import PantryItemRead
+from app.schemas.spending import PurchaseHistoryRead
+
 
 class ShoppingListItemCreate(BaseModel):
     product_id: str
@@ -111,3 +114,14 @@ class ListOptimizationPreview(BaseModel):
 
 class ListOptimizationApplyPayload(BaseModel):
     suggestion_ids: List[str] = []
+
+
+class FinalizePurchaseResult(BaseModel):
+    list_id: int
+    list_name: str
+    moved_items: int
+    remaining_items: int
+    total_spent: float
+    list_archived: bool
+    pantry_items: List[PantryItemRead]
+    purchase_history: PurchaseHistoryRead

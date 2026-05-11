@@ -8,6 +8,7 @@ from app.api.deps import get_current_user
 from app.db.session import get_db
 from app.models.user import User
 from app.schemas.shopping_list import (
+    FinalizePurchaseResult,
     ListOptimizationApplyPayload,
     ListOptimizationPreview,
     ShoppingListCreate,
@@ -191,3 +192,13 @@ async def apply_list_ai_optimization(
 ):
     svc = AIService(db)
     return await svc.optimize_list(current_user.id, list_id)
+
+
+@router.post("/{list_id}/finalize-purchase", response_model=FinalizePurchaseResult)
+async def finalize_purchase(
+    list_id: int,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    svc = ListService(db)
+    return await svc.finalize_purchase(list_id, current_user.id)

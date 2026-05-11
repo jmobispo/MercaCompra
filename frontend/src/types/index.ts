@@ -242,6 +242,17 @@ export interface RecipeIngredient {
   position: number;
 }
 
+export interface FinalizePurchaseResult {
+  list_id: number;
+  list_name: string;
+  moved_items: number;
+  remaining_items: number;
+  total_spent: number;
+  list_archived: boolean;
+  pantry_items: PantryItem[];
+  purchase_history: PurchaseHistory;
+}
+
 export interface RecipeStep {
   position: number;
   text: string;

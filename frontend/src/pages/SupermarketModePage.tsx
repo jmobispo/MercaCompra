@@ -1,8 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 
-import { getSupermarketView, updateItem } from '../api/lists';
-import { pantryFromList } from '../api/pantry';
+import { finalizePurchase, getSupermarketView, updateItem } from '../api/lists';
 import { searchProducts } from '../api/products';
 import { useAuthStore } from '../store/authStore';
 import type { ShoppingListItem, SupermarketView } from '../types';
@@ -24,8 +23,7 @@ export default function SupermarketModePage() {
   const [success, setSuccess] = useState('');
   const [hideChecked, setHideChecked] = useState(false);
   const [toggling, setToggling] = useState<number | null>(null);
-  const [sendingToPantry, setSendingToPantry] = useState(false);
-  const [lastPantrySyncKey, setLastPantrySyncKey] = useState('');
+  const [finalizingPurchase, setFinalizingPurchase] = useState(false);
   const [thumbnailOverrides, setThumbnailOverrides] = useState<Record<number, string>>({});
   const [thumbnailBatchCursor, setThumbnailBatchCursor] = useState(0);
   const [enrichedViewKey, setEnrichedViewKey] = useState<string | null>(null);
@@ -141,7 +139,6 @@ export default function SupermarketModePage() {
     setToggling(item.id);
     try {
       await updateItem(listId, item.id, { is_checked: !item.is_checked });
-      setLastPantrySyncKey('');
       setView((prev) => {
         if (!prev) return prev;
         const newGroups = prev.groups.map((group) => ({
@@ -164,35 +161,34 @@ export default function SupermarketModePage() {
     }
   };
 
-  const handleSendToPantry = async () => {
+  const handleFinalizePurchase = async () => {
     if (!view) return;
-    const syncKey = view.groups
-      .flatMap((group) => group.items)
-      .filter((item) => item.is_checked)
-      .map((item) => `${item.id}:${item.quantity}`)
-      .sort()
-      .join('|');
-    if (syncKey && syncKey === lastPantrySyncKey) {
-      setSuccess('Esta compra ya se habia pasado a la despensa');
-      setError('');
-      return;
-    }
-    setSendingToPantry(true);
+    setFinalizingPurchase(true);
     try {
-      const added = await pantryFromList(listId, { checked_only: true });
-      if (added.length === 0) {
-        setError('Marca primero los artículos comprados para poder pasarlos a la despensa');
-        setSuccess('');
-      } else {
-        setSuccess(`${added.length} producto(s) enviados a la despensa`);
-        setLastPantrySyncKey(syncKey);
-        setError('');
-      }
-    } catch {
-      setError('No se pudo pasar la compra a la despensa');
+      const result = await finalizePurchase(listId);
+      const spentLabel = result.total_spent.toLocaleString('es-ES', {
+        style: 'currency',
+        currency: 'EUR',
+      });
+      setSuccess(
+        result.list_archived
+          ? `${result.moved_items} producto(s) añadidos a despensa, ${spentLabel} registrados en gasto y lista finalizada`
+          : `${result.moved_items} producto(s) añadidos a despensa y ${spentLabel} registrados en gasto`
+      );
+      setError('');
+      await fetchView();
+    } catch (err) {
+      const detail =
+        typeof err === 'object' &&
+        err !== null &&
+        'response' in err &&
+        typeof (err as { response?: { data?: { detail?: unknown } } }).response?.data?.detail === 'string'
+          ? (err as { response?: { data?: { detail?: string } } }).response?.data?.detail
+          : null;
+      setError(detail ?? 'No se pudo finalizar la compra');
       setSuccess('');
     } finally {
-      setSendingToPantry(false);
+      setFinalizingPurchase(false);
     }
   };
 
@@ -265,11 +261,11 @@ export default function SupermarketModePage() {
           </button>
           <button
             className="btn btn-primary btn-sm"
-            onClick={() => void handleSendToPantry()}
-            disabled={sendingToPantry || view.checked_items === 0}
+            onClick={() => void handleFinalizePurchase()}
+            disabled={finalizingPurchase || view.checked_items === 0}
             style={{ whiteSpace: 'nowrap', fontSize: 12 }}
           >
-            {sendingToPantry ? 'Pasando...' : 'Pasar a despensa'}
+            {finalizingPurchase ? 'Finalizando...' : 'Finalizar compra'}
           </button>
         </div>
 
@@ -332,10 +328,16 @@ export default function SupermarketModePage() {
           <div style={{ display: 'flex', gap: 10, justifyContent: 'center', flexWrap: 'wrap' }}>
             <button
               className="btn btn-primary"
-              onClick={() => void handleSendToPantry()}
-              disabled={sendingToPantry || view.checked_items === 0}
+              onClick={() => void handleFinalizePurchase()}
+              disabled={finalizingPurchase || view.checked_items === 0}
             >
-              {sendingToPantry ? 'Pasando...' : 'Guardar compra en despensa'}
+              {finalizingPurchase ? 'Finalizando...' : 'Finalizar compra'}
+            </button>
+            <button
+              className="btn btn-secondary"
+              onClick={() => navigate('/spending')}
+            >
+              Ver gasto
             </button>
             <button
               className="btn btn-secondary"

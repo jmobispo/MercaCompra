@@ -3,6 +3,7 @@ import type {
   AIListOptimizeResult,
   AddItemPayload,
   CreateListPayload,
+  FinalizePurchaseResult,
   ListOptimizationPreview,
   ShoppingList,
   ShoppingListSummary,
@@ -80,5 +81,10 @@ export const applyListOptimization = async (
 
 export const aiOptimizeList = async (listId: number): Promise<AIListOptimizeResult> => {
   const response = await apiClient.post<AIListOptimizeResult>(`/lists/${listId}/ai-optimize`);
+  return response.data;
+};
+
+export const finalizePurchase = async (listId: number): Promise<FinalizePurchaseResult> => {
+  const response = await apiClient.post<FinalizePurchaseResult>(`/lists/${listId}/finalize-purchase`);
   return response.data;
 };

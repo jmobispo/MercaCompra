@@ -9,15 +9,20 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 from app.models.pantry import PantryItem
+from app.models.purchase_history import PurchaseHistory
 from app.repositories.list_repo import ShoppingListRepository
 from app.models.shopping_list import ShoppingList, ShoppingListItem
 from app.schemas.shopping_list import (
+    FinalizePurchaseResult,
     ShoppingListCreate, ShoppingListUpdate,
     ShoppingListRead, ShoppingListSummary,
     ShoppingListItemCreate, ShoppingListItemUpdate,
     ShoppingListItemRead,
 )
+from app.schemas.pantry import PantryItemCreate, PantryItemRead
+from app.schemas.spending import PurchaseHistoryRead
 from app.services.habit_service import HabitService
+from app.services.pantry_service import PantryService
 from app.services.pantry_support import (
     convert_amount,
     normalize_text,
@@ -211,6 +216,71 @@ class ListService:
         await self.repo.delete_item(item)
         sl = await self.repo.get_by_id(list_id, user_id)
         return ShoppingListRead.model_validate(sl)
+
+    async def finalize_purchase(self, list_id: int, user_id: int) -> FinalizePurchaseResult:
+        sl = await self.repo.get_by_id(list_id, user_id)
+        if not sl:
+            raise HTTPException(status_code=404, detail="Lista no encontrada")
+
+        checked_items = [item for item in sl.items if item.is_checked]
+        if not checked_items:
+            raise HTTPException(status_code=400, detail="Marca primero los productos comprados")
+
+        pantry_service = PantryService(self.db)
+        added_pantry_items = []
+        total_spent = 0.0
+
+        for list_item in checked_items:
+            pantry_item = await pantry_service._upsert_item(
+                user_id,
+                PantryItemCreate(
+                    name=list_item.product_name,
+                    product_id=list_item.product_id,
+                    quantity=float(list_item.quantity),
+                    unit=list_item.product_unit,
+                    notes=list_item.note,
+                ),
+            )
+            added_pantry_items.append(pantry_item)
+            total_spent += float(list_item.product_price or 0) * int(list_item.quantity or 0)
+
+        purchase_record = PurchaseHistory(
+            user_id=user_id,
+            shopping_list_id=sl.id,
+            list_name=sl.name,
+            estimated_total=round(total_spent, 2),
+            item_count=sum(int(item.quantity or 0) for item in checked_items),
+        )
+        self.db.add(purchase_record)
+
+        for list_item in checked_items:
+            await self.repo.delete_item(list_item)
+
+        refreshed = await self.repo.get_by_id(list_id, user_id)
+        if not refreshed:
+            raise HTTPException(status_code=404, detail="Lista no encontrada")
+
+        if len(refreshed.items) == 0:
+            refreshed.is_archived = True
+
+        await self.db.commit()
+        for item in added_pantry_items:
+            await self.db.refresh(item)
+        await self.db.refresh(purchase_record)
+        refreshed = await self.repo.get_by_id(list_id, user_id)
+        if not refreshed:
+            raise HTTPException(status_code=404, detail="Lista no encontrada")
+
+        return FinalizePurchaseResult(
+            list_id=refreshed.id,
+            list_name=refreshed.name,
+            moved_items=len(checked_items),
+            remaining_items=len(refreshed.items),
+            total_spent=round(total_spent, 2),
+            list_archived=bool(refreshed.is_archived),
+            pantry_items=[PantryItemRead.model_validate(item) for item in added_pantry_items],
+            purchase_history=PurchaseHistoryRead.model_validate(purchase_record),
+        )
 
     async def get_list_entity(self, list_id: int, user_id: int) -> ShoppingList:
         sl = await self.repo.get_by_id(list_id, user_id)
