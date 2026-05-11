@@ -170,9 +170,7 @@ export const duplicateRecipe = async (id: number): Promise<Recipe> => {
 export const uploadRecipeImage = async (id: number, file: File): Promise<Recipe> => {
   const formData = new FormData();
   formData.append('image', file);
-  const r = await apiClient.post<Recipe>(`/recipes/${id}/image`, formData, {
-    headers: { 'Content-Type': 'multipart/form-data' },
-  });
+  const r = await apiClient.post<Recipe>(`/recipes/${id}/image`, formData);
   return normalizeRecipe(r.data);
 };
 

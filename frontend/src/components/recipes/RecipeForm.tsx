@@ -22,8 +22,8 @@ interface RecipeFormProps {
 
 const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
-const TARGET_IMAGE_MAX_BYTES = 240 * 1024;
-const TARGET_IMAGE_MAX_DIMENSION = 1280;
+const TARGET_IMAGE_MAX_BYTES = 160 * 1024;
+const TARGET_IMAGE_MAX_DIMENSION = 1024;
 const MEAL_TYPE_OPTIONS: Array<{ value: RecipeMealType; label: string }> = [
   { value: 'desayuno', label: 'Desayuno' },
   { value: 'comida', label: 'Comida' },
@@ -92,7 +92,7 @@ async function optimizeImageFile(file: File): Promise<File> {
   context.drawImage(imageBitmap, 0, 0, width, height);
   imageBitmap.close();
 
-  const candidateQualities = [0.86, 0.78, 0.7, 0.62, 0.54];
+  const candidateQualities = [0.84, 0.74, 0.64, 0.56, 0.48, 0.4];
   for (const quality of candidateQualities) {
     const blob = await new Promise<Blob | null>((resolve) =>
       canvas.toBlob(resolve, 'image/jpeg', quality)
@@ -109,7 +109,7 @@ async function optimizeImageFile(file: File): Promise<File> {
   }
 
   const finalBlob = await new Promise<Blob | null>((resolve) =>
-    canvas.toBlob(resolve, 'image/jpeg', 0.5)
+    canvas.toBlob(resolve, 'image/jpeg', 0.35)
   );
   if (!finalBlob) return file;
   return new File(
@@ -218,6 +218,10 @@ export default function RecipeForm({
     setError('');
     try {
       const optimized = await optimizeImageFile(file);
+      if (optimized.size > 350 * 1024) {
+        setError('La imagen sigue siendo demasiado pesada tras optimizarla. Prueba con una mas ligera.');
+        return;
+      }
       setSelectedImage(optimized);
       if (optimized !== file) {
         setInfo('La imagen se ha optimizado automaticamente para guardarla mejor.');
