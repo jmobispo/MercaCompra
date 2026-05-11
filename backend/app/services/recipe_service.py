@@ -940,17 +940,16 @@ class RecipeService:
         await self.db.flush()
 
         for pos, ing in enumerate(source.ingredients):
-            self.db.add(
-                RecipeIngredient(
-                    recipe_id=clone.id,
-                    name=ing.name,
-                    quantity=ing.quantity,
-                    unit=ing.unit,
-                    notes=ing.notes,
-                    product_query=ing.product_query,
-                    position=pos,
-                )
+            ingredient_copy = RecipeIngredient(
+                recipe_id=clone.id,
+                name=ing.name,
+                quantity=ing.quantity,
+                unit=ing.unit,
+                notes=ing.notes,
+                product_query=ing.product_query,
+                position=pos,
             )
+            self.db.add(ingredient_copy)
 
         source_rating_result = await self.db.execute(
             select(RecipeRating).where(
@@ -976,7 +975,13 @@ class RecipeService:
 
         await self._hide_public_recipe_for_user(source.id, user_id)
         await self.db.flush()
-        return clone
+        result = await self.db.execute(
+            select(Recipe)
+            .where(Recipe.id == clone.id)
+            .options(selectinload(Recipe.ingredients))
+            .execution_options(populate_existing=True)
+        )
+        return result.scalar_one()
 
     def _to_summary(
         self,
