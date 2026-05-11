@@ -3948,6 +3948,20 @@ textarea.form-input {
   box-shadow: 0 16px 30px rgba(15, 23, 42, 0.06);
 }
 
+.supermarket-sticky-top {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.supermarket-sticky-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
 .supermarket-group-header {
   padding: 8px 16px;
   font-size: 11px;
@@ -4073,6 +4087,30 @@ textarea.form-input {
   .supermarket-sticky {
     border-radius: 0 0 22px 22px;
     padding: 12px 14px;
+  }
+
+  .supermarket-sticky-top {
+    align-items: flex-start;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .supermarket-sticky-top h2 {
+    flex: 1 1 100%;
+    order: 2;
+    white-space: normal !important;
+    line-height: 1.2;
+  }
+
+  .supermarket-sticky-actions {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+  }
+
+  .supermarket-sticky-actions .btn {
+    width: 100%;
+    justify-content: center;
   }
 }
 

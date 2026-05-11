@@ -22,8 +22,8 @@ interface RecipeFormProps {
 
 const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
-const TARGET_IMAGE_MAX_BYTES = 900 * 1024;
-const TARGET_IMAGE_MAX_DIMENSION = 1600;
+const TARGET_IMAGE_MAX_BYTES = 240 * 1024;
+const TARGET_IMAGE_MAX_DIMENSION = 1280;
 const MEAL_TYPE_OPTIONS: Array<{ value: RecipeMealType; label: string }> = [
   { value: 'desayuno', label: 'Desayuno' },
   { value: 'comida', label: 'Comida' },

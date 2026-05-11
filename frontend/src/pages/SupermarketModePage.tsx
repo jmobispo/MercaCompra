@@ -241,7 +241,7 @@ export default function SupermarketModePage() {
       )}
 
       <div className="supermarket-sticky">
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
+        <div className="supermarket-sticky-top">
           <button
             className="btn btn-ghost btn-sm"
             onClick={() => navigate(`/lists/${listId}`)}
@@ -252,6 +252,9 @@ export default function SupermarketModePage() {
           <h2 style={{ margin: 0, fontSize: 18, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
             {view.list_name}
           </h2>
+        </div>
+
+        <div className="supermarket-sticky-actions">
           <button
             className={`btn btn-sm ${hideChecked ? 'btn-primary' : 'btn-secondary'}`}
             onClick={() => setHideChecked((value) => !value)}
