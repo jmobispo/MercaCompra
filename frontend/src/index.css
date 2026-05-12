@@ -1190,6 +1190,12 @@ input, select, textarea {
   color: var(--color-text-muted);
 }
 
+.item-usage-hint {
+  margin-top: 4px;
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
 .item-actions {
   display: flex;
   align-items: center;
@@ -4611,6 +4617,7 @@ textarea.form-input {
 :root[data-theme="dark"] .settings-toggle small,
 :root[data-theme="dark"] .form-help,
 :root[data-theme="dark"] .item-meta,
+:root[data-theme="dark"] .item-usage-hint,
 :root[data-theme="dark"] .dashboard-card-subtle,
 :root[data-theme="dark"] .brand-logo-subtitle {
   color: #9db0cc;

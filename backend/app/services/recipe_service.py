@@ -5,6 +5,7 @@ import asyncio
 import logging
 import math
 import re
+import unicodedata
 from datetime import datetime, timezone
 from typing import List, Optional
 
@@ -1052,7 +1053,12 @@ class RecipeService:
                     timeout=3.5,
                 )
                 if result.products:
-                    remote_best = product_service.pick_best_match(query, result.products)
+                    remote_best = _pick_product_for_ingredient(
+                        query,
+                        ingredient,
+                        result.products,
+                        product_service,
+                    )
                     if remote_best and getattr(remote_best, "source", None) != "fallback":
                         return remote_best
 
@@ -1063,7 +1069,12 @@ class RecipeService:
                 mode="fallback",
                 rank_with_ai=False,
             )
-            fallback_best = product_service.pick_best_match(query, fallback_result.products)
+            fallback_best = _pick_product_for_ingredient(
+                query,
+                ingredient,
+                fallback_result.products,
+                product_service,
+            )
             if fallback_best:
                 return fallback_best
         except TimeoutError:
@@ -1926,6 +1937,140 @@ def _guess_units_per_pack(product, ing: RecipeIngredient) -> Optional[int]:
         if keyword in haystack:
             return max(1, round(pack_weight_g / avg_weight_g))
     return None
+
+
+def _normalize_compare_text(value: Optional[str]) -> str:
+    normalized = unicodedata.normalize("NFKD", (value or "").lower())
+    return "".join(ch for ch in normalized if not unicodedata.combining(ch))
+
+
+def _parse_weight_grams(product) -> Optional[float]:
+    pack = parse_measurement_text(getattr(product, "unit_size", None)) if product else None
+    if not pack:
+        return None
+    amount, unit = pack
+    if unit == "kg":
+        return amount * 1000.0
+    if unit == "g":
+        return amount
+    return None
+
+
+def _looks_like_whole_cured_piece(product) -> bool:
+    if not product:
+        return False
+
+    haystack = " ".join(
+        _normalize_compare_text(part)
+        for part in [
+            getattr(product, "name", "") or "",
+            getattr(product, "display_name", "") or "",
+            getattr(product, "category", "") or "",
+            getattr(product, "subcategory", "") or "",
+            getattr(product, "unit_size", "") or "",
+        ]
+        if part
+    )
+    if not any(keyword in haystack for keyword in ("jamon", "paleta")):
+        return False
+    if any(keyword in haystack for keyword in ("lonchas", "tacos", "taquitos", "virutas", "dados", "cortado")):
+        return False
+    if any(keyword in haystack for keyword in ("pieza", "entero", "reserva", "bodega")):
+        return True
+
+    pack_weight_g = _parse_weight_grams(product)
+    return bool(pack_weight_g and pack_weight_g >= 1200)
+
+
+def _is_impractical_pack_for_amount(ing: RecipeIngredient, product) -> bool:
+    if not product:
+        return False
+
+    if _looks_like_whole_cured_piece(product):
+        return True
+
+    required = _ingredient_required_amount(ing, 1.0, product)
+    pack = parse_measurement_text(getattr(product, "unit_size", None))
+    if not required or not pack:
+        return False
+
+    required_amount, required_unit = required
+    pack_amount, pack_unit = pack
+    if required_unit not in {"g", "kg", "ml", "l"} or pack_unit not in {"g", "kg", "ml", "l"}:
+        return False
+
+    converted_required = convert_amount(required_amount, required_unit, pack_unit)
+    if converted_required is None or converted_required <= 0:
+        return False
+
+    haystack = " ".join(
+        _normalize_compare_text(part)
+        for part in [
+            ing.name or "",
+            ing.product_query or "",
+            getattr(product, "name", "") or "",
+            getattr(product, "display_name", "") or "",
+            getattr(product, "category", "") or "",
+            getattr(product, "subcategory", "") or "",
+        ]
+        if part
+    )
+    processed_keywords = (
+        "jamon", "bacon", "panceta", "chorizo", "salchich", "queso",
+        "fiambre", "charcuteria", "embutido",
+    )
+    if any(keyword in haystack for keyword in processed_keywords):
+        return pack_amount > max(converted_required * 3.0, 350.0 if pack_unit in {"g", "ml"} else 0.35)
+
+    if _is_fresh_produce(ing, product):
+        return pack_amount > max(converted_required * 4.0, 1200.0 if pack_unit in {"g", "ml"} else 1.2)
+
+    return False
+
+
+def _pick_product_for_ingredient(
+    query: str,
+    ingredient: RecipeIngredient,
+    products,
+    product_service: ProductService,
+):
+    if not products:
+        return None
+
+    normalized_query = _normalize_compare_text(query)
+    ham_like_query = any(token in normalized_query for token in ("jamon serrano", "jamon iberico", "jamon"))
+    preferred_cut_keywords = ("lonchas", "tacos", "taquitos", "virutas", "dados", "cortado")
+
+    if ham_like_query:
+        preferred_cut_products = []
+        for product in products:
+            haystack = " ".join(
+                _normalize_compare_text(part)
+                for part in [
+                    getattr(product, "name", "") or "",
+                    getattr(product, "display_name", "") or "",
+                    getattr(product, "subcategory", "") or "",
+                ]
+                if part
+            )
+            if any(keyword in haystack for keyword in preferred_cut_keywords):
+                preferred_cut_products.append(product)
+        if preferred_cut_products:
+            products = preferred_cut_products
+
+    practical_products = [
+        product
+        for product in products
+        if not _is_impractical_pack_for_amount(ingredient, product)
+    ]
+    if practical_products:
+        return product_service.pick_best_match(query, practical_products)
+
+    non_whole_products = [product for product in products if not _looks_like_whole_cured_piece(product)]
+    if non_whole_products:
+        return product_service.pick_best_match(query, non_whole_products)
+
+    return product_service.pick_best_match(query, products)
 
 
 def _build_ingredient_note(ing: RecipeIngredient, servings_multiplier: float) -> Optional[str]:

@@ -21,6 +21,16 @@ const THUMBNAIL_LOOKUP_LIMIT = 4;
 const THUMBNAIL_LOOKUP_DELAY_MS = 250;
 const thumbnailSearchCache = new Map<string, string | null>();
 
+function extractRecipeUsageCount(note?: string | null): number | null {
+  const match = /Usado en (\d+) receta/i.exec(note ?? '');
+  if (!match) {
+    return null;
+  }
+
+  const parsed = Number(match[1]);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
 export default function ListDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -521,6 +531,7 @@ function ItemRow({
     typeof thumbnail === 'string' && /^https?:\/\//i.test(thumbnail)
       ? thumbnail
       : buildInlineFallbackThumbnail(item.product_name, item.product_category);
+  const recipeUsageCount = extractRecipeUsageCount(item.note);
 
   const commitQuantity = () => {
     const parsed = Number(quantityInput);
@@ -579,6 +590,11 @@ function ItemRow({
               <span>{formatCurrency(item.product_price)}/ud</span>
             )}
           </div>
+          {recipeUsageCount != null && (
+            <div className="item-usage-hint">
+              Usado en {recipeUsageCount} receta{recipeUsageCount === 1 ? '' : 's'}
+            </div>
+          )}
         </div>
 
         <div className="item-actions">

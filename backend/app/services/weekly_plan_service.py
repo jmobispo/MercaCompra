@@ -282,6 +282,7 @@ class WeeklyPlanService:
                         "aggregated_amount": aggregated_amount,
                         "aggregated_unit": aggregated_unit,
                         "pack_size": pack_size,
+                        "recipe_titles": {day.recipe.title.strip()} if day.recipe and day.recipe.title else set(),
                     }
                 else:
                     if (
@@ -307,6 +308,8 @@ class WeeklyPlanService:
                         else:
                             consolidated[key]["quantity"] += adjusted_qty
                     consolidated[key]["note"] = _merge_notes(consolidated[key]["note"], note)
+                    if day.recipe and day.recipe.title:
+                        consolidated[key].setdefault("recipe_titles", set()).add(day.recipe.title.strip())
 
                 if product:
                     if product.source == "fallback":
@@ -324,6 +327,14 @@ class WeeklyPlanService:
             existing_items_by_product_id[str(existing_item.product_id)] = existing_item
 
         for item_data in consolidated.values():
+            recipe_titles = {
+                title.strip()
+                for title in item_data.get("recipe_titles", set())
+                if isinstance(title, str) and title.strip()
+            }
+            if recipe_titles:
+                usage_note = f"Usado en {len(recipe_titles)} receta{'s' if len(recipe_titles) != 1 else ''}"
+                item_data["note"] = _merge_notes(usage_note, item_data["note"])
             if (
                 item_data.get("aggregated_amount") is not None
                 and item_data.get("pack_size")
