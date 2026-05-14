@@ -432,6 +432,30 @@ class ListService:
                 suggestions.append(suggestion)
                 seen_groups.add(tuple(sorted(suggestion["item_ids"])))
 
+        exact_name_groups: dict[str, list[ShoppingListItem]] = {}
+        for item in items:
+            exact_name_groups.setdefault(self._normalize_name(item.product_name), []).append(item)
+
+        for _, group in exact_name_groups.items():
+            if len(group) < 2:
+                continue
+            ids_key = tuple(sorted(item.id for item in group))
+            if ids_key in seen_groups:
+                continue
+            suggestion = self._build_group_suggestion(group, "Duplicados exactos por nombre")
+            if suggestion:
+                suggestions.append(suggestion)
+                seen_groups.add(ids_key)
+
+        for group, reason in self._build_fresh_family_groups(items):
+            ids_key = tuple(sorted(item.id for item in group))
+            if len(ids_key) < 2 or ids_key in seen_groups:
+                continue
+            suggestion = self._build_group_suggestion(group, reason)
+            if suggestion:
+                suggestions.append(suggestion)
+                seen_groups.add(ids_key)
+
         if include_fuzzy:
             fuzzy_groups = self._build_fuzzy_groups(items)
             for group, reason in fuzzy_groups:
@@ -444,6 +468,24 @@ class ListService:
                     seen_groups.add(ids_key)
 
         return suggestions
+
+    def _build_fresh_family_groups(self, items: list[ShoppingListItem]) -> list[tuple[list[ShoppingListItem], str]]:
+        groups_by_family: dict[str, list[ShoppingListItem]] = {}
+        for item in items:
+            family = self._fresh_family_key(item)
+            if family:
+                groups_by_family.setdefault(family, []).append(item)
+
+        results: list[tuple[list[ShoppingListItem], str]] = []
+        for family, group in groups_by_family.items():
+            if len(group) < 2:
+                continue
+            if len({self._normalize_name(item.product_name) for item in group}) < 2:
+                continue
+            if family == "lechuga":
+                ordered = sorted(group, key=self._fresh_family_preference_key)
+                results.append((ordered, "Variantes de lechuga muy parecidas"))
+        return results
 
     def _build_pantry_coverage_suggestions(
         self,
@@ -592,6 +634,8 @@ class ListService:
             return None
 
         ordered = sorted(group, key=lambda item: (-item.quantity, item.id))
+        if reason == "Variantes de lechuga muy parecidas":
+            ordered = sorted(group, key=self._fresh_family_preference_key)
         keeper = ordered[0]
         combined_quantity = sum(item.quantity for item in ordered)
         merged_note = " | ".join(
@@ -809,3 +853,24 @@ class ListService:
                 token = token[:-1]
             tokens.add(token)
         return tokens
+
+    def _fresh_family_key(self, item: ShoppingListItem) -> str | None:
+        category = self._normalize_name(item.product_category or "")
+        name = self._normalize_name(item.product_name)
+        if "fruta" not in category and "verdura" not in category:
+            return None
+        if "lechuga" in name:
+            return "lechuga"
+        return None
+
+    def _fresh_family_preference_key(self, item: ShoppingListItem) -> tuple[int, float, float, int]:
+        name = self._normalize_name(item.product_name)
+        is_bagged = any(keyword in name for keyword in ("bolsa", "cortada", "mezcla", "brotes", "ensalada"))
+        is_generic = name == "lechuga" or name.startswith("lechuga ")
+        price = float(item.product_price or 9999.0)
+        return (
+            1 if is_bagged else 0,
+            0 if is_generic else 1,
+            price,
+            item.id,
+        )
