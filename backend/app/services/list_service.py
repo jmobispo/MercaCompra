@@ -485,6 +485,9 @@ class ListService:
             if family == "lechuga":
                 ordered = sorted(group, key=self._fresh_family_preference_key)
                 results.append((ordered, "Variantes de lechuga muy parecidas"))
+            elif family == "tomate_pera":
+                ordered = sorted(group, key=self._fresh_family_preference_key)
+                results.append((ordered, "Variantes de tomate pera muy parecidas"))
         return results
 
     def _build_pantry_coverage_suggestions(
@@ -634,7 +637,7 @@ class ListService:
             return None
 
         ordered = sorted(group, key=lambda item: (-item.quantity, item.id))
-        if reason == "Variantes de lechuga muy parecidas":
+        if reason in {"Variantes de lechuga muy parecidas", "Variantes de tomate pera muy parecidas"}:
             ordered = sorted(group, key=self._fresh_family_preference_key)
         keeper = ordered[0]
         combined_quantity = sum(item.quantity for item in ordered)
@@ -861,12 +864,19 @@ class ListService:
             return None
         if "lechuga" in name:
             return "lechuga"
+        if "tomate pera" in name or ("tomate" in name and "pera" in name):
+            return "tomate_pera"
         return None
 
     def _fresh_family_preference_key(self, item: ShoppingListItem) -> tuple[int, float, float, int]:
         name = self._normalize_name(item.product_name)
         is_bagged = any(keyword in name for keyword in ("bolsa", "cortada", "mezcla", "brotes", "ensalada"))
-        is_generic = name == "lechuga" or name.startswith("lechuga ")
+        is_generic = (
+            name == "lechuga"
+            or name.startswith("lechuga ")
+            or name == "tomate pera"
+            or name.startswith("tomate pera ")
+        )
         price = float(item.product_price or 9999.0)
         return (
             1 if is_bagged else 0,

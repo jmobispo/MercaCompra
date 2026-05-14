@@ -2077,6 +2077,16 @@ def _pick_product_for_ingredient(
         if "calabacin" in normalized_query and _contains_any(product_text, ("espiral", "laminado", "salteado", "bolsa", "parrilla")):
             penalty += 7
 
+        if ("patata" in normalized_query or "patatas" in normalized_query) and not _contains_any(
+            normalized_query,
+            ("frita", "fritas", "chips", "prefrita", "congelada", "brava", "gajo", "paja"),
+        ):
+            if _contains_any(
+                product_text,
+                ("frita", "fritas", "chips", "prefrita", "congelada", "brava", "gajo", "paja"),
+            ):
+                penalty += 12
+
         if _looks_like_whole_cured_piece(product):
             penalty += 10
 
