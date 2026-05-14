@@ -59,6 +59,11 @@ export const deleteItem = async (listId: number, itemId: number): Promise<void> 
   await apiClient.delete(`/lists/${listId}/items/${itemId}`);
 };
 
+export const moveItemToPantry = async (listId: number, itemId: number): Promise<ShoppingList> => {
+  const response = await apiClient.post<ShoppingList>(`/lists/${listId}/items/${itemId}/move-to-pantry`);
+  return response.data;
+};
+
 export const getSupermarketView = async (listId: number): Promise<SupermarketView> => {
   const response = await apiClient.get<SupermarketView>(`/lists/${listId}/supermarket`);
   return response.data;

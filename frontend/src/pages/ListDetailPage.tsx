@@ -8,6 +8,7 @@ import {
   updateItem,
   addItem,
   deleteList,
+  moveItemToPantry,
 } from '../api/lists';
 import { searchProducts } from '../api/products';
 import { useAuthStore } from '../store/authStore';
@@ -269,6 +270,17 @@ export default function ListDetailPage() {
     }
   };
 
+  const handleMoveItemToPantry = async (item: ShoppingListItem) => {
+    if (!list) return;
+    try {
+      const updatedList = await moveItemToPantry(list.id, item.id);
+      setList(updatedList);
+      setError('');
+    } catch {
+      setError('No se pudo pasar el producto a despensa');
+    }
+  };
+
   const handleUpdateList = async (payload: CreateListPayload) => {
     if (!list) return;
     const updated = await updateList(list.id, payload);
@@ -466,6 +478,7 @@ export default function ListDetailPage() {
                     onQtyChange={(delta) => handleQuantityChange(item, delta)}
                     onQtySet={(quantity) => handleQuantitySet(item, quantity)}
                     onDelete={() => handleDeleteItem(item)}
+                    onMoveToPantry={() => handleMoveItemToPantry(item)}
                     onShowUsage={(itemName, recipes) => setUsageModal({ itemName, recipes })}
                     formatCurrency={formatCurrency}
                   />
@@ -494,6 +507,7 @@ export default function ListDetailPage() {
                         onQtyChange={(delta) => handleQuantityChange(item, delta)}
                         onQtySet={(quantity) => handleQuantitySet(item, quantity)}
                         onDelete={() => handleDeleteItem(item)}
+                        onMoveToPantry={() => handleMoveItemToPantry(item)}
                         onShowUsage={(itemName, recipes) => setUsageModal({ itemName, recipes })}
                         formatCurrency={formatCurrency}
                       />
@@ -575,6 +589,7 @@ function ItemRow({
   onQtyChange,
   onQtySet,
   onDelete,
+  onMoveToPantry,
   onShowUsage,
   formatCurrency,
 }: {
@@ -584,6 +599,7 @@ function ItemRow({
   onQtyChange: (delta: number) => void;
   onQtySet: (quantity: number) => void;
   onDelete: () => void;
+  onMoveToPantry: () => void;
   onShowUsage: (itemName: string, recipes: RecipeUsageRef[]) => void;
   formatCurrency: (v: number | null) => string;
 }) {
@@ -695,6 +711,15 @@ function ItemRow({
           <div className="item-price">
             {lineTotal != null ? formatCurrency(lineTotal) : '?'}
           </div>
+
+          <button
+            className="item-pantry-btn"
+            onClick={onMoveToPantry}
+            title="Pasar a despensa"
+            aria-label={`Pasar ${item.product_name} a despensa`}
+          >
+            Despensa
+          </button>
 
           <button
             className="btn-icon danger item-delete-btn"

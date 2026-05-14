@@ -1237,6 +1237,23 @@ input, select, textarea {
   color: var(--color-primary);
 }
 
+.item-pantry-btn {
+  height: 34px;
+  padding: 0 12px;
+  border-radius: 999px;
+  border: 1px solid rgba(0, 166, 80, 0.18);
+  background: rgba(0, 166, 80, 0.08);
+  color: var(--color-primary);
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.item-pantry-btn:hover {
+  background: rgba(0, 166, 80, 0.14);
+}
+
 .item-actions {
   display: flex;
   align-items: center;
@@ -4668,6 +4685,12 @@ textarea.form-input {
   background: rgba(18, 29, 48, 0.92);
   border-color: rgba(132, 150, 177, 0.22);
   color: #eaf1ff;
+}
+
+:root[data-theme="dark"] .item-pantry-btn {
+  border-color: rgba(92, 221, 125, 0.2);
+  background: rgba(92, 221, 125, 0.12);
+  color: #8ff2a8;
 }
 
 :root[data-theme="dark"] .form-input,

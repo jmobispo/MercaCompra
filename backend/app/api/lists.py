@@ -134,6 +134,17 @@ async def remove_item(
     return await svc.remove_item(list_id, current_user.id, item_id)
 
 
+@router.post("/{list_id}/items/{item_id}/move-to-pantry", response_model=ShoppingListRead)
+async def move_item_to_pantry(
+    list_id: int,
+    item_id: int,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    svc = ListService(db)
+    return await svc.move_item_to_pantry(list_id, current_user.id, item_id)
+
+
 @router.get("/{list_id}/supermarket", response_model=SupermarketView)
 async def get_supermarket_view(
     list_id: int,

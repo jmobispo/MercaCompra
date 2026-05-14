@@ -217,6 +217,41 @@ class ListService:
         sl = await self.repo.get_by_id(list_id, user_id)
         return ShoppingListRead.model_validate(sl)
 
+    async def move_item_to_pantry(self, list_id: int, user_id: int, item_id: int) -> ShoppingListRead:
+        sl = await self.repo.get_by_id(list_id, user_id)
+        if not sl:
+            raise HTTPException(status_code=404, detail="Lista no encontrada")
+
+        item = await self.repo.get_item(item_id, list_id)
+        if not item:
+            raise HTTPException(status_code=404, detail="Producto no encontrado en la lista")
+
+        pantry_service = PantryService(self.db)
+        await pantry_service._upsert_item(
+            user_id,
+            PantryItemCreate(
+                name=item.product_name,
+                product_id=item.product_id,
+                quantity=float(item.quantity),
+                unit=item.product_unit,
+                notes=item.note,
+            ),
+        )
+
+        await self.repo.delete_item(item)
+        refreshed = await self.repo.get_by_id(list_id, user_id)
+        if not refreshed:
+            raise HTTPException(status_code=404, detail="Lista no encontrada")
+
+        if len(refreshed.items) == 0:
+            refreshed.is_archived = True
+
+        await self.db.commit()
+        refreshed = await self.repo.get_by_id(list_id, user_id)
+        if not refreshed:
+            raise HTTPException(status_code=404, detail="Lista no encontrada")
+        return ShoppingListRead.model_validate(refreshed)
+
     async def finalize_purchase(self, list_id: int, user_id: int) -> FinalizePurchaseResult:
         sl = await self.repo.get_by_id(list_id, user_id)
         if not sl:
