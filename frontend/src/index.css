@@ -1206,19 +1206,27 @@ input, select, textarea {
   text-align: left;
 }
 
-.item-usage-button:hover:not(:disabled) {
+.item-usage-button:hover {
   color: var(--color-primary);
-}
-
-.item-usage-button:disabled {
-  cursor: default;
-  opacity: 0.8;
 }
 
 .recipe-usage-list {
   display: flex;
   flex-direction: column;
   gap: 10px;
+}
+
+.recipe-usage-empty {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  color: var(--color-text-secondary);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.recipe-usage-empty p {
+  margin: 0;
 }
 
 .recipe-usage-link {

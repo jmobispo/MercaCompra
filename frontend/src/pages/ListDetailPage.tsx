@@ -28,6 +28,12 @@ type RecipeUsageRef = {
   title: string;
 };
 
+type RecipeUsageModalState = {
+  itemName: string;
+  count: number;
+  recipes: RecipeUsageRef[];
+};
+
 function extractRecipeUsageCount(note?: string | null): number | null {
   const match = /Usado en (\d+) receta/i.exec(note ?? '');
   if (!match) {
@@ -81,7 +87,7 @@ export default function ListDetailPage() {
   const [enrichedListId, setEnrichedListId] = useState<number | null>(null);
   const [thumbnailBatchCursor, setThumbnailBatchCursor] = useState(0);
   const [optimizingAI, setOptimizingAI] = useState(false);
-  const [usageModal, setUsageModal] = useState<{ itemName: string; recipes: RecipeUsageRef[] } | null>(null);
+  const [usageModal, setUsageModal] = useState<RecipeUsageModalState | null>(null);
 
   const listId = parseInt(id ?? '0', 10);
 
@@ -479,7 +485,7 @@ export default function ListDetailPage() {
                     onQtySet={(quantity) => handleQuantitySet(item, quantity)}
                     onDelete={() => handleDeleteItem(item)}
                     onMoveToPantry={() => handleMoveItemToPantry(item)}
-                    onShowUsage={(itemName, recipes) => setUsageModal({ itemName, recipes })}
+                    onShowUsage={(itemName, count, recipes) => setUsageModal({ itemName, count, recipes })}
                     formatCurrency={formatCurrency}
                   />
                 ))}
@@ -508,7 +514,7 @@ export default function ListDetailPage() {
                         onQtySet={(quantity) => handleQuantitySet(item, quantity)}
                         onDelete={() => handleDeleteItem(item)}
                         onMoveToPantry={() => handleMoveItemToPantry(item)}
-                        onShowUsage={(itemName, recipes) => setUsageModal({ itemName, recipes })}
+                        onShowUsage={(itemName, count, recipes) => setUsageModal({ itemName, count, recipes })}
                         formatCurrency={formatCurrency}
                       />
                     ))}
@@ -560,18 +566,30 @@ export default function ListDetailPage() {
               </button>
             </div>
             <div className="modal-body">
-              <div className="recipe-usage-list">
-                {usageModal.recipes.map((recipe) => (
-                  <Link
-                    key={recipe.id}
-                    to={`/recipes/${recipe.id}`}
-                    className="recipe-usage-link"
-                    onClick={() => setUsageModal(null)}
-                  >
-                    {recipe.title}
-                  </Link>
-                ))}
-              </div>
+              {usageModal.recipes.length > 0 ? (
+                <div className="recipe-usage-list">
+                  {usageModal.recipes.map((recipe) => (
+                    <Link
+                      key={recipe.id}
+                      to={`/recipes/${recipe.id}`}
+                      className="recipe-usage-link"
+                      onClick={() => setUsageModal(null)}
+                    >
+                      {recipe.title}
+                    </Link>
+                  ))}
+                </div>
+              ) : (
+                <div className="recipe-usage-empty">
+                  <p>
+                    Este producto figura como usado en {usageModal.count} receta{usageModal.count === 1 ? '' : 's'},
+                    pero esta lista se generó antes de guardar el detalle por receta.
+                  </p>
+                  <p>
+                    Si regeneras la lista desde el plan semanal, aquí aparecerán enlaces directos a cada receta.
+                  </p>
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -600,7 +618,7 @@ function ItemRow({
   onQtySet: (quantity: number) => void;
   onDelete: () => void;
   onMoveToPantry: () => void;
-  onShowUsage: (itemName: string, recipes: RecipeUsageRef[]) => void;
+  onShowUsage: (itemName: string, count: number, recipes: RecipeUsageRef[]) => void;
   formatCurrency: (v: number | null) => string;
 }) {
   const [quantityInput, setQuantityInput] = useState(String(item.quantity));
@@ -679,8 +697,7 @@ function ItemRow({
             <button
               type="button"
               className="item-usage-hint item-usage-button"
-              onClick={() => onShowUsage(item.product_name, recipeUsageRefs)}
-              disabled={!recipeUsageRefs.length}
+              onClick={() => onShowUsage(item.product_name, recipeUsageCount, recipeUsageRefs)}
             >
               Usado en {recipeUsageCount} receta{recipeUsageCount === 1 ? '' : 's'}
             </button>
