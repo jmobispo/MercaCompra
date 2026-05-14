@@ -1944,6 +1944,10 @@ def _normalize_compare_text(value: Optional[str]) -> str:
     return "".join(ch for ch in normalized if not unicodedata.combining(ch))
 
 
+def _contains_any(text: str, keywords: tuple[str, ...]) -> bool:
+    return any(keyword in text for keyword in keywords)
+
+
 def _parse_weight_grams(product) -> Optional[float]:
     pack = parse_measurement_text(getattr(product, "unit_size", None)) if product else None
     if not pack:
@@ -2038,6 +2042,50 @@ def _pick_product_for_ingredient(
         return None
 
     normalized_query = _normalize_compare_text(query)
+    generic_variant_penalties: list[tuple[int, object]] = []
+    for product in products:
+        product_text = " ".join(
+            _normalize_compare_text(part)
+            for part in [
+                getattr(product, "name", "") or "",
+                getattr(product, "display_name", "") or "",
+                getattr(product, "category", "") or "",
+                getattr(product, "subcategory", "") or "",
+            ]
+            if part
+        )
+        penalty = 0
+
+        if "azucar" in normalized_query and not _contains_any(normalized_query, ("glass", "glas", "moreno", "integral")):
+            if _contains_any(product_text, ("glass", "glas", "glace")):
+                penalty += 10
+            if _contains_any(product_text, ("moreno", "integral")):
+                penalty += 4
+
+        if "lechuga" in normalized_query and not _contains_any(normalized_query, ("bolsa", "cortada", "mezcla", "brotes", "ensalada")):
+            if _contains_any(product_text, ("bolsa", "cortada", "mezcla", "brotes", "ensalada")):
+                penalty += 7
+
+        if "tomate pera" in normalized_query and "pera" not in product_text:
+            penalty += 8
+        elif "tomate" in normalized_query and _contains_any(product_text, ("triturado", "frito", "salsa")):
+            penalty += 9
+
+        if "limon" in normalized_query and _contains_any(product_text, ("zumo", "jugo", "sabor limon", "aroma limon")):
+            penalty += 9
+
+        if "calabacin" in normalized_query and _contains_any(product_text, ("espiral", "laminado", "salteado", "bolsa", "parrilla")):
+            penalty += 7
+
+        if _looks_like_whole_cured_piece(product):
+            penalty += 10
+
+        generic_variant_penalties.append((penalty, product))
+
+    if generic_variant_penalties:
+        min_penalty = min(score for score, _ in generic_variant_penalties)
+        products = [product for score, product in generic_variant_penalties if score == min_penalty]
+
     ham_like_query = any(token in normalized_query for token in ("jamon serrano", "jamon iberico", "jamon"))
     preferred_cut_keywords = ("lonchas", "tacos", "taquitos", "virutas", "dados", "cortado")
 

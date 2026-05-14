@@ -558,7 +558,7 @@ class ListService:
     def _match_reason(self, left: ShoppingListItem, right: ShoppingListItem) -> str | None:
         left_name = self._normalize_name(left.product_name)
         right_name = self._normalize_name(right.product_name)
-        if not left_name or not right_name or left_name == right_name:
+        if not left_name or not right_name:
             return None
 
         left_tokens = self._name_tokens(left.product_name)
@@ -572,6 +572,11 @@ class ListService:
 
         same_category = bool(left.product_category and right.product_category and left.product_category == right.product_category)
         same_unit = bool(left.product_unit and right.product_unit and left.product_unit == right.product_unit)
+
+        if left_name == right_name:
+            if same_category or same_unit:
+                return "Duplicados exactos por nombre"
+            return None
 
         if same_category and same_unit and overlap >= 0.6:
             return "Variantes muy parecidas en la misma categoría"
