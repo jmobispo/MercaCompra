@@ -1196,6 +1196,47 @@ input, select, textarea {
   color: var(--color-text-muted);
 }
 
+.item-usage-button {
+  display: inline-flex;
+  align-items: center;
+  padding: 0;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  text-align: left;
+}
+
+.item-usage-button:hover:not(:disabled) {
+  color: var(--color-primary);
+}
+
+.item-usage-button:disabled {
+  cursor: default;
+  opacity: 0.8;
+}
+
+.recipe-usage-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.recipe-usage-link {
+  display: block;
+  padding: 12px 14px;
+  border: 1px solid var(--color-border);
+  border-radius: 14px;
+  background: var(--color-white);
+  color: var(--color-text);
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.recipe-usage-link:hover {
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+}
+
 .item-actions {
   display: flex;
   align-items: center;
@@ -4621,6 +4662,12 @@ textarea.form-input {
 :root[data-theme="dark"] .dashboard-card-subtle,
 :root[data-theme="dark"] .brand-logo-subtitle {
   color: #9db0cc;
+}
+
+:root[data-theme="dark"] .recipe-usage-link {
+  background: rgba(18, 29, 48, 0.92);
+  border-color: rgba(132, 150, 177, 0.22);
+  color: #eaf1ff;
 }
 
 :root[data-theme="dark"] .form-input,

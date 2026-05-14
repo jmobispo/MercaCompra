@@ -20,6 +20,12 @@ import { buildInlineFallbackThumbnail, hasRealHttpImage } from '../utils/product
 const THUMBNAIL_LOOKUP_LIMIT = 4;
 const THUMBNAIL_LOOKUP_DELAY_MS = 250;
 const thumbnailSearchCache = new Map<string, string | null>();
+const RECIPE_USAGE_KEY = '__recipe_titles__=';
+
+type RecipeUsageRef = {
+  id: number;
+  title: string;
+};
 
 function extractRecipeUsageCount(note?: string | null): number | null {
   const match = /Usado en (\d+) receta/i.exec(note ?? '');
@@ -29,6 +35,33 @@ function extractRecipeUsageCount(note?: string | null): number | null {
 
   const parsed = Number(match[1]);
   return Number.isFinite(parsed) ? parsed : null;
+}
+
+function extractRecipeUsageRefs(note?: string | null): RecipeUsageRef[] {
+  const raw = note ?? '';
+  const markerIndex = raw.indexOf(RECIPE_USAGE_KEY);
+  if (markerIndex === -1) {
+    return [];
+  }
+
+  const start = markerIndex + RECIPE_USAGE_KEY.length;
+  const endCandidates = [raw.indexOf(' | ', start), raw.indexOf('\n', start)].filter((value) => value >= 0);
+  const end = endCandidates.length ? Math.min(...endCandidates) : raw.length;
+  return raw
+    .slice(start, end)
+    .split('||')
+    .map((entry) => entry.trim())
+    .filter(Boolean)
+    .map((entry) => {
+      const [idText, ...titleParts] = entry.split('::');
+      const id = Number(idText);
+      const title = titleParts.join('::').trim();
+      if (!Number.isFinite(id) || !title) {
+        return null;
+      }
+      return { id, title };
+    })
+    .filter((entry): entry is RecipeUsageRef => entry !== null);
 }
 
 export default function ListDetailPage() {
@@ -47,6 +80,7 @@ export default function ListDetailPage() {
   const [enrichedListId, setEnrichedListId] = useState<number | null>(null);
   const [thumbnailBatchCursor, setThumbnailBatchCursor] = useState(0);
   const [optimizingAI, setOptimizingAI] = useState(false);
+  const [usageModal, setUsageModal] = useState<{ itemName: string; recipes: RecipeUsageRef[] } | null>(null);
 
   const listId = parseInt(id ?? '0', 10);
 
@@ -432,6 +466,7 @@ export default function ListDetailPage() {
                     onQtyChange={(delta) => handleQuantityChange(item, delta)}
                     onQtySet={(quantity) => handleQuantitySet(item, quantity)}
                     onDelete={() => handleDeleteItem(item)}
+                    onShowUsage={(itemName, recipes) => setUsageModal({ itemName, recipes })}
                     formatCurrency={formatCurrency}
                   />
                 ))}
@@ -459,6 +494,7 @@ export default function ListDetailPage() {
                         onQtyChange={(delta) => handleQuantityChange(item, delta)}
                         onQtySet={(quantity) => handleQuantitySet(item, quantity)}
                         onDelete={() => handleDeleteItem(item)}
+                        onShowUsage={(itemName, recipes) => setUsageModal({ itemName, recipes })}
                         formatCurrency={formatCurrency}
                       />
                     ))}
@@ -497,6 +533,36 @@ export default function ListDetailPage() {
         />
       )}
 
+      {usageModal && (
+        <div
+          className="modal-overlay"
+          onClick={(event) => event.target === event.currentTarget && setUsageModal(null)}
+        >
+          <div className="modal" style={{ maxWidth: 460 }}>
+            <div className="modal-header">
+              <h2>Recetas que usan {usageModal.itemName}</h2>
+              <button className="btn-icon" onClick={() => setUsageModal(null)} aria-label="Cerrar">
+                ×
+              </button>
+            </div>
+            <div className="modal-body">
+              <div className="recipe-usage-list">
+                {usageModal.recipes.map((recipe) => (
+                  <Link
+                    key={recipe.id}
+                    to={`/recipes/${recipe.id}`}
+                    className="recipe-usage-link"
+                    onClick={() => setUsageModal(null)}
+                  >
+                    {recipe.title}
+                  </Link>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }
@@ -509,6 +575,7 @@ function ItemRow({
   onQtyChange,
   onQtySet,
   onDelete,
+  onShowUsage,
   formatCurrency,
 }: {
   item: ShoppingListItem;
@@ -517,6 +584,7 @@ function ItemRow({
   onQtyChange: (delta: number) => void;
   onQtySet: (quantity: number) => void;
   onDelete: () => void;
+  onShowUsage: (itemName: string, recipes: RecipeUsageRef[]) => void;
   formatCurrency: (v: number | null) => string;
 }) {
   const [quantityInput, setQuantityInput] = useState(String(item.quantity));
@@ -532,6 +600,7 @@ function ItemRow({
       ? thumbnail
       : buildInlineFallbackThumbnail(item.product_name, item.product_category);
   const recipeUsageCount = extractRecipeUsageCount(item.note);
+  const recipeUsageRefs = extractRecipeUsageRefs(item.note);
 
   const commitQuantity = () => {
     const parsed = Number(quantityInput);
@@ -591,9 +660,14 @@ function ItemRow({
             )}
           </div>
           {recipeUsageCount != null && (
-            <div className="item-usage-hint">
+            <button
+              type="button"
+              className="item-usage-hint item-usage-button"
+              onClick={() => onShowUsage(item.product_name, recipeUsageRefs)}
+              disabled={!recipeUsageRefs.length}
+            >
               Usado en {recipeUsageCount} receta{recipeUsageCount === 1 ? '' : 's'}
-            </div>
+            </button>
           )}
         </div>
 

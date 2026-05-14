@@ -37,6 +37,14 @@ from app.services.recipe_service import RecipeService, _build_ingredient_note, _
 
 
 logger = logging.getLogger(__name__)
+RECIPE_USAGE_KEY = "__recipe_titles__="
+
+
+def _build_recipe_usage_note(recipe_refs: set[str]) -> str | None:
+    cleaned = sorted({ref.strip() for ref in recipe_refs if isinstance(ref, str) and ref.strip()})
+    if not cleaned:
+        return None
+    return f"{RECIPE_USAGE_KEY}{'||'.join(cleaned)}"
 
 
 class WeeklyPlanService:
@@ -282,7 +290,11 @@ class WeeklyPlanService:
                         "aggregated_amount": aggregated_amount,
                         "aggregated_unit": aggregated_unit,
                         "pack_size": pack_size,
-                        "recipe_titles": {day.recipe.title.strip()} if day.recipe and day.recipe.title else set(),
+                        "recipe_refs": (
+                            {f"{day.recipe.id}::{day.recipe.title.strip()}"}
+                            if day.recipe and day.recipe.id and day.recipe.title
+                            else set()
+                        ),
                     }
                 else:
                     if (
@@ -308,8 +320,10 @@ class WeeklyPlanService:
                         else:
                             consolidated[key]["quantity"] += adjusted_qty
                     consolidated[key]["note"] = _merge_notes(consolidated[key]["note"], note)
-                    if day.recipe and day.recipe.title:
-                        consolidated[key].setdefault("recipe_titles", set()).add(day.recipe.title.strip())
+                    if day.recipe and day.recipe.id and day.recipe.title:
+                        consolidated[key].setdefault("recipe_refs", set()).add(
+                            f"{day.recipe.id}::{day.recipe.title.strip()}"
+                        )
 
                 if product:
                     if product.source == "fallback":
@@ -327,14 +341,17 @@ class WeeklyPlanService:
             existing_items_by_product_id[str(existing_item.product_id)] = existing_item
 
         for item_data in consolidated.values():
-            recipe_titles = {
-                title.strip()
-                for title in item_data.get("recipe_titles", set())
-                if isinstance(title, str) and title.strip()
+            recipe_refs = {
+                ref.strip()
+                for ref in item_data.get("recipe_refs", set())
+                if isinstance(ref, str) and ref.strip()
             }
-            if recipe_titles:
-                usage_note = f"Usado en {len(recipe_titles)} receta{'s' if len(recipe_titles) != 1 else ''}"
-                item_data["note"] = _merge_notes(usage_note, item_data["note"])
+            if recipe_refs:
+                usage_note = f"Usado en {len(recipe_refs)} receta{'s' if len(recipe_refs) != 1 else ''}"
+                item_data["note"] = _merge_notes(
+                    usage_note,
+                    _merge_notes(_build_recipe_usage_note(recipe_refs), item_data["note"]),
+                )
             if (
                 item_data.get("aggregated_amount") is not None
                 and item_data.get("pack_size")
